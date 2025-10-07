@@ -7,6 +7,7 @@ import { useContracts } from "../../hooks/useContracts";
 import { usePlanCredits } from "../../hooks/usePlanCredits";
 import Header from "../../components/Header";
 import Pix from "react-qrcode-pix";
+import { Footer } from "../../components/ui";
 
 export const Payment = () => {
   const [pixPayload, setPixPayload] = useState<string>("");
@@ -286,6 +287,7 @@ export const Payment = () => {
           </button>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

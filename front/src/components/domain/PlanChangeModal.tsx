@@ -3,9 +3,10 @@ import { Plano, Contract } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SelectPlan } from '../forms/SelectPlan';
 import { PlanChangeSummary } from './PlanChangeSummary';
-import { usePlanCredits } from '../../hooks/usePlanCredits';
+import { usePlanDiscount } from '../../hooks/usePlanDiscount';
 
 interface PlanChangeModalProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   const [selectedPlanId, setSelectedPlanId] = useState<number | undefined>();
 
   const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
-  const creditInfo = usePlanCredits(currentContract, selectedPlan, userId);
+  const { data: creditInfo, loading: discountLoading, error: discountError } = usePlanDiscount(currentContract, selectedPlan, userId);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -65,16 +66,27 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         </div>
 
         {selectedPlan && (
-          <PlanChangeSummary
-            currentPlan={currentPlan}
-            newPlan={selectedPlan}
-            creditInfo={creditInfo ? {
-              databaseCredits: creditInfo.databaseCredits,
-              proratedDiscount: creditInfo.proratedDiscount,
-              finalPrice: creditInfo.finalPrice
-            } : undefined}
-            formatCurrency={formatCurrency}
-          />
+          <>
+            {discountLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <LoadingSpinner />
+                <span className="ml-2 text-gray-600">Calculando créditos...</span>
+              </div>
+            ) : discountError ? (
+              <ErrorMessage error={`Erro ao calcular desconto: ${discountError}`} />
+            ) : (
+              <PlanChangeSummary
+                currentPlan={currentPlan}
+                newPlan={selectedPlan}
+                creditInfo={creditInfo ? {
+                  databaseCredits: creditInfo.databaseCredits,
+                  proratedDiscount: creditInfo.proratedDiscount,
+                  finalPrice: creditInfo.finalPrice
+                } : undefined}
+                formatCurrency={formatCurrency}
+              />
+            )}
+          </>
         )}
 
         {error && <ErrorMessage error={error} />}
@@ -85,7 +97,7 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedPlanId || loading}
+            disabled={!selectedPlanId || loading || discountLoading}
             loading={loading}
           >
             {loading ? 'Alterando...' : 'Alterar Plano'}

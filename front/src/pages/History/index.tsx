@@ -3,6 +3,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { usePayments } from '../../hooks/usePayments';
 import { useUserBalance } from '../../hooks/useUserBalance';
 import Header from '../../components/Header';
+import { Breadcrumbs, Footer } from '../../components/ui';
 import { HistoryTable } from '../../components/domain';
 
 interface Payment {
@@ -116,6 +117,7 @@ export const History = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: userId, name: "Usuário da Silva" }} />
+      <Breadcrumbs items={[{ name: 'Histórico', href: '/history' }]} />
       <div className="container mx-auto px-4 py-8">
         <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
 
@@ -146,6 +148,7 @@ export const History = () => {
         </div>
 
       </div>
+      <Footer />
     </div>
   );
 };

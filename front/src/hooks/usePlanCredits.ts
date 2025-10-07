@@ -33,7 +33,7 @@ export function usePlanCredits(
         const data = await response.json();
         const databaseCredits = data.total_balance || 0;
 
-        // Calcular desconto pro-rata baseado em dias não utilizados
+        // Calcular desconto pro-rata exatamente como na API do ContractService
         const now = new Date();
         const startDate = new Date(activeContract.start_date);
         const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));

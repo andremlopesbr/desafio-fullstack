@@ -5,7 +5,7 @@ import { useChangePlan } from "../../hooks/useChangePlan";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Notification } from "../../components/ui";
+import { Notification, Breadcrumbs, Footer } from "../../components/ui";
 import { PlanChangeModal } from "../../components/domain";
 
 export const Home = () => {
@@ -73,7 +73,6 @@ export const Home = () => {
       planoAtual: activeContract.plan?.description,
       novoPlanoId: selectedPlanId,
       novoPlano: selectedPlan?.description,
-      
     });
 
     try {
@@ -160,6 +159,7 @@ export const Home = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={user} />
+      <Breadcrumbs items={[{ name: 'Planos', href: '/' }]} />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
           Planos Disponíveis
@@ -279,6 +279,7 @@ export const Home = () => {
           />
         )}
       </div>
+      <Footer />
     </div>
   );
 };

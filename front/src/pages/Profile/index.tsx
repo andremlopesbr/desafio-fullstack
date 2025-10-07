@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../../components/Header';
+import { Breadcrumbs, Footer } from '../../components/ui';
 import { useContracts } from '../../hooks/useContracts';
 
 const Profile = () => {
@@ -65,6 +66,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: user.id, name: user.name }} />
+      <Breadcrumbs items={[{ name: 'Perfil', href: '/profile' }]} />
       <div className="container mx-auto px-4 py-8">
         <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
 
@@ -126,6 +128,7 @@ const Profile = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

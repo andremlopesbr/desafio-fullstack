@@ -4,3 +4,5 @@ export { Button } from './Button';
 export { Modal } from './Modal';
 export { Card } from './Card';
 export { default as Notification } from './Notification';
+export { default as Breadcrumbs } from './Breadcrumbs';
+export { default as Footer } from './Footer';
