@@ -26,7 +26,7 @@ export const PlanList: React.FC<PlanListProps> = ({
   );
 
   const gridClasses = layout === 'grid'
-    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6'
+    ? 'grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6'
     : 'space-y-4';
 
   return (

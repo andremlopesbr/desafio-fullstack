@@ -2,7 +2,13 @@
 module.exports = {
   content: ['./src/**/*.tsx'],
   theme: {
-    extend: {},
+    extend: {
+      screens: {
+        'xs': '475px',
+        '2xl': '1536px',
+        '3xl': '1920px',
+      },
+    },
   },
   plugins: [],
 }
