@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { usePlans } from "../../hooks/usePlans";
 import { useContracts } from "../../hooks/useContracts";
 import { useChangePlan } from "../../hooks/useChangePlan";
-import { usePlanCredits } from "../../hooks/usePlanCredits";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Notification } from "../../components/ui";
+import { PlanChangeModal } from "../../components/domain";
 
 export const Home = () => {
   const { user } = useAuth();
@@ -73,7 +73,7 @@ export const Home = () => {
       planoAtual: activeContract.plan?.description,
       novoPlanoId: selectedPlanId,
       novoPlano: selectedPlan?.description,
-      creditosAplicados: creditInfo?.discount || 0,
+      
     });
 
     try {
@@ -139,10 +139,7 @@ export const Home = () => {
     plans[0]
   );
 
-  // Calcular créditos para o plano selecionado
-  const selectedPlan = plans.find((p) => p.id === selectedPlanId);
   const userId = user?.id || 0;
-  const creditInfo = usePlanCredits(activeContract, selectedPlan, userId);
 
   if (loading) {
     return (
@@ -262,99 +259,24 @@ export const Home = () => {
           })}
         </div>
 
-        {/* Modal para trocar plano */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-            <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-              <h2 className="text-xl font-bold mb-4">Trocar Plano</h2>
-
-              {/* Plano Atual */}
-              {activeContract && (
-                <div className="mb-4 p-3 bg-blue-50 rounded">
-                  <h3 className="font-semibold text-blue-800">Plano Atual</h3>
-                  <p className="text-blue-700">
-                    {activeContract.plan.description} -{" "}
-                    {formatCurrency(activeContract.plan.price)}/mês
-                  </p>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Selecione um novo plano:
-                </label>
-                <select
-                  value={selectedPlanId || ""}
-                  onChange={(e) => setSelectedPlanId(Number(e.target.value))}
-                  className="w-full p-2 border border-gray-300 rounded"
-                >
-                  <option value="">Selecione um plano</option>
-                  {availablePlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.description} - {formatCurrency(plan.price)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Informações de Créditos */}
-              {creditInfo && selectedPlan && (
-                <div className="mb-4 p-3 bg-green-50 rounded">
-                  <h3 className="font-semibold text-green-800 mb-2">
-                    Descontos:
-                  </h3>
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      Créditos (saldo):{" "}
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(creditInfo.availableCredits)}
-                      </span>
-                    </p>
-                    <p>
-                      Desconto (pro-rata):{" "}
-                      <span className="font-bold text-green-700">
-                        {formatCurrency(creditInfo.discount)}
-                      </span>
-                    </p>
-                    <p className="text-lg font-bold text-green-800 border-t pt-2">
-                      Valor final: {formatCurrency(creditInfo.finalPrice)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {changePlanError && (
-                <div className="mb-4 text-red-500 text-sm">
-                  Erro: {changePlanError}
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setSelectedPlanId(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleChangePlan}
-                  disabled={!selectedPlanId || changePlanLoading}
-                  className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {changePlanLoading
-                    ? "Alterando..."
-                    : `Confirmar Troca ${
-                        creditInfo
-                          ? `(${formatCurrency(creditInfo.finalPrice)})`
-                          : ""
-                      }`}
-                </button>
-              </div>
-            </div>
-          </div>
+        {activeContract && activeContract.plan && (
+          <PlanChangeModal
+            isOpen={isModalOpen}
+            currentPlan={activeContract.plan}
+            currentContract={activeContract}
+            availablePlans={availablePlans}
+            loading={changePlanLoading}
+            error={changePlanError || undefined}
+            userId={userId}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedPlanId(null);
+            }}
+            onConfirm={async (newPlanId) => {
+              setSelectedPlanId(newPlanId);
+              await handleChangePlan();
+            }}
+          />
         )}
       </div>
     </div>

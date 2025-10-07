@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { Plano } from '../../types';
+import { Plano, Contract } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { SelectPlan } from '../forms/SelectPlan';
+import { PlanChangeSummary } from './PlanChangeSummary';
+import { usePlanCredits } from '../../hooks/usePlanCredits';
 
 interface PlanChangeModalProps {
   isOpen: boolean;
   currentPlan: Plano;
+  currentContract: Contract;
   availablePlans: Plano[];
   loading: boolean;
   error?: string;
+  userId: number;
   onClose: () => void;
   onConfirm: (newPlanId: number) => Promise<void>;
 }
@@ -18,13 +22,25 @@ interface PlanChangeModalProps {
 export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   isOpen,
   currentPlan,
+  currentContract,
   availablePlans,
   loading,
   error,
+  userId,
   onClose,
   onConfirm,
 }) => {
   const [selectedPlanId, setSelectedPlanId] = useState<number | undefined>();
+
+  const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
+  const creditInfo = usePlanCredits(currentContract, selectedPlan, userId);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
   const handleConfirm = async () => {
     if (!selectedPlanId) return;
@@ -40,10 +56,6 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
     <Modal isOpen={isOpen} onClose={handleClose} title="Trocar Plano">
       <div className="space-y-4">
         <div>
-          <p className="text-gray-600 mb-4">
-            Seu plano atual: <span className="font-semibold">{currentPlan.description}</span>
-          </p>
-
           <SelectPlan
             plans={availablePlans}
             value={selectedPlanId}
@@ -51,6 +63,19 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
             placeholder="Selecione um novo plano"
           />
         </div>
+
+        {selectedPlan && (
+          <PlanChangeSummary
+            currentPlan={currentPlan}
+            newPlan={selectedPlan}
+            creditInfo={creditInfo ? {
+              databaseCredits: creditInfo.databaseCredits,
+              proratedDiscount: creditInfo.proratedDiscount,
+              finalPrice: creditInfo.finalPrice
+            } : undefined}
+            formatCurrency={formatCurrency}
+          />
+        )}
 
         {error && <ErrorMessage error={error} />}
 

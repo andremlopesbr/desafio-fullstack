@@ -3,6 +3,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { usePayments } from '../../hooks/usePayments';
 import { useUserBalance } from '../../hooks/useUserBalance';
 import Header from '../../components/Header';
+import { HistoryTable } from '../../components/domain';
 
 interface Payment {
   id: number;
@@ -59,8 +60,14 @@ export const History = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  // Ordenar contratos por data de criação para identificar o primeiro contrato
-  const sortedContracts = [...contracts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  // Ordenar contratos: plano ativo primeiro, depois por data de criação descendente
+  const sortedContracts = [...contracts].sort((a, b) => {
+    // Priorizar plano ativo
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+    // Para contratos não ativos ou ambos ativos, ordenar por data descendente
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   // Combinar contratos com seus pagamentos para mostrar o histórico
   const historyItems = sortedContracts.map((contract, index) => {
@@ -125,98 +132,11 @@ export const History = () => {
 
           {(loadingContracts || loadingPayments) && <p>Carregando histórico...</p>}
 
-          <div className="space-y-6">
-             {historyItems.map(({ contract, payments, discountDetails }) => (
-              <div key={contract.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Descrição do plano */}
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Plano</h3>
-                    <p className="text-gray-900">{contract.plan.description}</p>
-                    <p className="text-sm text-gray-600">
-                      {contract.plan.numberOfClients} vistorias, {contract.plan.gigabytesStorage} GB
-                    </p>
-                  </div>
-
-                  {/* Valor */}
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Valor</h3>
-                    <p className="text-lg font-medium text-green-600">
-                      {formatCurrency(contract.plan.price)}
-                    </p>
-                    <p className="text-sm text-gray-500">por mês</p>
-                  </div>
-
-                  {/* Detalhes do Desconto */}
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Descontos:</h3>
-                    <div className="space-y-1 text-sm">
-                      <p className={discountDetails.balanceCredit > 0 ? 'text-green-600' : 'text-gray-500'}>
-                        Créditos (saldo): {discountDetails.balanceCredit > 0 ? formatCurrency(discountDetails.balanceCredit) : '0'} (saldo em conta)
-                      </p>
-                      <p className={discountDetails.prorrata > 0 ? 'text-blue-600' : 'text-gray-500'}>
-                        Desconto (pro-rata): {discountDetails.prorrata > 0 ? formatCurrency(discountDetails.prorrata) : '0'} (pro-rata)
-                      </p>
-                      <p className={`font-medium ${discountDetails.totalDiscount > 0 ? 'text-blue-700' : 'text-gray-500'}`}>
-                        Valor final: {discountDetails.totalDiscount > 0 ? formatCurrency(discountDetails.totalDiscount) : '0'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Status e Data */}
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Status</h3>
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      contract.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : contract.status === 'cancelled'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {contract.status === 'active' ? 'Ativo' :
-                       contract.status === 'cancelled' ? 'Cancelado' :
-                       contract.status}
-                    </span>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Contratado em {contract.start_date ? formatDate(contract.start_date) : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Pagamentos relacionados */}
-                {payments.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="font-medium text-gray-700 mb-2">Pagamentos</h4>
-                    <div className="space-y-2">
-                      {payments.map((payment) => (
-                        <div key={payment.id} className="flex justify-between items-center bg-gray-50 p-3 rounded">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {formatCurrency(payment.amount / 100)}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {formatDate(payment.payment_date)}
-                            </p>
-                          </div>
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                            payment.status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : payment.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {payment.status === 'paid' ? 'Pago' :
-                             payment.status === 'pending' ? 'Pendente' :
-                             payment.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <HistoryTable
+            historyItems={historyItems}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+          />
 
           {!loadingContracts && !loadingPayments && historyItems.length === 0 && (
             <p className="text-gray-500 text-center py-8">
