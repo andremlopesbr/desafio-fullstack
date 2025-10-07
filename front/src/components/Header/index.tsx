@@ -34,17 +34,6 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             <div className="text-2xl font-bold text-orange-500">
               <Link to="/">Planos Corp</Link>
             </div>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 hover:text-orange-600 hover:bg-orange-50"
-            >
-              <span className="sr-only">Abrir menu</span>
-              <div className="space-y-1">
-                <span className="block w-6 h-0.5 bg-current"></span>
-                <span className="block w-6 h-0.5 bg-current"></span>
-                <span className="block w-6 h-0.5 bg-current"></span>
-              </div>
-            </button>
             <nav className="hidden md:flex space-x-4">
               {navigation.map((item) => (
                 <Link
@@ -62,14 +51,25 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-700 hover:text-orange-600 hover:bg-orange-50"
+            >
+              <span className="sr-only">Abrir menu</span>
+              <div className="space-y-1">
+                <span className="block w-6 h-0.5 bg-current"></span>
+                <span className="block w-6 h-0.5 bg-current"></span>
+                <span className="block w-6 h-0.5 bg-current"></span>
+              </div>
+            </button>
             {user && (
               <>
-                <span className="text-gray-700 hidden sm:block">
+                <span className="text-gray-700 hidden md:block">
                   Olá, {user.name}
                 </span>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="hidden md:block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Sair
                 </button>
@@ -94,6 +94,24 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
               </Link>
             ))}
           </nav>
+          {user && (
+            <div className="px-4 py-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 text-base font-medium">
+                  Olá, {user.name}
+                </span>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Sair
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
