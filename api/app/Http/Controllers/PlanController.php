@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Plan;
+use App\Contracts\PlanServiceInterface;
 
 class PlanController extends Controller
 {
+    public function __construct(
+        private PlanServiceInterface $planService
+    ) {}
+
     /**
-     * Display a listing of the plans.
-     *
-     * @return \Illuminate\Http\Response
-     */
+      * Display a listing of the plans.
+      *
+      * @return \Illuminate\Http\Response
+      */
     public function index()
     {
-        return Plan::all();
+        return $this->planService->listPlans();
     }
 }
