@@ -80,7 +80,7 @@ export const History = () => {
     // Calcular detalhes do desconto baseado nos pagamentos e créditos aplicados
     const calculateDiscountDetails = (contract: Contract, payments: Payment[], isFirstContract: boolean) => {
       const planPrice = contract.plan.price;
-      const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount / 100), 0);
+      const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount < 100 ? payment.amount : payment.amount / 100), 0);
 
       console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Plan Price: ${planPrice}, Total Paid: ${totalPaid}, Is First: ${isFirstContract}`);
 

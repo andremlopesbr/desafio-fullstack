@@ -14,6 +14,10 @@ class Payment extends Model
         'amount',
         'payment_date',
         'status',
+        'discount_applied',
+        'prorated_old',
+        'prorated_new',
+        'applied_credits',
     ];
 
     public function contract()

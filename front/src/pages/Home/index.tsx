@@ -5,7 +5,7 @@ import { useChangePlan } from "../../hooks/useChangePlan";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Notification, Breadcrumbs, Footer } from "../../components/ui";
+import { Notification, Footer } from "../../components/ui";
 import { PlanChangeModal } from "../../components/domain";
 
 export const Home = () => {
@@ -159,8 +159,7 @@ export const Home = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={user} />
-      <Breadcrumbs items={[{ name: 'Planos', href: '/' }]} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
         <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
           Planos Disponíveis
         </h1>
@@ -179,12 +178,13 @@ export const Home = () => {
         {activeContract && activeContract.plan && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-8 flex justify-between items-center">
             <span>
-              Seu plano atual: {activeContract.plan.description} -{" "}
+              Plano atual: {activeContract.plan.description} -{" "}
               {formatCurrency(activeContract.plan.price)}
             </span>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors"
+              disabled={true} // Temporariamente desabilitado para focar no processo de pagamento e descontos
+              className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Trocar Plano
             </button>
@@ -217,7 +217,7 @@ export const Home = () => {
                 {/* Badge Plano Atual */}
                 {isCurrentPlan && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold z-10">
-                    Seu Plano Atual
+                    Plano Atual
                   </div>
                 )}
 
@@ -229,7 +229,7 @@ export const Home = () => {
                     <strong>Vistorias:</strong> {plan.numberOfClients}
                   </p>
                   <p>
-                    <strong>Preço:</strong> {formatCurrency(plan.price)} /mês
+                    <strong>Preço:</strong> {formatCurrency(plan.price / 100)} /mês
                   </p>
                   <p>
                     <strong>Armazenamento:</strong> {plan.gigabytesStorage} GB

@@ -13,13 +13,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('plans', function (Blueprint $table) {
+        Schema::create('user_balances', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->integer('amount'); // Valor em centavos
             $table->string('description');
-            $table->integer('numberOfClients');
-            $table->integer('gigabytesStorage');
-            $table->integer('price'); // preço em centavos
-            $table->boolean('active')->default(true);
             $table->timestamps();
         });
     }
@@ -31,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('plans');
+        Schema::dropIfExists('user_balances');
     }
 };

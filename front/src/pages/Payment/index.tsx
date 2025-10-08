@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans } from "../../hooks/usePlans";
 import { useCreateContract } from "../../hooks/useCreateContract";
@@ -8,6 +8,7 @@ import { usePlanCredits } from "../../hooks/usePlanCredits";
 import Header from "../../components/Header";
 import Pix from "react-qrcode-pix";
 import { Footer } from "../../components/ui";
+import { PlanChangeDetails } from "../../components/domain/PlanChangeDetails";
 
 export const Payment = () => {
   const [pixPayload, setPixPayload] = useState<string>("");
@@ -39,6 +40,7 @@ export const Payment = () => {
     }).format(value);
   };
 
+
   const plan = plans.find((p) => p.id === Number(planId));
   console.log(
     "📦 [PAYMENT PAGE] Plano encontrado:",
@@ -60,10 +62,21 @@ export const Payment = () => {
     activeContract.plan.id !== Number(planId);
   console.log("🔄 [PAYMENT PAGE] É troca de plano?", isPlanChange);
 
-  // Calcular créditos se for troca de plano
+  // Calcular créditos sempre (para demonstrar descontos no checkout)
   const userId = 1; // Simulação com user_id fixo
   const creditInfo = usePlanCredits(activeContract, plan || undefined, userId);
   console.log("💰 [PAYMENT PAGE] Créditos calculados:", creditInfo);
+
+  // Para novos contratos, buscar apenas créditos em saldo se não houver cálculo pro-rata
+  const [balanceCredits, setBalanceCredits] = useState<number>(0);
+  useEffect(() => {
+    if (!creditInfo && plan) {
+      fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
+        .then(res => res.json())
+        .then(data => setBalanceCredits(data.total_balance || 0))
+        .catch(err => console.error('Erro ao buscar saldo:', err));
+    }
+  }, [creditInfo, plan, userId]);
 
   const handleConfirmPayment = async () => {
     if (!plan) return;
@@ -91,17 +104,18 @@ export const Payment = () => {
     if (contract) {
       console.log("✅ CONTRATO CRIADO:", contract.id);
 
-      const finalAmount = creditInfo ? creditInfo.finalPrice : plan.price;
       const paymentData = {
         contract_id: contract.id,
-        amount: finalAmount,
+        amount: plan.price, // Valor já em centavos; backend aplica créditos automaticamente
         payment_date: today.toISOString().split("T")[0],
         status: "paid",
       };
 
+      const calculatedFinal = creditInfo ? creditInfo.finalPrice : Math.max(0, plan.price - balanceCredits);
       console.log("💳 PROCESSANDO PAGAMENTO:", {
-        valor: finalAmount,
-        creditosAplicados: creditInfo?.discount || 0,
+        valorBruto: plan.price,
+        valorCalculadoFinal: calculatedFinal,
+        creditosAplicados: creditInfo?.discount || balanceCredits || 0,
         status: "paid",
       });
 
@@ -111,7 +125,7 @@ export const Payment = () => {
         console.log("🎉 PAGAMENTO CONFIRMADO:", {
           paymentId: payment.id,
           contractId: contract.id,
-          valorPago: finalAmount,
+          valorPago: payment.amount / 100, // Converter de centavos
         });
         // Redirecionar para home com parâmetro de sucesso
         navigate("/?success=payment");
@@ -148,7 +162,7 @@ export const Payment = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: 1, name: "Usuário Teste" }} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
         <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
           Pagamento
         </h1>
@@ -165,7 +179,7 @@ export const Payment = () => {
               <h3 className="font-semibold text-blue-800">Plano Atual</h3>
               <p className="text-blue-700">
                 {activeContract.plan.description} -{" "}
-                {formatCurrency(activeContract.plan.price)}/mês
+                {formatCurrency(activeContract.plan.price / 100)}/mês
               </p>
             </div>
           )}
@@ -175,46 +189,34 @@ export const Payment = () => {
               {isPlanChange ? "Novo Plano" : "Plano Selecionado"}
             </h3>
             <p className="text-green-700">
-              {plan.description} - {formatCurrency(plan.price)}/mês
+              {plan.description} - {formatCurrency(plan.price / 100)}/mês
             </p>
           </div>
 
           {creditInfo && isPlanChange && (
-            <div className="mb-4 p-3 bg-yellow-50 rounded">
-              <h3 className="font-semibold text-yellow-800 mb-2">
-                Resumo da Troca:
-              </h3>
-              <div className="space-y-1 text-sm">
-                <p>
-                  Créditos em saldo:{" "}
-                  <span className="font-bold">
-                    {formatCurrency(creditInfo.databaseCredits)}
-                  </span>
-                </p>
-                <p>
-                  Desconto pro-rata do plano anterior:{" "}
-                  <span className="font-bold">
-                    {formatCurrency(creditInfo.proratedDiscount)}
-                  </span>
-                </p>
-                <p className="text-lg font-bold text-yellow-800 border-t pt-2 mt-2">
-                  Total a pagar: {formatCurrency(creditInfo.finalPrice)}
-                </p>
-                <span>
-                  À creditar:{" "}
-                  {formatCurrency(
-                    creditInfo.proratedDiscount +
-                      creditInfo.databaseCredits -
-                      plan.price
-                  )}
-                </span>
-              </div>
+            <PlanChangeDetails
+              newPlan={plan}
+              creditInfo={creditInfo}
+              formatCurrency={formatCurrency}
+              showToCredit={true}
+            />
+          )}
+
+          {!isPlanChange && balanceCredits > 0 && (
+            <div className="mb-4 p-3 bg-blue-50 rounded">
+              <h3 className="font-semibold text-blue-800">Descontos Aplicados</h3>
+              <p className="text-blue-700">
+                Saldo em Crédito: {formatCurrency(balanceCredits)}
+              </p>
+              <p className="text-blue-700 font-bold">
+                Valor Final: {formatCurrency(Math.max(0, plan.price - balanceCredits))}
+              </p>
             </div>
           )}
 
-          {!isPlanChange && (
+          {!isPlanChange && balanceCredits === 0 && (
             <p className="text-lg font-bold mb-4">
-              Preço: {formatCurrency(plan.price)}
+              Preço: {formatCurrency(plan.price / 100)}
             </p>
           )}
           {creditInfo && creditInfo.finalPrice > 0 && (
@@ -244,13 +246,13 @@ export const Payment = () => {
               <div className="p-4 border inline-block rounded-lg">
                 {(() => {
                   const pixAmount = creditInfo
-                    ? creditInfo.finalPrice
-                    : plan.price;
+                    ? creditInfo.finalPrice / 100
+                    : Math.max(0, (plan.price - balanceCredits) / 100);
                   console.log(
                     "🔍 [PIX DEBUG] Tentando renderizar Pix com props:",
                     {
-                      pixkey: "test@example.com",
-                      merchant: "Empresa Ficticia",
+                      pixkey: "paid@example.com",
+                      merchant: "InMediam",
                       city: "SAO PAULO",
                       amount: pixAmount,
                       size: 192,
@@ -258,8 +260,8 @@ export const Payment = () => {
                   );
                   return (
                     <Pix
-                      pixkey={"test@example.com"} // Chave de email válida para teste
-                      merchant={"Empresa Ficticia"} // Sem acentos
+                      pixkey={"paid@example.com"} // Chave de email válida para teste
+                      merchant={"InMediam"} // Sem acentos
                       city={"SAO PAULO"}
                       amount={parseFloat(String(pixAmount))}
                       size={192}

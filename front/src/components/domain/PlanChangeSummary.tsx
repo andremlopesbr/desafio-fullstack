@@ -1,4 +1,5 @@
-import React from 'react';
+import React from "react";
+import { PlanChangeDetails } from "./PlanChangeDetails";
 
 interface PlanChangeSummaryProps {
   currentPlan: {
@@ -43,38 +44,14 @@ export const PlanChangeSummary: React.FC<PlanChangeSummaryProps> = ({
         </p>
       </div>
 
-      {/* Resumo da Troca com Descontos */}
+      {/* Descontos*/}
       {creditInfo && (
-        <div className="p-3 bg-yellow-50 rounded">
-          <h3 className="font-semibold text-yellow-800 mb-2">
-            Resumo da Troca:
-          </h3>
-          <div className="space-y-1 text-sm">
-            <p>
-              Créditos em saldo:{" "}
-              <span className="font-bold">
-                {formatCurrency(creditInfo.databaseCredits)}
-              </span>
-            </p>
-            <p>
-              Desconto pro-rata do plano anterior:{" "}
-              <span className="font-bold">
-                {formatCurrency(creditInfo.proratedDiscount)}
-              </span>
-            </p>
-            <p className="text-lg font-bold text-yellow-800 border-t pt-2 mt-2">
-              Total a pagar: {formatCurrency(creditInfo.finalPrice)}
-            </p>
-            <span>
-              À creditar:{" "}
-              {formatCurrency(
-                creditInfo.proratedDiscount +
-                  creditInfo.databaseCredits -
-                  newPlan.price
-              )}
-            </span>
-          </div>
-        </div>
+        <PlanChangeDetails
+          newPlan={newPlan}
+          creditInfo={creditInfo}
+          formatCurrency={formatCurrency}
+          showToCredit={false}
+        />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Contract } from '../types';
+import moment from 'moment-timezone';
 
 /**
  * Hook para calcular desconto de troca de plano seguindo a lógica da API
@@ -47,36 +48,35 @@ export function usePlanDiscount(
         const data = await response.json();
         const databaseCredits = data.total_balance || 0;
 
-        // Calcular desconto pro-rata exatamente como na API do ContractService
-        const now = new Date();
-        const startDate = new Date(activeContract.start_date!);
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 30); // Adiciona 30 dias como na API
+        // Calcular desconto pro-rata exatamente como no usePlanCredits
+        const now = moment().tz('America/Sao_Paulo');
+        const startDate = moment(activeContract.start_date).tz('America/Sao_Paulo');
+        const daysDiff = now.diff(startDate, 'days');
 
-        let daysRemaining = 0;
-        if (endDate > now) {
-          // Calcular diferença em dias (equivalente ao diffInDays do Carbon)
-          const diffTime = endDate.getTime() - now.getTime();
-          daysRemaining = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        // Crédito proporcional (assumindo mês de 30 dias)
+        let proratedDiscount: number;
+        if (daysDiff === 0) {
+          // Se contratado hoje, desconto é 100%
+          proratedDiscount = activeContract.plan.price;
+        } else if (daysDiff < 30) {
+          proratedDiscount = Math.floor((activeContract.plan.price / 30) * (30 - daysDiff) * 100) / 100;
+        } else {
+          proratedDiscount = 0;
         }
-
-        // Cálculo proporcional exato da API: (int) round(daysRemaining * (price / 30))
-        const oldPlanDailyPrice = activeContract.plan.price / 30;
-        const proratedDiscount = daysRemaining > 0 ? Math.round(daysRemaining * oldPlanDailyPrice) : 0;
 
         // Total de créditos disponíveis (saldo em conta + pro-rata)
         const totalAvailableCredits = databaseCredits + proratedDiscount;
 
-        // Valor final do novo plano com desconto de créditos
+        // Valor final do novo plano com desconto de créditos (igual ao usePlanCredits)
         const finalPrice = Math.max(0, selectedPlan.price - totalAvailableCredits);
         const discount = Math.min(selectedPlan.price, totalAvailableCredits);
 
         setDiscountData({
-          databaseCredits: Math.round(databaseCredits * 100) / 100,
-          proratedDiscount: Math.round(proratedDiscount * 100) / 100,
-          availableCredits: Math.round(totalAvailableCredits * 100) / 100,
-          finalPrice: Math.round(finalPrice * 100) / 100,
-          discount: Math.round(discount * 100) / 100,
+          databaseCredits: Math.floor(databaseCredits * 100) / 100,
+          proratedDiscount: Math.floor(proratedDiscount * 100) / 100,
+          availableCredits: Math.floor(totalAvailableCredits * 100) / 100,
+          finalPrice: Math.floor(finalPrice * 100) / 100,
+          discount: Math.floor(discount * 100) / 100,
         });
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -109,29 +109,29 @@ export function usePlanDiscount(
             const data = await response.json();
             const databaseCredits = data.total_balance || 0;
 
-            const now = new Date();
-            const startDate = new Date(activeContract.start_date!);
-            const endDate = new Date(startDate);
-            endDate.setDate(startDate.getDate() + 30);
+            const now = moment().tz('America/Sao_Paulo');
+            const startDate = moment(activeContract.start_date).tz('America/Sao_Paulo');
+            const daysDiff = now.diff(startDate, 'days');
 
-            let daysRemaining = 0;
-            if (endDate > now) {
-              const diffTime = endDate.getTime() - now.getTime();
-              daysRemaining = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            let proratedDiscount: number;
+            if (daysDiff === 0) {
+              proratedDiscount = activeContract.plan.price;
+            } else if (daysDiff < 30) {
+              proratedDiscount = Math.floor((activeContract.plan.price / 30) * (30 - daysDiff) * 100) / 100;
+            } else {
+              proratedDiscount = 0;
             }
-
-            const oldPlanDailyPrice = activeContract.plan.price / 30;
-            const proratedDiscount = daysRemaining > 0 ? Math.round(daysRemaining * oldPlanDailyPrice) : 0;
             const totalAvailableCredits = databaseCredits + proratedDiscount;
+
             const finalPrice = Math.max(0, selectedPlan.price - totalAvailableCredits);
             const discount = Math.min(selectedPlan.price, totalAvailableCredits);
 
             setDiscountData({
-              databaseCredits: Math.round(databaseCredits * 100) / 100,
-              proratedDiscount: Math.round(proratedDiscount * 100) / 100,
-              availableCredits: Math.round(totalAvailableCredits * 100) / 100,
-              finalPrice: Math.round(finalPrice * 100) / 100,
-              discount: Math.round(discount * 100) / 100,
+              databaseCredits: Math.floor(databaseCredits * 100) / 100,
+              proratedDiscount: Math.floor(proratedDiscount * 100) / 100,
+              availableCredits: Math.floor(totalAvailableCredits * 100) / 100,
+              finalPrice: Math.floor(finalPrice * 100) / 100,
+              discount: Math.floor(discount * 100) / 100,
             });
           } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';

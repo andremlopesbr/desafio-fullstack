@@ -1,29 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Plano } from '../types';
+import { useEffect } from 'react';
+import { useApiData } from '../contexts/ApiDataContext';
 
 export function usePlans() {
-  const [plans, setPlans] = useState<Plano[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPlans = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
-      if (!response.ok) throw new Error('Failed to fetch plans');
-      const data = await response.json();
-      setPlans(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { plans, plansLoading, plansError, refreshPlans } = useApiData();
 
   useEffect(() => {
-    fetchPlans();
-  }, []);
+    if (plans.length === 0 && !plansLoading) {
+      refreshPlans();
+    }
+  }, [plans.length, plansLoading, refreshPlans]);
 
-  return { plans, loading, error, refetch: fetchPlans };
+  return { plans, loading: plansLoading, error: plansError, refetch: refreshPlans };
 }

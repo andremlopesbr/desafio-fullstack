@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function useUserCredits(userId: number) {
   const [credits, setCredits] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     if (!userId) return;
 
     setLoading(true);
@@ -22,11 +22,11 @@ export function useUserCredits(userId: number) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchCredits();
-  }, [userId]);
+  }, [userId, fetchCredits]);
 
   return { credits, loading, error, refetch: fetchCredits };
 }

@@ -21,7 +21,7 @@ class PaymentControllerTest extends TestCase
 
         $data = [
             'contract_id' => $contract->id,
-            'amount' => 100.50,
+            'amount' => 10050, // 100.50 em centavos
             'payment_date' => '2023-01-01',
             'status' => 'paid',
         ];

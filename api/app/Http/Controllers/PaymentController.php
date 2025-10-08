@@ -29,12 +29,12 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'contract_id' => 'required|integer|exists:contracts,id',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|integer|min:0', // Agora aceita apenas inteiros (centavos)
             'payment_date' => 'required|date',
             'status' => 'nullable|string',
         ]);
 
-        $amountInCents = is_float($validated['amount']) ? (int)($validated['amount'] * 100) : (int)$validated['amount'];
+        $amountInCents = (int)$validated['amount']; // Valor já vem em centavos do front-end
         $status = $validated['status'];
 
         $dto = new PaymentDTO(

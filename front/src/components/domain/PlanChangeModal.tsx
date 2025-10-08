@@ -36,6 +36,15 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
   const { data: creditInfo, loading: discountLoading, error: discountError } = usePlanDiscount(currentContract, selectedPlan, userId);
 
+  const getModalTitle = () => {
+    if (!selectedPlan) return 'Trocar Plano';
+    const isUpgrade = selectedPlan.price > currentPlan.price;
+    const isDowngrade = selectedPlan.price < currentPlan.price;
+    if (isUpgrade) return 'Upgrade de Plano';
+    if (isDowngrade) return 'Downgrade de Plano';
+    return 'Trocar Plano';
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -54,7 +63,7 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Trocar Plano">
+    <Modal isOpen={isOpen} onClose={handleClose} title={getModalTitle()} size="xl">
       <div className="space-y-4">
         <div>
           <SelectPlan

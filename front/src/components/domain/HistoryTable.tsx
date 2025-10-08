@@ -271,7 +271,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
                       {payments.map((payment) => (
                         <div key={payment.id} className="bg-gray-50 p-2 rounded text-sm">
                           <div className="font-medium text-gray-900">
-                            {formatCurrency(payment.amount / 100)}
+                            {formatCurrency(payment.amount < 100 ? payment.amount : payment.amount / 100)}
                           </div>
                           <div className="text-gray-600">
                             {formatDate(payment.payment_date)}

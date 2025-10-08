@@ -46,58 +46,111 @@ class ContractService implements ContractServiceInterface
         $contract = Contract::with('plan')->findOrFail($contractId);
         $newPlan = Plan::findOrFail($newPlanId);
         $oldPlan = $contract->plan;
+        $userId = $contract->user_id;
+        $now = Carbon::now();
 
-        // Calcular crédito proporcional com base nos dias restantes do plano antigo
-        $daysRemaining = $this->calculateDaysRemaining($contract, Carbon::now());
-        $oldPlanDailyPrice = $oldPlan->price / 30; // Assumindo 30 dias no mês
-        $proportionalCredit = (int) round($daysRemaining * $oldPlanDailyPrice);
+        // Calcular dias restantes e valores pro-rata
+        $daysRemaining = $this->calculateDaysRemaining($contract, $now);
+        if ($daysRemaining === 30) {
+            // Se contratado hoje, desconto é 100%
+            $proratedOld = $oldPlan->price;
+            $proratedNew = $newPlan->price;
+        } else {
+            $proratedOld = (int) floor($oldPlan->price * ($daysRemaining / 30));
+            $proratedNew = (int) floor($newPlan->price * ($daysRemaining / 30));
+        }
 
-        // Desativar contrato antigo
-        $contract->update(['status' => 'cancelled']);
+        $userBalance = $this->getUserBalance($userId);
 
-        // Criar novo contrato
+        $valorAPagar = 0;
+        $creditoAdicional = 0;
+
+        // Calcula valor a pagar: Valor Novo - Desconto Pro-Rata - Crédito Saldo
+        $grossAmount = (int)$newPlan->price; // valor do novo plano já em centavos
+        $valorAPagar = max(0, $grossAmount - $proratedOld - $userBalance);
+
+        // Para downgrade, se o valor calculado for negativo, significa crédito adicional
+        if ($valorAPagar === 0 && $grossAmount < $proratedOld + $userBalance) {
+            // DOWNGRADE: adiciona crédito excedente
+            $creditoAdicional = (int)(($proratedOld + $userBalance) - $grossAmount);
+            Log::info("Troca de plano (Downgrade)", [
+                'prorated_new' => $proratedNew,
+                'prorated_old' => $proratedOld,
+                'gross_amount' => $grossAmount,
+                'user_balance' => $userBalance,
+                'credito_adicional' => $creditoAdicional,
+                'valor_a_pagar' => $valorAPagar
+            ]);
+        } else {
+            // UPGRADE ou valor a pagar positivo
+            Log::info("Troca de plano (Upgrade)", [
+                'prorated_new' => $proratedNew,
+                'prorated_old' => $proratedOld,
+                'gross_amount' => $grossAmount,
+                'user_balance' => $userBalance,
+                'valor_a_pagar_before_credit' => $grossAmount - $proratedOld,
+                'valor_a_pagar' => $valorAPagar
+            ]);
+        }
+
+        // Aplicar créditos automaticamente se houver cobrança
+        $appliedCredits = 0;
+        $remainingAmount = $valorAPagar;
+        if ($valorAPagar > 0) {
+            $creditResult = $this->applyCreditsToPayment($userId, $valorAPagar);
+            $appliedCredits = $creditResult['applied_credits'];
+            $remainingAmount = $creditResult['remaining_amount'];
+        }
+
+        // Desativar todos os contratos ativos do usuário (apenas um plano ativo por vez)
+        Contract::where('user_id', $userId)
+            ->where('status', 'active')
+            ->update(['status' => 'cancelled']);
+
+        // Adicionar crédito adicional no downgrade
+        if ($creditoAdicional > 0) {
+            $description = "Crédito excedente por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
+            $this->addBalance($userId, $creditoAdicional, $description);
+        }
+
+        // Criar novo contrato com end_date
         $newContract = Contract::create([
-            'user_id' => $contract->user_id,
+            'user_id' => $userId,
             'plan_id' => $newPlanId,
-            'start_date' => Carbon::now(),
+            'start_date' => $now,
+            'end_date' => $now->copy()->addDays(30), // Assumir 30 dias
             'status' => 'active',
         ]);
 
-        $finalAmount = 0;
-        $creditAddedToBalance = 0;
-
-        if ($newPlan->price > $oldPlan->price) { // UPGRADE
-            $finalAmount = max(0, $newPlan->price - $proportionalCredit);
-            Log::info("Troca de plano (Upgrade)", ['new_price' => $newPlan->price, 'credit' => $proportionalCredit, 'final_amount' => $finalAmount]);
-
-        } else { // DOWNGRADE ou troca lateral
-            // Adiciona o crédito proporcional ao saldo do usuário
-            if ($proportionalCredit > 0) {
-                $description = "Crédito por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
-                $this->addBalance($contract->user_id, $proportionalCredit, $description);
-                $creditAddedToBalance = $proportionalCredit;
-            }
-            // Cobra o valor cheio do novo plano
-            $finalAmount = $newPlan->price;
-            Log::info("Troca de plano (Downgrade)", ['new_price' => $newPlan->price, 'credit_added' => $creditAddedToBalance, 'final_amount' => $finalAmount]);
-        }
-
-        // Criar pagamento com o valor final
+        // Criar pagamento com o valor final após abatimento
+        $finalAmount = $remainingAmount;
         if ($finalAmount >= 0) {
             Payment::create([
                 'contract_id' => $newContract->id,
-                'amount' => (int) round($finalAmount), // Armazenar em centavos
-                'payment_date' => Carbon::now(),
+                'amount' => (int) round($finalAmount),
+                'payment_date' => $now,
                 'status' => $finalAmount > 0 ? 'pending' : 'paid',
+                'discount_applied' => $proratedOld + $appliedCredits,
+                'prorated_old' => $proratedOld,
+                'prorated_new' => $proratedNew,
+                'applied_credits' => $appliedCredits,
             ]);
         }
 
         return [
             'contract' => $newContract,
-            'credits_available' => $proportionalCredit,
-            'discount_applied' => $proportionalCredit,
+            'prorated_old' => $proratedOld,
+            'prorated_new' => $proratedNew,
+            'gross_amount' => $grossAmount,
+            'user_balance_before' => $userBalance,
+            'applied_credits' => $appliedCredits,
+            'credito_adicional' => $creditoAdicional,
             'final_amount' => $finalAmount,
-            'remaining_credit' => $creditAddedToBalance,
+            'total_discount_applied' => $proratedOld + $appliedCredits, // desconto pro-rata + créditos aplicados
+            // Compatibility keys
+            'credits_available' => $userBalance,
+            'discount_applied' => $proratedOld + $appliedCredits,
+            'remaining_credit' => $creditoAdicional,
         ];
     }
 

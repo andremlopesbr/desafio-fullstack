@@ -99,8 +99,8 @@ class ContractControllerTest extends TestCase
         \Carbon\Carbon::setTestNow($testDate);
 
         $user = User::factory()->create();
-        $oldPlan = Plan::factory()->create(['price' => 10000]); // R$ 100,00
-        $newPlan = Plan::factory()->create(['price' => 15000]); // R$ 150,00
+        $oldPlan = Plan::factory()->create(['price' => 10000]); // 100.00 em centavos
+        $newPlan = Plan::factory()->create(['price' => 15000]); // 150.00 em centavos
 
         // Contrato ativo com data de 10 dias atrás
         $contract = Contract::factory()->create([
@@ -125,12 +125,13 @@ class ContractControllerTest extends TestCase
         $this->assertCount(1, $payments);
 
         $payment = $payments->first();
-        // Com a nova lógica proporcional para upgrade:
+        // Com a lógica corrigida para upgrade: Valor Total = Valor Novo - Desconto Pro-Rata - Crédito Saldo
         // Dias decorridos: 10, dias restantes: 20 (mês de 30 dias)
-        // Crédito proporcional = (10000/30) * 20 = 6666.67 centavos
-        // Valor final = preço novo - crédito = 15000 - 6666.67 = 8333.33 centavos
-        $expectedAmount = (int)round(15000 - (10000/30) * 20); // 8333
-        $this->assertEquals(8333, $payment->amount);
+        // Desconto Pro-Rata = (10000 / 30) * 20 = 6666.67 centavos
+        // Valor final = 15000 - 6666.67 = 8333.33 centavos
+        $expectedProratedOld = (int)floor((10000 / 30) * 20); // 6666
+        $expectedAmount = (int)round(15000 - $expectedProratedOld); // 8334
+        $this->assertEquals(8334, $payment->amount);
 
         // Resetar data de teste
         \Carbon\Carbon::setTestNow();
