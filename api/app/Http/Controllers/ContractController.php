@@ -64,11 +64,13 @@ class ContractController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|integer',
+            'status' => 'nullable|string',
         ]);
 
         $userId = (int) $validated['user_id'];
+        $status = $validated['status'] ?? null;
 
-        $contracts = $this->contractService->listContractsForUser($userId);
+        $contracts = $this->contractService->listContractsForUser($userId, $status);
 
         return response()->json($contracts);
     }

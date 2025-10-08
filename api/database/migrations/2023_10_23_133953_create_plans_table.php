@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('description');
             $table->integer('numberOfClients');
             $table->integer('gigabytesStorage');
-            $table->integer('price'); // preço em centavos
+            $table->decimal('price', 13, 2);
             $table->boolean('active')->default(true);
             $table->timestamps();
         });

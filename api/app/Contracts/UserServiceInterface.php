@@ -11,5 +11,5 @@ interface UserServiceInterface
 {
     public function getUserById(int $id): User;
     public function getUserBalanceHistory(int $userId): Collection;
-    public function getUserBalance(int $userId): int;
+    public function getUserBalance(int $userId): float;
 }

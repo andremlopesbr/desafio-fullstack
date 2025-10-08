@@ -22,7 +22,7 @@ class ContractControllerTest extends TestCase
             'user_id' => $user->id,
             'plan_id' => $plan->id,
             'start_date' => '2023-01-01',
-            'end_date' => '2023-12-31',
+            'end_date' => '2023-02-01',
             'status' => 'active',
         ];
 
@@ -99,14 +99,15 @@ class ContractControllerTest extends TestCase
         \Carbon\Carbon::setTestNow($testDate);
 
         $user = User::factory()->create();
-        $oldPlan = Plan::factory()->create(['price' => 10000]); // 100.00 em centavos
-        $newPlan = Plan::factory()->create(['price' => 15000]); // 150.00 em centavos
+        $oldPlan = Plan::factory()->create(['price' => 100.00]); // 100.00 em reais
+        $newPlan = Plan::factory()->create(['price' => 150.00]); // 150.00 em reais
 
         // Contrato ativo com data de 10 dias atrás
         $contract = Contract::factory()->create([
             'user_id' => $user->id,
             'plan_id' => $oldPlan->id,
             'start_date' => now()->subDays(10),
+            'end_date' => now()->addDays(20), // 20 dias restantes
             'status' => 'active'
         ]);
 
@@ -125,13 +126,69 @@ class ContractControllerTest extends TestCase
         $this->assertCount(1, $payments);
 
         $payment = $payments->first();
-        // Com a lógica corrigida para upgrade: Valor Total = Valor Novo - Desconto Pro-Rata - Crédito Saldo
+        // Com a lógica corrigida para upgrade: Valor Total = Valor Novo - Desconto Pro-Rata - Saldo
         // Dias decorridos: 10, dias restantes: 20 (mês de 30 dias)
-        // Desconto Pro-Rata = (10000 / 30) * 20 = 6666.67 centavos
-        // Valor final = 15000 - 6666.67 = 8333.33 centavos
-        $expectedProratedOld = (int)floor((10000 / 30) * 20); // 6666
-        $expectedAmount = (int)round(15000 - $expectedProratedOld); // 8334
-        $this->assertEquals(8334, $payment->amount);
+        // Desconto Pro-Rata = (100.00 / 30) * 20 = 66.67 reais
+        // Valor final = 150.00 - 66.67 = 83.33 reais
+        $expectedAmount = round(150.00 - (100.00 / 30) * 20, 2); // 83.33
+        $this->assertEqualsWithDelta(83.33, $payment->amount, 0.01);
+
+        // Resetar data de teste
+        \Carbon\Carbon::setTestNow();
+    }
+
+    public function test_payment_renews_expired_contract_correctly()
+    {
+        // Fixar data para teste (após expiração do contrato)
+        $testDate = \Carbon\Carbon::create(2023, 2, 15); // 15 de fevereiro de 2023
+        \Carbon\Carbon::setTestNow($testDate);
+
+        $user = User::factory()->create();
+        $plan = Plan::factory()->create(['price' => 100.00]);
+
+        // Criar contrato que expira em 1 de fevereiro de 2023
+        $contract = Contract::factory()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'start_date' => '2023-01-01',
+            'end_date' => '2023-02-01', // Expira em 1 de fevereiro
+            'status' => 'active',
+        ]);
+
+        // Processar pagamento para o contrato expirado
+        $paymentData = [
+            'contract_id' => $contract->id,
+            'amount' => 100.00,
+            'payment_date' => '2023-02-15',
+        ];
+
+        $response = $this->postJson('/api/payments', $paymentData);
+
+        $response->assertStatus(201);
+
+        // Verificar que o contrato original ainda existe mas pode estar inativo
+        $originalContract = Contract::find($contract->id);
+        $this->assertNotNull($originalContract);
+
+        // Verificar que foi criado um novo contrato renovado
+        $renewedContracts = Contract::where('user_id', $user->id)
+            ->where('id', '!=', $contract->id)
+            ->where('status', 'active')
+            ->get();
+
+        $this->assertCount(1, $renewedContracts, 'Deve haver exatamente um contrato renovado ativo');
+
+        $renewedContract = $renewedContracts->first();
+
+        // Verificar datas da renovação
+        $this->assertEquals('2023-02-01', $renewedContract->start_date->toDateString(),
+            'Novo contrato deve começar na data de expiração do anterior (01/02/2023)');
+        $this->assertEquals('2023-03-01', $renewedContract->end_date->toDateString(),
+            'Novo contrato deve terminar 1 mês após a data de expiração (01/03/2023)');
+
+        // Verificar que o pagamento foi criado para o novo contrato
+        $payments = DB::table('payments')->where('contract_id', $renewedContract->id)->get();
+        $this->assertCount(1, $payments, 'Deve haver um pagamento para o contrato renovado');
 
         // Resetar data de teste
         \Carbon\Carbon::setTestNow();

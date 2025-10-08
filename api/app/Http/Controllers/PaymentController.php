@@ -29,17 +29,16 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'contract_id' => 'required|integer|exists:contracts,id',
-            'amount' => 'required|integer|min:0', // Agora aceita apenas inteiros (centavos)
+            'amount' => 'required|numeric|min:0',
             'payment_date' => 'required|date',
             'status' => 'nullable|string',
         ]);
 
-        $amountInCents = (int)$validated['amount']; // Valor já vem em centavos do front-end
-        $status = $validated['status'];
+        $status = $validated['status'] ?? null;
 
         $dto = new PaymentDTO(
             contract_id: (int) $validated['contract_id'],
-            amount: new Money($amountInCents),
+            amount: new Money($validated['amount']),
             payment_date: Carbon::parse($validated['payment_date']),
             status: $status ? PaymentStatus::from($status) : PaymentStatus::PENDING,
         );

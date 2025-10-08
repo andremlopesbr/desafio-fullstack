@@ -8,10 +8,10 @@ use InvalidArgumentException;
 
 final class Money
 {
-    private int $amount; // valor em centavos
+    private float $amount; // valor em reais
     private string $currency;
 
-    public function __construct(int $amount, string $currency = 'BRL')
+    public function __construct(float $amount, string $currency = 'BRL')
     {
         if ($amount < 0) {
             throw new InvalidArgumentException('Valor não pode ser negativo');
@@ -25,7 +25,7 @@ final class Money
         $this->currency = $currency;
     }
 
-    public function getAmount(): int
+    public function getAmount(): float
     {
         return $this->amount;
     }
@@ -37,7 +37,7 @@ final class Money
 
     public function getValueInReais(): float
     {
-        return $this->amount / 100;
+        return $this->amount;
     }
 
     public function equals(Money $other): bool
