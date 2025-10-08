@@ -5,7 +5,7 @@ import { useChangePlan } from "../../hooks/useChangePlan";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Notification, Footer } from "../../components/ui";
+import { Notification, Footer, Card, Button } from "../../components/ui";
 import { PlanChangeModal } from "../../components/domain";
 
 export const Home = () => {
@@ -176,19 +176,21 @@ export const Home = () => {
         )}
 
         {activeContract && activeContract.plan && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-8 flex justify-between items-center">
-            <span>
-              Plano atual: {activeContract.plan.description} -{" "}
-              {formatCurrency(activeContract.plan.price)}
-            </span>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              disabled={true} // Temporariamente desabilitado para focar no processo de pagamento e descontos
-              className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Trocar Plano
-            </button>
-          </div>
+          <Card className="bg-green-100 border-green-400 text-green-700 mb-8">
+            <div className="flex justify-between items-center">
+              <span>
+                Plano atual: {activeContract.plan.description} -{" "}
+                {formatCurrency(activeContract.plan.price / 100)}
+              </span>
+              <Button
+                onClick={() => setIsModalOpen(true)}
+                disabled={true} // Temporariamente desabilitado para focar no processo de pagamento e descontos
+                variant="primary"
+              >
+                Trocar Plano
+              </Button>
+            </div>
+          </Card>
         )}
         <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
           {plans.map((plan) => {
@@ -197,15 +199,17 @@ export const Home = () => {
             const isPopular = plan.id === cheapestPlan.id;
 
             return (
-              <div
+              <Card
                 key={plan.id}
-                className={`bg-white shadow-lg rounded-lg p-6 border relative ${
+                className={`relative ${
                   isCurrentPlan
                     ? "border-green-500 bg-green-50 opacity-75"
                     : isPopular
                     ? "border-orange-500"
-                    : "border-gray-200"
+                    : ""
                 }`}
+                shadow="lg"
+                padding="lg"
               >
                 {/* Badge Popular */}
                 {isPopular && (
@@ -236,7 +240,7 @@ export const Home = () => {
                   </p>
                 </div>
 
-                <button
+                <Button
                   onClick={() =>
                     isCurrentPlan
                       ? setIsModalOpen(true)
@@ -246,15 +250,12 @@ export const Home = () => {
                     isCurrentPlan &&
                     !availablePlans.some((p) => p.id !== plan.id)
                   }
-                  className={`w-full py-2 px-4 rounded transition-colors ${
-                    isCurrentPlan
-                      ? "bg-green-500 text-white hover:bg-green-600 cursor-pointer"
-                      : "bg-orange-500 text-white hover:bg-orange-600"
-                  }`}
+                  variant={isCurrentPlan ? "secondary" : "primary"}
+                  fullWidth
                 >
                   {isCurrentPlan ? "Trocar Plano" : "Contratar Plano"}
-                </button>
-              </div>
+                </Button>
+              </Card>
             );
           })}
         </div>
