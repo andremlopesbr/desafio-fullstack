@@ -65,41 +65,26 @@ class PaymentService implements PaymentServiceInterface
 
         $finalAmount = $balanceResult['remaining_amount'];
 
-        // Se após aplicar créditos o valor for zero, o pagamento é considerado pago
-        if ($finalAmount <= 0) {
-            $processedStatus = PaymentStatus::PAID;
-        } else {
-            // Simular processamento de pagamento para o valor restante
-            $dtoWithCredits = new PaymentDTO(
-                contract_id: $dto->contract_id,
-                amount: new \App\Domain\ValueObjects\Money($finalAmount), // valor em centavos
-                payment_date: $dto->payment_date,
-                status: PaymentStatus::PENDING
-            );
-            $processedStatus = $this->simulatePaymentProcessing($dtoWithCredits);
-        }
+        // CORREÇÃO: Todos os pagamentos PIX simulados são considerados pagos
+        // Conforme especificação do README, pagamentos devem sempre ser marcados como paid
+        $processedStatus = PaymentStatus::PAID;
 
         // Criar pagamento com o valor final (após aplicação de créditos)
-        // Usar o contrato atual (que pode ter sido renovado)
+        // TODOS os valores salvos em reais (não centavos)
         $payment = Payment::create([
             'contract_id' => $contract->id,
-            'amount' => $finalAmount, // Salvar em reais
+            'amount' => $finalAmount, // Em reais
             'payment_date' => $dto->payment_date,
             'status' => $processedStatus->value,
+            'discount_applied' => $dto->discount_applied,
+            'prorated_old' => $dto->prorated_old,
+            'prorated_new' => $dto->prorated_new,
+            'applied_credits' => $dto->applied_credits,
         ]);
 
         return $payment;
     }
 
-    private function simulatePaymentProcessing(PaymentDTO $dto): PaymentStatus
-    {
-        // Simulação simples: se o valor for > 100 reais, falha; senão, sucesso
-        if ($dto->amount->getValueInReais() > 100.00) {
-            return PaymentStatus::FAILED;
-        }
-
-        return PaymentStatus::PAID;
-    }
 
     public function listPaymentsForUser(int $userId): Collection
     {

@@ -74,4 +74,68 @@ class ContractController extends Controller
 
         return response()->json($contracts);
     }
+
+    /**
+     * Renovar contrato expirado automaticamente
+     */
+    public function renew(Request $request, int $contractId): JsonResponse
+    {
+        try {
+            $newContract = $this->contractService->renewExpiredContract($contractId);
+
+            return response()->json([
+                'message' => 'Contrato renovado com sucesso',
+                'contract' => $newContract,
+                'auto_renew' => true
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro ao renovar contrato',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Processar cobrança recorrente automática
+     */
+    public function processRecurring(Request $request, int $contractId): JsonResponse
+    {
+        try {
+            $result = $this->contractService->processRecurringPayment($contractId);
+
+            return response()->json([
+                'message' => 'Cobrança recorrente processada',
+                'payment' => $result['payment'],
+                'valor_a_pagar' => $result['valor_a_pagar'],
+                'applied_balance' => $result['applied_balance'],
+                'contract' => $result['contract']
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro ao processar cobrança recorrente',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Executar manutenção diária (renovações e cobranças)
+     */
+    public function processDailyMaintenance(Request $request): JsonResponse
+    {
+        try {
+            $results = $this->contractService->processDailyMaintenance();
+
+            return response()->json([
+                'message' => 'Manutenção diária executada',
+                'results' => $results
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro na manutenção diária',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
