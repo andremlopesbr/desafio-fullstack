@@ -1,5 +1,5 @@
 import { usePlans } from './hooks/usePlans';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import { useHomePage } from './hooks/useHomePage';
 import Header from './components/Header';
 import { PlanCard } from './components/domain';
@@ -7,7 +7,6 @@ import { PlanCard } from './components/domain';
 export function App() {
   const { user } = useAuth();
 
-  // Hooks da API
   const { plans, loading: plansLoading, error: plansError } = usePlans();
   const { contracts, contractsLoading, handleSelecionarPlano, isCurrentPlan } = useHomePage();
 
@@ -38,7 +37,6 @@ export function App() {
 
       <main className="p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-6xl mx-auto">
-          {/* Exibe o plano atual do usuário se ele tiver um contrato ativo */}
           {contracts.length > 0 && contracts[0]?.plan && (
             <div className="bg-white p-6 rounded-xl shadow-md mb-8">
               <h2 className="text-2xl font-bold text-gray-800">Seu Plano Atual</h2>
@@ -46,7 +44,6 @@ export function App() {
             </div>
           )}
 
-          {/* Mapeia a lista de planos para renderizar um PlanCard para cada um */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {plans.map((plano) => (
               <PlanCard

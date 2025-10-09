@@ -3,11 +3,16 @@ import { formatCurrency, formatDate, formatDateTime } from './formatters';
 
 describe('formatters', () => {
   describe('formatCurrency', () => {
-    it('should format currency in Brazilian Real', () => {
-      expect(formatCurrency(100)).toContain('R$');
+    it('should format currency in Brazilian Real from reais', () => {
+      expect(formatCurrency(1)).toContain('R$'); // 1 real
+      expect(formatCurrency(1)).toContain('1,00');
+      expect(formatCurrency(1.99)).toContain('1,99');
       expect(formatCurrency(100)).toContain('100,00');
-      expect(formatCurrency(99.99)).toContain('99,99');
-      expect(formatCurrency(1000.5)).toContain('1.000,50');
+      expect(formatCurrency(87)).toContain('87,00');
+      expect(formatCurrency(197)).toContain('197,00');
+      expect(formatCurrency(347)).toContain('347,00');
+      expect(formatCurrency(497)).toContain('497,00');
+      expect(formatCurrency(797)).toContain('797,00');
     });
   });
 

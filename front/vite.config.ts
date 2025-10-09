@@ -8,6 +8,5 @@ export default defineConfig(() => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-  // Configurações específicas de teste movidas para vitest.config.ts
+  }
 }))

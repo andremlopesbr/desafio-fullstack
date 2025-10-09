@@ -1,51 +1,25 @@
-import { useState, useEffect } from 'react';
-
-interface Payment {
-  id: number;
-  contract_id: number;
-  amount: number;
-  payment_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+import { useEffect, useState, useRef } from 'react';
+import { useApiData } from './useApiData';
 
 export function usePayments(userId: number) {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPayments = async () => {
-    console.log('🔄 [HOOK usePayments] Iniciando busca de pagamentos para userId:', userId)
-    setLoading(true);
-    setError(null);
-    try {
-      const apiUrl = `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`
-      console.log('🌐 [HOOK usePayments] Fazendo requisição para:', apiUrl)
-
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error('Failed to fetch payments');
-
-      const data = await response.json();
-      console.log('✅ [HOOK usePayments] Pagamentos recebidos:', data.length, 'registros')
-      setPayments(data);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-      console.error('❌ [HOOK usePayments] Erro ao buscar pagamentos:', errorMsg)
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-      console.log('🏁 [HOOK usePayments] Busca finalizada')
-    }
-  };
+  const { payments, paymentsLoading, paymentsError, refreshPayments } = useApiData();
+  const hasFetchedRef = useRef(false);
+  const lastUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (userId) {
-      fetchPayments();
+    if (userId && !paymentsLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
+      hasFetchedRef.current = true;
+      lastUserIdRef.current = userId;
+      refreshPayments(userId);
     }
-  }, [userId]);
+  }, [userId, paymentsLoading, refreshPayments]);
 
-  return { payments, loading, error, refetch: fetchPayments };
+  return {
+    payments,
+    loading: paymentsLoading,
+    error: paymentsError,
+    refetch: () => refreshPayments(userId)
+  };
 }
 
 export function useProcessPayment() {

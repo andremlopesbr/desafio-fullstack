@@ -4,7 +4,7 @@ import { Payment } from './pages/Payment'
 import Profile from './pages/Profile'
 import History from './pages/History'
 import Login from './pages/Login'
-import { useAuth } from './contexts/AuthContext'
+import { useAuth } from './hooks/useAuth'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();

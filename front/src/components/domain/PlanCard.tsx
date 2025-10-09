@@ -22,20 +22,22 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   className = '',
 }) => {
   const getButtonText = () => {
-    return 'Contratar Plano';
+    return isCurrentPlan ? 'Plano Ativo' : 'Assinar';
   };
 
   const getButtonVariant = () => {
-    return 'secondary' as const; // gray-800 background
+    return isCurrentPlan ? 'primary' : 'secondary'; // green for active, gray for others
   };
 
   return (
     <Card
       className={`
-        relative transform transition-transform hover:scale-105 duration-300 flex flex-col
-        ${isCurrentPlan ? 'bg-orange-50 border-orange-500' : 'bg-white'}
+        relative transform transition-transform hover:scale-105 duration-300 flex flex-col bg-white overflow-hidden
+        ${isCurrentPlan ? 'border-2 border-green-500' : ''}
         ${className}
       `}
+      rounded="xl"
+      shadow="md"
     >
       {/* Popular Badge */}
       {showPopularBadge && (
@@ -65,27 +67,27 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           {/* Storage */}
           <div className="text-gray-600">
             <span className="text-sm">Armazenamento:</span>
-            <p className="text-2xl font-bold text-gray-800">{plan.gigabytesStorage} GB</p>
+            <p className="text-3xl font-bold text-gray-800">{plan.gigabytesStorage} GB</p>
           </div>
         </div>
 
         {/* Action Button */}
-        {!isCurrentPlan && (
-          <div className="mt-6">
-            {actionButton ? (
-              actionButton
-            ) : onSelect ? (
-              <Button
-                onClick={() => onSelect(plan)}
-                fullWidth
-                variant={getButtonVariant()}
-                aria-label={`${getButtonText()} - Plano ${plan.description}`}
-              >
-                {getButtonText()}
-              </Button>
-            ) : null}
-          </div>
-        )}
+        <div className="mt-6">
+          {actionButton ? (
+            actionButton
+          ) : onSelect ? (
+            <Button
+              onClick={() => onSelect(plan)}
+              disabled={isCurrentPlan}
+              fullWidth
+              variant={getButtonVariant()}
+              className={isCurrentPlan ? 'bg-green-600 hover:bg-green-600 disabled:bg-green-600' : ''}
+              aria-label={`${getButtonText()} - Plano ${plan.description}`}
+            >
+              {getButtonText()}
+            </Button>
+          ) : null}
+        </div>
       </div>
     </Card>
   );

@@ -2,14 +2,18 @@ import { useState, useEffect } from "react";
 import { usePlans } from "../../hooks/usePlans";
 import { useContracts } from "../../hooks/useContracts";
 import { useChangePlan } from "../../hooks/useChangePlan";
+import { useUserBalance } from "../../hooks/useUserBalance";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
-import { Notification, Breadcrumbs, Footer } from "../../components/ui";
-import { PlanChangeModal } from "../../components/domain";
+import { useAuth } from "../../hooks/useAuth";
+import { Notification, Footer, Card } from "../../components/ui";
+import { PlanChangeModal, PlanCard } from "../../components/domain";
+import { Plano } from "../../types";
+import { formatCurrency } from "../../utils/formatters";
 
 export const Home = () => {
   const { user } = useAuth();
+  useUserBalance(user?.id || 0);
   const { plans, loading: plansLoading, error: plansError } = usePlans();
   const {
     contracts,
@@ -32,12 +36,6 @@ export const Home = () => {
     message: string;
   } | null>(null);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
 
   // Verificar parâmetro de sucesso na URL
   useEffect(() => {
@@ -132,11 +130,7 @@ export const Home = () => {
       plan.id !== activeContract.plan.id
   );
 
-  // Encontrar o plano mais barato para destacar como popular
-  const cheapestPlan = plans.reduce(
-    (prev, current) => (prev.price < current.price ? prev : current),
-    plans[0]
-  );
+  // Removido: lógica para plano popular, pois no protótipo não há badges
 
   const userId = user?.id || 0;
 
@@ -157,10 +151,10 @@ export const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <>
       <Header user={user} />
-      <Breadcrumbs items={[{ name: 'Planos', href: '/' }]} />
-      <div className="container mx-auto px-4 py-8">
+      <main className="bg-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-6xl mx-auto">
         <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
           Planos Disponíveis
         </h1>
@@ -177,84 +171,33 @@ export const Home = () => {
         )}
 
         {activeContract && activeContract.plan && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-8 flex justify-between items-center">
-            <span>
-              Seu plano atual: {activeContract.plan.description} -{" "}
-              {formatCurrency(activeContract.plan.price)}
-            </span>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors"
-            >
-              Trocar Plano
-            </button>
-          </div>
+          <Card className="bg-green-100 border-green-400 text-green-700 mb-8">
+            <div className="flex justify-between items-center">
+              <span>
+                Plano atual: {activeContract.plan.description} -{" "}
+                {formatCurrency(activeContract.plan.price)}
+                </span>
+                {/* Add X para fechar card e não exibir ao entrar (local.storage) */}
+            </div>
+          </Card>
         )}
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {plans.map((plan) => {
             const isCurrentPlan =
               activeContract && activeContract.plan?.id === plan.id;
-            const isPopular = plan.id === cheapestPlan.id;
 
             return (
-              <div
+              <PlanCard
                 key={plan.id}
-                className={`bg-white shadow-lg rounded-lg p-6 border relative ${
-                  isCurrentPlan
-                    ? "border-green-500 bg-green-50 opacity-75"
-                    : isPopular
-                    ? "border-orange-500"
-                    : "border-gray-200"
-                }`}
-              >
-                {/* Badge Popular */}
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-semibold z-10">
-                    Popular
-                  </div>
-                )}
-
-                {/* Badge Plano Atual */}
-                {isCurrentPlan && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold z-10">
-                    Seu Plano Atual
-                  </div>
-                )}
-
-                <h2 className="text-xl font-semibold mb-4">
-                  {plan.description}
-                </h2>
-                <div className="space-y-2 mb-4">
-                  <p>
-                    <strong>Vistorias:</strong> {plan.numberOfClients}
-                  </p>
-                  <p>
-                    <strong>Preço:</strong> {formatCurrency(plan.price)} /mês
-                  </p>
-                  <p>
-                    <strong>Armazenamento:</strong> {plan.gigabytesStorage} GB
-                  </p>
-                </div>
-
-                <button
-                  onClick={() =>
-                    isCurrentPlan
-                      ? setIsModalOpen(true)
-                      : navigate(`/payment/${plan.id}`)
+                plan={plan}
+                isCurrentPlan={isCurrentPlan}
+                onSelect={(selectedPlan: Plano) => {
+                  if (!isCurrentPlan) {
+                    navigate(`/payment/${selectedPlan.id}`);
                   }
-                  disabled={
-                    isCurrentPlan &&
-                    !availablePlans.some((p) => p.id !== plan.id)
-                  }
-                  className={`w-full py-2 px-4 rounded transition-colors ${
-                    isCurrentPlan
-                      ? "bg-green-500 text-white hover:bg-green-600 cursor-pointer"
-                      : "bg-orange-500 text-white hover:bg-orange-600"
-                  }`}
-                >
-                  {isCurrentPlan ? "Trocar Plano" : "Contratar Plano"}
-                </button>
-              </div>
+                  // Quando ativo, botão desabilitado
+                }}
+              />
             );
           })}
         </div>
@@ -278,8 +221,9 @@ export const Home = () => {
             }}
           />
         )}
-      </div>
+        </div>
+      </main>
       <Footer />
-    </div>
+    </>
   );
 };

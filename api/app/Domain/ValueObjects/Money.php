@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 final class Money
 {
-    private int $amount; // valor em centavos
+    private int $amount;
     private string $currency;
 
     public function __construct(int $amount, string $currency = 'BRL')

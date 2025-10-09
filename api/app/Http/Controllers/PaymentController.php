@@ -32,6 +32,10 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|min:0',
             'payment_date' => 'required|date',
             'status' => 'nullable|string',
+            'discount_applied' => 'nullable|numeric|min:0',
+            'prorated_old' => 'nullable|numeric|min:0',
+            'prorated_new' => 'nullable|numeric|min:0',
+            'applied_credits' => 'nullable|numeric|min:0',
         ]);
 
         $amountInCents = is_float($validated['amount']) ? (int)($validated['amount'] * 100) : (int)$validated['amount'];
@@ -42,6 +46,10 @@ class PaymentController extends Controller
             amount: new Money($amountInCents),
             payment_date: Carbon::parse($validated['payment_date']),
             status: $status ? PaymentStatus::from($status) : PaymentStatus::PENDING,
+            discount_applied: isset($validated['discount_applied']) ? (int) $validated['discount_applied'] : null,
+            prorated_old: isset($validated['prorated_old']) ? (int) $validated['prorated_old'] : null,
+            prorated_new: isset($validated['prorated_new']) ? (int) $validated['prorated_new'] : null,
+            applied_credits: isset($validated['applied_credits']) ? (int) $validated['applied_credits'] : null,
         );
 
         $payment = $this->paymentService->processPayment($dto);
