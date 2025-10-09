@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Contract, Plano } from '../types';
 import { useContracts } from './useContracts';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './useAuth';
 import { useNavigate } from 'react-router-dom';
 
 export function useHomePage() {

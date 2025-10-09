@@ -5,13 +5,16 @@ import { useCreateContract } from "../../hooks/useCreateContract";
 import { useProcessPayment } from "../../hooks/usePayments";
 import { useContracts } from "../../hooks/useContracts";
 import { usePlanCredits } from "../../hooks/usePlanCredits";
+import { useApiData } from "../../hooks/useApiData";
 import Header from "../../components/Header";
 import Pix from "react-qrcode-pix";
-import { Footer } from "../../components/ui";
+import { Footer, Modal, LoadingSpinner } from "../../components/ui";
 import { PlanChangeDetails } from "../../components/domain/PlanChangeDetails";
+import { formatCurrency } from "../../utils/formatters";
 
 export const Payment = () => {
   const [pixPayload, setPixPayload] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const { plans, loading: plansLoading, error: plansError } = usePlans();
@@ -26,20 +29,13 @@ export const Payment = () => {
     error: paymentError,
   } = useProcessPayment();
   const { contracts } = useContracts(1); // Usuário fixo por enquanto
+  const { refreshContracts, refreshPayments, refreshBalance } = useApiData();
 
   console.log("💳 [PAYMENT PAGE] Inicializando página de pagamento:", {
     planId,
     plansLoading,
     contractsLoading: false,
   });
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
-
 
   const plan = plans.find((p) => p.id === Number(planId));
   console.log(
@@ -64,7 +60,11 @@ export const Payment = () => {
 
   // Calcular créditos sempre (para demonstrar descontos no checkout)
   const userId = 1; // Simulação com user_id fixo
-  const creditInfo = usePlanCredits(activeContract, plan || undefined, userId);
+  const { creditInfo } = usePlanCredits(
+    activeContract,
+    plan || undefined,
+    userId
+  );
   console.log("💰 [PAYMENT PAGE] Créditos calculados:", creditInfo);
 
   // Para novos contratos, buscar apenas créditos em saldo se não houver cálculo pro-rata
@@ -72,68 +72,182 @@ export const Payment = () => {
   useEffect(() => {
     if (!creditInfo && plan) {
       fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
-        .then(res => res.json())
-        .then(data => setBalanceCredits(data.total_balance || 0))
-        .catch(err => console.error('Erro ao buscar saldo:', err));
+        .then((res) => res.json())
+        .then((data) => setBalanceCredits(data.total_balance || 0))
+        .catch((err) => console.error("Erro ao buscar saldo:", err));
     }
   }, [creditInfo, plan, userId]);
+
+  // Saldo já vem em reais do backend
+  const balanceCreditsInReais = balanceCredits;
 
   const handleConfirmPayment = async () => {
     if (!plan) return;
 
-    console.log("🛒 INICIANDO CONTRATAÇÃO:", {
-      plano: plan.description,
-      preco: plan.price,
-      isPlanChange: !!isPlanChange,
-    });
+    setIsProcessing(true);
 
-    const today = new Date();
-    const endDate = new Date();
-    endDate.setDate(today.getDate() + 30);
-
-    const contractData = {
-      user_id: 1, // Simulação com user_id fixo
-      plan_id: plan.id,
-      start_date: today.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-    };
-
-    console.log("📝 CRIANDO CONTRATO:", contractData);
-    const contract = await createContract(contractData);
-
-    if (contract) {
-      console.log("✅ CONTRATO CRIADO:", contract.id);
-
-      const paymentData = {
-        contract_id: contract.id,
-        amount: plan.price, // Valor já em centavos; backend aplica créditos automaticamente
-        payment_date: today.toISOString().split("T")[0],
-        status: "paid",
-      };
-
-      const calculatedFinal = creditInfo ? creditInfo.finalPrice : Math.max(0, plan.price - balanceCredits);
-      console.log("💳 PROCESSANDO PAGAMENTO:", {
-        valorBruto: plan.price,
-        valorCalculadoFinal: calculatedFinal,
-        creditosAplicados: creditInfo?.discount || balanceCredits || 0,
-        status: "paid",
+    try {
+      console.log("🛒 INICIANDO CONTRATAÇÃO:", {
+        plano: plan.description,
+        preco: plan.price,
+        isPlanChange: !!isPlanChange,
       });
 
-      const payment = await processPayment(paymentData);
+      let contract;
 
-      if (payment) {
-        console.log("🎉 PAGAMENTO CONFIRMADO:", {
-          paymentId: payment.id,
-          contractId: contract.id,
-          valorPago: payment.amount / 100, // Converter de centavos
-        });
-        // Redirecionar para home com parâmetro de sucesso
-        navigate("/?success=payment");
+      if (isPlanChange) {
+        // Se já existe contrato ativo diferente do plano selecionado, fazer mudança de plano
+        console.log("🔄 FAZENDO MUDANÇA DE PLANO");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/contracts/${
+            activeContract.id
+          }/change-plan`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              new_plan_id: plan.id,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Erro ao fazer mudança de plano");
+        }
+
+        const changeResult = await response.json();
+        contract = changeResult.contract;
+
+        console.log("✅ MUDANÇA DE PLANO REALIZADA:", changeResult);
+        contract = changeResult.contract;
+
+        // Para mudança de plano, o backend já criou o pagamento correto
+        // Apenas atualizar os dados e redirecionar
+        console.log("🎉 PAGAMENTO JÁ PROCESSADO PELO BACKEND NA MUDANÇA DE PLANO");
       } else {
-        console.log("❌ PAGAMENTO FALHOU");
+        // Se não há contrato ativo, criar novo contrato
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setDate(today.getDate() + 30);
+
+        const contractData = {
+          user_id: 1, // Simulação com user_id fixo
+          plan_id: plan.id,
+          start_date: today.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
+        };
+
+        console.log("📝 CRIANDO NOVO CONTRATO:", contractData);
+        contract = await createContract(contractData);
+
+        if (!contract) {
+          throw new Error("Erro ao criar contrato");
+        }
+
+        console.log("✅ NOVO CONTRATO CRIADO:", contract.id);
+
+        // Calcular valor final com descontos aplicados
+        let finalAmount: number;
+        let discountApplied: number = 0;
+        let proratedOld: number = 0;
+        let proratedNew: number = 0;
+        let appliedCredits: number = 0;
+
+        if (creditInfo && isPlanChange) {
+          finalAmount = creditInfo.finalPrice;
+          proratedOld = creditInfo.proratedDiscount || 0;
+          proratedNew = creditInfo.proratedNew || 0; // Valor cheio do plano novo
+          appliedCredits = creditInfo.discount || 0;
+          discountApplied = proratedOld + proratedNew + appliedCredits;
+          console.log(
+            "💰 [PAYMENT CALC] Usando creditInfo.finalPrice:",
+            finalAmount
+          );
+        } else {
+          finalAmount = Math.max(0, plan.price - balanceCredits);
+          appliedCredits = balanceCredits;
+          discountApplied = appliedCredits;
+          console.log("💰 [PAYMENT CALC] Calculando manualmente:", {
+            planPrice: plan.price,
+            balanceCredits: balanceCredits,
+            finalAmount: finalAmount,
+          });
+        }
+
+        // Garantir que o valor seja exatamente 0 quando não houver cobrança
+        if (finalAmount <= 0) {
+          finalAmount = 0; // Exatamente 0 para evitar R$ 0,01
+        } else {
+          finalAmount = Math.max(0.01, finalAmount); // Mínimo de 0.01 apenas se houver cobrança
+        }
+        finalAmount = Math.round(finalAmount * 100) / 100; // Arredondar para 2 casas decimais
+
+        // Sempre processar pagamento via PIX Simulado, independente do valor
+        const paymentData = {
+          contract_id: contract.id,
+          amount: finalAmount, // Valor em reais
+          payment_date: new Date().toISOString().split("T")[0],
+          status: "paid",
+          discount_applied: discountApplied,
+          prorated_old: proratedOld,
+          prorated_new: proratedNew,
+          applied_credits: appliedCredits,
+        };
+
+        console.log("💳 PROCESSANDO PAGAMENTO VIA PIX SIMULADO:", {
+          valorBruto: plan.price,
+          valorFinalComDescontos: finalAmount,
+          valorEnviadoReais: finalAmount, // Valor em reais (padrão americano)
+          creditosAplicados: appliedCredits,
+          status: "paid",
+          descontos: {
+            discount_applied: paymentData.discount_applied,
+            prorated_old: paymentData.prorated_old,
+            prorated_new: paymentData.prorated_new,
+            applied_credits: paymentData.applied_credits,
+          },
+        });
+
+        const payment = await processPayment(paymentData);
+
+        if (payment) {
+          console.log("🎉 PAGAMENTO CONFIRMADO VIA PIX SIMULADO:", {
+            paymentId: payment.id,
+            contractId: contract.id,
+            valorPago: payment.amount, // payment.amount vem em reais do backend
+            descontosAplicados: payment.discount_applied,
+          });
+        } else {
+          throw new Error("Falha no processamento do pagamento");
+        }
       }
-    } else {
-      console.log("❌ FALHA AO CRIAR CONTRATO");
+
+      // Atualizar dados após contratação bem-sucedida (para ambos os casos)
+      console.log("🔄 ATUALIZANDO DADOS APÓS PAGAMENTO...");
+      await Promise.all([
+        refreshContracts(1),
+        refreshPayments(1),
+        refreshBalance(1),
+      ]);
+      console.log("✅ DADOS ATUALIZADOS COM SUCESSO");
+
+      // Aguardar pelo menos 3 segundos antes de redirecionar para garantir a experiência do usuário
+      const minimumProcessingTime = 3000;
+      const startTime = Date.now();
+
+      const remainingTime =
+        minimumProcessingTime - (Date.now() - startTime);
+      if (remainingTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+      }
+
+      // Redirecionar para home com parâmetro de sucesso
+      navigate("/?success=payment");
+    } catch (error) {
+      console.error("❌ ERRO DURANTE O PROCESSAMENTO:", error);
+      setIsProcessing(false);
     }
   };
 
@@ -162,6 +276,22 @@ export const Payment = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: 1, name: "Usuário Teste" }} />
+
+      <Modal
+        isOpen={isProcessing}
+        onClose={() => {}}
+        closeOnBackdropClick={false}
+        size="sm"
+      >
+        <div className="text-center p-6">
+          <LoadingSpinner className="mx-auto mb-4" />
+          <h2 className="text-xl font-semibold">Processando Pagamento...</h2>
+          <p className="text-gray-600 mt-2">
+            Aguarde um momento, estamos confirmando tudo para você.
+          </p>
+        </div>
+      </Modal>
+
       <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
         <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
           Pagamento
@@ -179,7 +309,7 @@ export const Payment = () => {
               <h3 className="font-semibold text-blue-800">Plano Atual</h3>
               <p className="text-blue-700">
                 {activeContract.plan.description} -{" "}
-                {formatCurrency(activeContract.plan.price / 100)}/mês
+                {formatCurrency(activeContract.plan.price)}/mês
               </p>
             </div>
           )}
@@ -189,13 +319,12 @@ export const Payment = () => {
               {isPlanChange ? "Novo Plano" : "Plano Selecionado"}
             </h3>
             <p className="text-green-700">
-              {plan.description} - {formatCurrency(plan.price / 100)}/mês
+              {plan.description} - {formatCurrency(plan.price)}/mês
             </p>
           </div>
 
           {creditInfo && isPlanChange && (
             <PlanChangeDetails
-              newPlan={plan}
               creditInfo={creditInfo}
               formatCurrency={formatCurrency}
               showToCredit={true}
@@ -204,80 +333,94 @@ export const Payment = () => {
 
           {!isPlanChange && balanceCredits > 0 && (
             <div className="mb-4 p-3 bg-blue-50 rounded">
-              <h3 className="font-semibold text-blue-800">Descontos Aplicados</h3>
+              <h3 className="font-semibold text-blue-800">
+                Descontos Aplicados
+              </h3>
               <p className="text-blue-700">
-                Saldo em Crédito: {formatCurrency(balanceCredits)}
+                Saldo em Crédito: {formatCurrency(balanceCreditsInReais)}
               </p>
               <p className="text-blue-700 font-bold">
-                Valor Final: {formatCurrency(Math.max(0, plan.price - balanceCredits))}
+                Valor Final:{" "}
+                {formatCurrency(
+                  Math.max(0, plan.price - balanceCreditsInReais)
+                )}
               </p>
             </div>
           )}
 
           {!isPlanChange && balanceCredits === 0 && (
             <p className="text-lg font-bold mb-4">
-              Preço: {formatCurrency(plan.price / 100)}
+              Preço: {formatCurrency(plan.price)}
             </p>
           )}
-          {creditInfo && creditInfo.finalPrice > 0 && (
-            <div className="mb-6 text-center">
-              <h3 className="text-lg font-medium mb-4">Pague com PIX</h3>
 
-              {pixPayload && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Código PIX (copia e cola):
-                  </label>
-                  <textarea
-                    readOnly
-                    value={pixPayload}
-                    className="w-full p-2 border rounded text-xs font-mono bg-gray-50"
-                    rows={4}
-                  />
-                  <button
-                    onClick={() => navigator.clipboard.writeText(pixPayload)}
-                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Copiar Código PIX
-                  </button>
-                </div>
-              )}
+          {/* Se 'Total a pagar' > 0, mostra PIX Simulator */}
+          {(() => {
+            let finalAmount = 0;
+            if (creditInfo && isPlanChange) {
+              finalAmount = creditInfo.finalPrice;
+            } else {
+              finalAmount = Math.max(0, plan.price - balanceCreditsInReais);
+            }
+            return finalAmount > 0 ? (
+              <div className="mb-6 text-center">
+                <h3 className="text-lg font-medium mb-4">Pague com PIX</h3>
 
-              <div className="p-4 border inline-block rounded-lg">
-                {(() => {
-                  const pixAmount = creditInfo
-                    ? creditInfo.finalPrice / 100
-                    : Math.max(0, (plan.price - balanceCredits) / 100);
-                  console.log(
-                    "🔍 [PIX DEBUG] Tentando renderizar Pix com props:",
-                    {
-                      pixkey: "paid@example.com",
-                      merchant: "InMediam",
-                      city: "SAO PAULO",
-                      amount: pixAmount,
-                      size: 192,
-                    }
-                  );
-                  return (
-                    <Pix
-                      pixkey={"paid@example.com"} // Chave de email válida para teste
-                      merchant={"InMediam"} // Sem acentos
-                      city={"SAO PAULO"}
-                      amount={parseFloat(String(pixAmount))}
-                      size={192}
-                      onLoad={(payload: string) => {
-                        console.log(
-                          "✅ [PIX DEBUG] Pix carregado com sucesso, payload:",
-                          payload
-                        );
-                        setPixPayload(payload);
-                      }}
+                {pixPayload && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">
+                      Código PIX (copia e cola):
+                    </label>
+                    <textarea
+                      readOnly
+                      value={pixPayload}
+                      className="w-full p-2 border rounded text-xs font-mono bg-gray-50"
+                      rows={4}
                     />
-                  );
-                })()}
+                    <button
+                      onClick={() => navigator.clipboard.writeText(pixPayload)}
+                      className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Copiar Código PIX
+                    </button>
+                  </div>
+                )}
+
+                <div className="p-4 border inline-block rounded-lg">
+                  {(() => {
+                    // Calcular valor final considerando descontos (sempre positivo)
+                    const pixAmount = finalAmount;
+                    console.log(
+                      "🔍 [PIX DEBUG] Tentando renderizar Pix com props:",
+                      {
+                        pixkey: "33208898000147",
+                        merchant: "Inmediam",
+                        city: "SAO PAULO",
+                        amount: pixAmount,
+                        size: 192,
+                      }
+                    );
+                    return (
+                      <Pix
+                        pixkey={"33208898000147"} // Chave de email válida para teste
+                        merchant={"Inmediam"} // Sem acentos
+                        city={"SAO PAULO"}
+                        amount={parseFloat(String(pixAmount))}
+                        size={192}
+                        onLoad={(payload: string) => {
+                          console.log(
+                            "✅ [PIX DEBUG] Pix carregado com sucesso, payload:",
+                            payload
+                          );
+                          setPixPayload(payload);
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
           <button
             onClick={handleConfirmPayment}
             disabled={contractLoading || paymentLoading}

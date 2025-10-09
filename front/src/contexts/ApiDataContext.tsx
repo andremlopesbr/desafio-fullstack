@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useState, useCallback, ReactNode } from 'react';
 
 interface Plano {
   id: number;
@@ -57,47 +57,8 @@ interface ApiDataContextType {
   refreshBalance: (userId: number) => Promise<void>;
 }
 
-const ApiDataContext = createContext<ApiDataContextType | undefined>(undefined);
+export const ApiDataContext = createContext<ApiDataContextType | undefined>(undefined);
 
-// Cache utilities
-const CACHE_DURATION = {
-  plans: 5 * 60 * 1000, // 5 min
-  contracts: 2 * 60 * 1000, // 2 min
-  payments: 1 * 60 * 1000, // 1 min
-  balance: 30 * 1000, // 30 sec
-};
-
-const getCacheKey = (type: string, userId?: number) => {
-  return userId ? `${type}_cache_${userId}` : `${type}_cache`;
-};
-
-const getCachedData = function<T>(type: string, userId?: number): T | null {
-  try {
-    const key = getCacheKey(type, userId);
-    const cached = localStorage.getItem(key);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_DURATION[type as keyof typeof CACHE_DURATION]) {
-        return data;
-      }
-    }
-  } catch (error) {
-    console.warn(`Error reading ${type} cache:`, error);
-  }
-  return null;
-};
-
-const setCachedData = function<T>(type: string, data: T, userId?: number) {
-  try {
-    const key = getCacheKey(type, userId);
-    localStorage.setItem(key, JSON.stringify({
-      data,
-      timestamp: Date.now()
-    }));
-  } catch (error) {
-    console.warn(`Error setting ${type} cache:`, error);
-  }
-};
 
 interface ApiDataProviderProps {
   children: ReactNode;
@@ -126,12 +87,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Plans methods
   const refreshPlans = useCallback(async () => {
-    const cached = getCachedData<Plano[]>('plans');
-    if (cached) {
-      setPlans(cached);
-      return;
-    }
-
     setPlansLoading(true);
     setPlansError(null);
     try {
@@ -139,7 +94,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       if (!response.ok) throw new Error('Failed to fetch plans');
       const data = await response.json();
       setPlans(data);
-      setCachedData('plans', data);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setPlansError(message);
@@ -151,12 +105,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Contracts methods
   const refreshContracts = useCallback(async (userId: number) => {
-    const cached = getCachedData<Contract[]>('contracts', userId);
-    if (cached) {
-      setContracts(cached);
-      return;
-    }
-
     setContractsLoading(true);
     setContractsError(null);
     try {
@@ -164,7 +112,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       if (!response.ok) throw new Error('Failed to fetch contracts');
       const data = await response.json();
       setContracts(data);
-      setCachedData('contracts', data, userId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setContractsError(message);
@@ -176,12 +123,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Payments methods
   const refreshPayments = useCallback(async (userId: number) => {
-    const cached = getCachedData<Payment[]>('payments', userId);
-    if (cached) {
-      setPayments(cached);
-      return;
-    }
-
     setPaymentsLoading(true);
     setPaymentsError(null);
     try {
@@ -189,7 +130,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       setPayments(data);
-      setCachedData('payments', data, userId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setPaymentsError(message);
@@ -201,12 +141,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Balance methods
   const refreshBalance = useCallback(async (userId: number) => {
-    const cached = getCachedData<number>('balance', userId);
-    if (cached !== null) {
-      setBalance(cached);
-      return;
-    }
-
     setBalanceLoading(true);
     setBalanceError(null);
     try {
@@ -215,7 +149,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       const data = await response.json();
       const balanceValue = data.total_balance || 0;
       setBalance(balanceValue);
-      setCachedData('balance', balanceValue, userId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setBalanceError(message);
@@ -256,12 +189,4 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       {children}
     </ApiDataContext.Provider>
   );
-}
-
-export function useApiData() {
-  const context = useContext(ApiDataContext);
-  if (context === undefined) {
-    throw new Error('useApiData must be used within an ApiDataProvider');
-  }
-  return context;
 }

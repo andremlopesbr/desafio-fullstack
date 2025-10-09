@@ -1,14 +1,18 @@
-import { useEffect } from 'react';
-import { useApiData } from '../contexts/ApiDataContext';
+import { useEffect, useRef } from 'react';
+import { useApiData } from './useApiData';
 
 export function useUserBalance(userId: number) {
   const { balance, balanceLoading, balanceError, refreshBalance } = useApiData();
+  const hasFetchedRef = useRef(false);
+  const lastUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (userId && balance === 0 && !balanceLoading) {
+    if (userId && !balanceLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
+      hasFetchedRef.current = true;
+      lastUserIdRef.current = userId;
       refreshBalance(userId);
     }
-  }, [userId, balance, balanceLoading, refreshBalance]);
+  }, [userId, balanceLoading, refreshBalance]);
 
   return {
     balance,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
 import { useContracts } from '../../hooks/useContracts';
+import { formatCurrency } from '../../utils/formatters';
 
 const Profile = () => {
   console.log('👤 [PROFILE PAGE] Inicializando página de perfil')
@@ -56,12 +57,6 @@ const Profile = () => {
   const activeContract = contracts.find(contract => contract.status === 'active');
   console.log('🎯 [PROFILE PAGE] Contrato ativo encontrado:', activeContract ? { id: activeContract.id, planId: activeContract.plan_id, status: activeContract.status, plan: activeContract.plan } : 'NENHUM')
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">

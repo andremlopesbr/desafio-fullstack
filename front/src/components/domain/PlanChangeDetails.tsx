@@ -1,13 +1,10 @@
 import React from "react";
 
 interface PlanChangeDetailsProps {
-  newPlan: {
-    id: number;
-    price: number;
-  };
   creditInfo?: {
     databaseCredits: number;
     proratedDiscount: number;
+    proratedNew?: number;
     finalPrice: number;
   };
   formatCurrency: (value: number) => string;
@@ -15,7 +12,6 @@ interface PlanChangeDetailsProps {
 }
 
 export const PlanChangeDetails: React.FC<PlanChangeDetailsProps> = ({
-  newPlan,
   creditInfo,
   formatCurrency,
   showToCredit = false,
@@ -41,12 +37,14 @@ export const PlanChangeDetails: React.FC<PlanChangeDetailsProps> = ({
         <p className="text-lg font-bold text-yellow-800 border-t pt-2 mt-2">
           Total a pagar: {formatCurrency(creditInfo.finalPrice)}
         </p>
-        {showToCredit && creditInfo.proratedDiscount > newPlan.price && (
-          <span>
-            À creditar:{" "}
-            {formatCurrency(creditInfo.proratedDiscount - newPlan.price)}
-          </span>
-        )}
+        {showToCredit &&
+          creditInfo.finalPrice == 0 &&
+          creditInfo.proratedDiscount > (creditInfo.proratedNew || 0) && (
+            <span>
+              À creditar:{" "}
+              {formatCurrency(creditInfo.proratedDiscount - (creditInfo.proratedNew || 0))}
+            </span>
+          )}
       </div>
     </div>
   );

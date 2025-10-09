@@ -47,7 +47,6 @@ export const PlanChangeSummary: React.FC<PlanChangeSummaryProps> = ({
       {/* Descontos*/}
       {creditInfo && (
         <PlanChangeDetails
-          newPlan={newPlan}
           creditInfo={creditInfo}
           formatCurrency={formatCurrency}
           showToCredit={false}

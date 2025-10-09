@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
-import { useApiData } from '../contexts/ApiDataContext';
+import { useEffect, useState, useRef } from 'react';
+import { useApiData } from './useApiData';
 
 export function usePayments(userId: number) {
   const { payments, paymentsLoading, paymentsError, refreshPayments } = useApiData();
+  const hasFetchedRef = useRef(false);
+  const lastUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (userId && payments.length === 0 && !paymentsLoading) {
+    if (userId && !paymentsLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
+      hasFetchedRef.current = true;
+      lastUserIdRef.current = userId;
       refreshPayments(userId);
     }
-  }, [userId, payments.length, paymentsLoading, refreshPayments]);
+  }, [userId, paymentsLoading, refreshPayments]);
 
   return {
     payments,

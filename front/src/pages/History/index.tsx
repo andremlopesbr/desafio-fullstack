@@ -5,6 +5,7 @@ import { useUserBalance } from '../../hooks/useUserBalance';
 import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
 import { HistoryTable } from '../../components/domain';
+import { formatCurrency } from '../../utils/formatters';
 
 interface Payment {
   id: number;
@@ -14,6 +15,10 @@ interface Payment {
   status: string;
   created_at: string;
   updated_at: string;
+  discount_applied?: number;
+  prorated_old?: number;
+  prorated_new?: number;
+  applied_credits?: number;
 }
 
 interface Contract {
@@ -37,12 +42,6 @@ interface Contract {
 
 const userId = 1; // Assume logged-in user
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value)
-}
 
 export const History = () => {
    console.log('📋 [HISTORY PAGE] Inicializando página de histórico')
@@ -125,6 +124,7 @@ export const History = () => {
           <h1 className="text-2xl font-bold">Meu Histórico</h1>
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             <span className="text-sm font-medium text-blue-800">Saldo: </span>
+            {/* Carregar saldo do Balance */}
             <span className="text-lg font-bold text-blue-900">{formatCurrency(balance)}</span>
           </div>
         </div>

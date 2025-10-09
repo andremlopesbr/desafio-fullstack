@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SelectPlan } from '../forms/SelectPlan';
 import { PlanChangeSummary } from './PlanChangeSummary';
 import { usePlanDiscount } from '../../hooks/usePlanDiscount';
+import { formatCurrency } from '../../utils/formatters';
 
 interface PlanChangeModalProps {
   isOpen: boolean;
@@ -45,12 +46,6 @@ export const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
     return 'Trocar Plano';
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
 
   const handleConfirm = async () => {
     if (!selectedPlanId) return;

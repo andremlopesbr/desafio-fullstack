@@ -1,15 +1,10 @@
 import { useCreditTransactionHistory } from '../../hooks/useCreditTransactionHistory';
+import { formatCurrency } from '../../utils/formatters';
 
 interface CreditTransactionHistoryProps {
   userId: number;
 }
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-};
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('pt-BR');
