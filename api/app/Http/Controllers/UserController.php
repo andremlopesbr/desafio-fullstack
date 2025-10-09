@@ -44,6 +44,6 @@ class UserController extends Controller
 
         return response()->json([
             'total_balance' => $totalBalance
-        ]);
+        ], 200, [], JSON_NUMERIC_CHECK);
     }
 }

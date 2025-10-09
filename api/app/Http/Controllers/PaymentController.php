@@ -38,12 +38,11 @@ class PaymentController extends Controller
             'applied_credits' => 'nullable|numeric|min:0',
         ]);
 
-        $amountInCents = is_float($validated['amount']) ? (int)($validated['amount'] * 100) : (int)$validated['amount'];
-        $status = $validated['status'];
+        $status = $validated['status'] ?? null;
 
         $dto = new PaymentDTO(
             contract_id: (int) $validated['contract_id'],
-            amount: new Money($amountInCents),
+            amount: new Money($validated['amount']),
             payment_date: Carbon::parse($validated['payment_date']),
             status: $status ? PaymentStatus::from($status) : PaymentStatus::PENDING,
             discount_applied: isset($validated['discount_applied']) ? (int) $validated['discount_applied'] : null,

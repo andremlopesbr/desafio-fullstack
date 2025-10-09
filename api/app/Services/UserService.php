@@ -24,7 +24,7 @@ class UserService implements UserServiceInterface
             ->get();
     }
 
-    public function getUserBalance(int $userId): int
+    public function getUserBalance(int $userId): float
     {
         return UserBalance::getTotalBalanceForUser($userId);
     }

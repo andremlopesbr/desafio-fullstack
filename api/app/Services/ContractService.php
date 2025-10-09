@@ -27,12 +27,32 @@ class ContractService implements ContractServiceInterface
             ->where('status', 'active')
             ->update(['status' => 'cancelled']);
 
+        $startDate = $dto->start_date ?? Carbon::now();
+        $endDate = $dto->end_date;
+
+        // Se end_date não foi fornecido, calcular baseado no ciclo mensal (mesmo dia do mês seguinte)
+        if (!$endDate) {
+            $nextMonth = $startDate->copy()->addMonth();
+            $endDate = $nextMonth->startOfMonth()->addDays($startDate->day - 1);
+            // Se o dia do mês não existir no próximo mês, usar o último dia do mês
+            if ($endDate->month !== $nextMonth->month) {
+                $endDate = $nextMonth->endOfMonth();
+            }
+            Log::info("End date calculado para novo contrato", [
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+                'day_of_month' => $startDate->day,
+                'next_month' => $nextMonth->toDateString(),
+                'days_added' => $startDate->day - 1
+            ]);
+        }
+
         // Criar contrato
         $contract = Contract::create([
             'user_id' => $dto->user_id,
             'plan_id' => $dto->plan_id,
-            'start_date' => $dto->start_date ?? Carbon::now(),
-            'end_date' => $dto->end_date,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
             'status' => $dto->status ?? 'active',
         ]);
 
@@ -49,10 +69,9 @@ class ContractService implements ContractServiceInterface
         $userId = $contract->user_id;
         $now = Carbon::now();
 
-        // Calcular crédito proporcional com base nos dias restantes do plano antigo
-        $daysRemaining = $this->calculateDaysRemaining($contract, Carbon::now());
-        $oldPlanDailyPrice = $oldPlan->price / 30; // Assumindo 30 dias no mês
-        $proportionalCredit = (int) round($daysRemaining * $oldPlanDailyPrice);
+        // Calcular dias restantes e valores pro-rata
+        $daysRemaining = $this->calculateDaysRemaining($contract, $now);
+        Log::info("Dias restantes calculados", ['days_remaining' => $daysRemaining]);
 
         // Assumir ciclo de 30 dias para cálculos pro-rata
         $totalDaysInCycle = 30;
@@ -202,33 +221,27 @@ class ContractService implements ContractServiceInterface
             'day_of_month' => $now->day
         ]);
 
-        // Criar novo contrato
         $newContract = Contract::create([
-            'user_id' => $contract->user_id,
+            'user_id' => $userId,
             'plan_id' => $newPlanId,
-            'start_date' => Carbon::now(),
+            'start_date' => $now,
+            'end_date' => $endDate,
             'status' => 'active',
         ]);
+        Log::info("Novo contrato criado", ['new_contract_id' => $newContract->id]);
 
-        $finalAmount = 0;
-        $creditAddedToBalance = 0;
+        // Criar pagamento com o valor final após abatimento
+        $finalAmount = $remainingAmount;
+        Log::info("Criando pagamento", [
+            'final_amount' => $finalAmount,
+            'remaining_amount' => $remainingAmount,
+            'status' => $finalAmount > 0 ? 'pending' : 'paid',
+            'discount_applied' => $proratedOld + $appliedBalance,
+            'prorated_old' => $proratedOld,
+            'prorated_new' => $proratedNew,
+            'applied_credits' => $appliedBalance
+        ]);
 
-        if ($newPlan->price > $oldPlan->price) { // UPGRADE
-            $finalAmount = max(0, $newPlan->price - $proportionalCredit);
-            Log::info("Troca de plano (Upgrade)", ['new_price' => $newPlan->price, 'credit' => $proportionalCredit, 'final_amount' => $finalAmount]);
-        } else { // DOWNGRADE ou troca lateral
-            // Adiciona o crédito proporcional ao saldo do usuário
-            if ($proportionalCredit > 0) {
-                $description = "Crédito por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
-                $this->addBalance($contract->user_id, $proportionalCredit, $description);
-                $creditAddedToBalance = $proportionalCredit;
-            }
-            // Cobra o valor cheio do novo plano
-            $finalAmount = $newPlan->price;
-            Log::info("Troca de plano (Downgrade)", ['new_price' => $newPlan->price, 'credit_added' => $creditAddedToBalance, 'final_amount' => $finalAmount]);
-        }
-
-        // Criar pagamento com o valor final
         if ($finalAmount >= 0) {
             Payment::create([
                 'contract_id' => $newContract->id,
@@ -251,21 +264,25 @@ class ContractService implements ContractServiceInterface
             'applied_balance' => $appliedBalance,
             'additional_balance' => $additionalBalance,
             'final_amount' => $finalAmount,
-            'remaining_credit' => $creditAddedToBalance,
+            'total_discount_applied' => $proratedOld + $appliedBalance, // desconto pro-rata + saldo aplicado
+            // Compatibility keys
+            'credits_available' => $userBalance,
+            'balance_available' => $userBalance,
+            'discount_applied' => $proratedOld + $appliedBalance,
+            'remaining_credit' => $additionalBalance,
+            'remaining_balance' => $additionalBalance,
         ];
     }
 
     public function listContractsForUser(int $userId, ?string $status = null): Collection
     {
-        return Contract::with('plan')->where('user_id', $userId)->get();
-    }
+        $query = Contract::with('plan')->where('user_id', $userId);
 
-    /**
-     * Obter saldo disponível para um usuário (compatibilidade)
-     */
-    public function getUserCredits(int $userId): int
-    {
-        return (int) $this->getUserBalance($userId);
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -295,68 +312,6 @@ class ContractService implements ContractServiceInterface
             'remaining_amount' => $remainingAmount,
             'total_balance_used' => $appliedBalance,
         ];
-    }
-
-    /**
-     * Aplicar créditos em um pagamento
-     */
-    public function applyCreditsToPayment(int $userId, int $paymentAmount): array
-    {
-        $availableCredits = $this->getUserBalance($userId);
-        $appliedCredits = min($availableCredits, $paymentAmount);
-        $remainingAmount = $paymentAmount - $appliedCredits;
-
-        // Consumir créditos utilizados
-        if ($appliedCredits > 0) {
-            $this->consumeCredits($userId, $appliedCredits);
-        }
-
-        return [
-            'applied_credits' => $appliedCredits,
-            'remaining_amount' => $remainingAmount,
-            'total_credits_used' => $appliedCredits,
-        ];
-    }
-
-    /**
-     * Consumir créditos de um usuário (usando FIFO - primeiro criado)
-     */
-    private function consumeCredits(int $userId, int $amountToConsume): void
-    {
-        $credits = UserBalance::forUser($userId)
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        $remainingToConsume = $amountToConsume;
-
-        foreach ($credits as $credit) {
-            if ($remainingToConsume <= 0) break;
-
-            if ($credit->amount <= $remainingToConsume) {
-                // Consumir crédito completo
-                $consumedAmount = $credit->amount;
-                $remainingToConsume -= $credit->amount;
-                $credit->delete();
-            } else {
-                // Consumir parte do crédito
-                $consumedAmount = $remainingToConsume;
-                $credit->amount -= $remainingToConsume;
-                $credit->save();
-                $remainingToConsume = 0;
-            }
-
-            // Logar transação de débito
-            UserBalanceTransaction::create([
-                'user_id' => $userId,
-                'amount' => $consumedAmount,
-                'type' => 'debit',
-                'description' => 'Crédito utilizado em pagamento',
-                'metadata' => [
-                    'user_balance_id' => $credit->id,
-                    'consumed_amount' => $consumedAmount,
-                ],
-            ]);
-        }
     }
 
     /**
@@ -405,14 +360,26 @@ class ContractService implements ContractServiceInterface
      */
     private function calculateDaysRemaining(Contract $contract, Carbon $now): int
     {
-        // Assumir período de 30 dias a partir da data de início
-        $endDate = $contract->start_date->copy()->addDays(30);
+        // Usar end_date do contrato se existir, senão assumir 30 dias a partir da data de início
+        $endDate = $contract->end_date ?? $contract->start_date->copy()->addDays(30);
+
+        Log::info("Calculando dias restantes", [
+            'contract_id' => $contract->id,
+            'start_date' => $contract->start_date->toDateString(),
+            'end_date' => $endDate->toDateString(),
+            'now' => $now->toDateString(),
+            'has_explicit_end_date' => !is_null($contract->end_date)
+        ]);
 
         if ($now->greaterThanOrEqualTo($endDate)) {
+            Log::info("Contrato já expirado, dias restantes = 0");
             return 0;
         }
 
-        return $now->diffInDays($endDate);
+        $daysRemaining = $now->diffInDays($endDate);
+        Log::info("Dias restantes calculados", ['days_remaining' => $daysRemaining]);
+
+        return $daysRemaining;
     }
 
     /**
@@ -571,6 +538,7 @@ class ContractService implements ContractServiceInterface
                     $results['errors'][] = "Erro processando recorrência contrato {$contract->id}: " . $e->getMessage();
                 }
             }
+
         } catch (\Exception $e) {
             $results['errors'][] = "Erro geral na manutenção diária: " . $e->getMessage();
         }
@@ -591,14 +559,14 @@ class ContractService implements ContractServiceInterface
         // Adicionar o valor ao saldo do usuário
         UserBalance::create([
             'user_id' => $userId,
-            'amount' => $amount,
+            'amount' => $amount, // O valor em reais
             'description' => $description,
         ]);
 
         // Registrar a transação de crédito
         UserBalanceTransaction::create([
             'user_id' => $userId,
-            'amount' => $amount / 100, // Armazenar em valor monetário (reais)
+            'amount' => $amount, // Armazenar em reais
             'type' => 'credit',
             'description' => $description,
             'metadata' => [

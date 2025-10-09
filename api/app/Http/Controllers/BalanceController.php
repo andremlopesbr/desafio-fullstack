@@ -34,7 +34,7 @@ class BalanceController extends Controller
 
         $this->contractService->addBalance(
             $validated['user_id'],
-            (int) ($validated['amount'] * 100), // Store as cents
+            $validated['amount'], // Store as reais
             $validated['description']
         );
 

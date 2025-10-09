@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface CreditTransaction {
   id: number;
@@ -16,7 +16,7 @@ export function useCreditTransactionHistory(userId: number) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     console.log('🔄 [HOOK useCreditTransactionHistory] Iniciando busca de transações de crédito para userId:', userId);
     setLoading(true);
     setError(null);
@@ -38,13 +38,13 @@ export function useCreditTransactionHistory(userId: number) {
       setLoading(false);
       console.log('🏁 [HOOK useCreditTransactionHistory] Busca finalizada');
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (userId) {
       fetchTransactions();
     }
-  }, [userId]);
+  }, [userId, fetchTransactions]);
 
   return { transactions, loading, error, refetch: fetchTransactions };
 }

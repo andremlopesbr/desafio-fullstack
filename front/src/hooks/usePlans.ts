@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useApiData } from "./useApiData";
+import { useEffect, useRef } from 'react';
+import { useApiData } from './useApiData';
 
 export function usePlans() {
   const { plans, plansLoading, plansError, refreshPlans } = useApiData();
@@ -12,10 +12,5 @@ export function usePlans() {
     }
   }, [plans.length, plansLoading, refreshPlans]);
 
-  return {
-    plans,
-    loading: plansLoading,
-    error: plansError,
-    refetch: refreshPlans,
-  };
+  return { plans, loading: plansLoading, error: plansError, refetch: refreshPlans };
 }

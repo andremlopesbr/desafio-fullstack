@@ -20,7 +20,7 @@ class UserBalance extends Model
     ];
 
     protected $casts = [
-        'amount' => 'integer',
+        'amount' => 'float',
     ];
 
     public function user(): BelongsTo
@@ -39,8 +39,8 @@ class UserBalance extends Model
     /**
      * Calcular o total de saldo disponível para um usuário
      */
-    public static function getTotalBalanceForUser(int $userId): int
+    public static function getTotalBalanceForUser(int $userId): float
     {
-        return UserBalanceTransaction::where('user_id', $userId)->sum('amount');
+        return UserBalance::forUser($userId)->sum('amount');
     }
 }

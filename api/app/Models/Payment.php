@@ -14,6 +14,19 @@ class Payment extends Model
         'amount',
         'payment_date',
         'status',
+        'discount_applied',
+        'prorated_old',
+        'prorated_new',
+        'applied_credits',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'payment_date' => 'date',
+        'discount_applied' => 'decimal:2',
+        'prorated_old' => 'decimal:2',
+        'prorated_new' => 'decimal:2',
+        'applied_credits' => 'decimal:2',
     ];
 
     protected $casts = [

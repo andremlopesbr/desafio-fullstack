@@ -21,7 +21,7 @@ class PaymentControllerTest extends TestCase
 
         $data = [
             'contract_id' => $contract->id,
-            'amount' => 100.50,
+            'amount' => 10050, // 100.50 em centavos
             'payment_date' => '2023-01-01',
             'status' => 'paid',
         ];
@@ -99,18 +99,14 @@ class PaymentControllerTest extends TestCase
         $response = $this->postJson('/api/payments/process', $data);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure(['id', 'contract_id', 'amount', 'payment_date', 'status']);
+                 ->assertJsonStructure(['id', 'contract_id', 'amount', 'payment_date', 'status', 'discount_applied', 'prorated_old', 'prorated_new', 'applied_credits']);
 
         $responseData = $response->json();
 
-        // Check that the payment was created successfully and fields are properly handled
-        $this->assertEquals($contract->id, $responseData['contract_id']);
-        $this->assertNotNull($responseData['amount']); // Amount is stored as decimal in the model
-        $this->assertEquals('paid', $responseData['status']);
-
-        // Verify that discount fields are handled correctly (may be null or converted)
-        if (isset($responseData['discount_applied'])) {
-            $this->assertIsString($responseData['discount_applied']);
-        }
+        // Check that the fields are converted to decimals but verify the logic works
+        $this->assertEquals('10.00', $responseData['discount_applied']); // converted from int 10 to decimal
+        $this->assertEquals('20.00', $responseData['prorated_old']);
+        $this->assertEquals('30.00', $responseData['prorated_new']);
+        $this->assertEquals('5.00', $responseData['applied_credits']);
     }
 }

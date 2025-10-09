@@ -62,7 +62,7 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: user.id, name: user.name }} />
       <Breadcrumbs items={[{ name: 'Perfil', href: '/profile' }]} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
         <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
 
         <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg p-6">
