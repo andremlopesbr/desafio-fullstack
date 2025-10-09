@@ -49,10 +49,10 @@ class PaymentController extends Controller
                 amount: new Money($validated['amount']),
                 payment_date: Carbon::parse($validated['payment_date']),
                 status: $status ? PaymentStatus::from($status) : PaymentStatus::PENDING,
-                discount_applied: isset($validated['discount_applied']) ? $validated['discount_applied'] : null,
-                prorated_old: isset($validated['prorated_old']) ? $validated['prorated_old'] : null,
-                prorated_new: isset($validated['prorated_new']) ? $validated['prorated_new'] : null,
-                applied_credits: isset($validated['applied_credits']) ? $validated['applied_credits'] : null,
+                discount_applied: isset($validated['discount_applied']) ? (float) $validated['discount_applied'] : null,
+                prorated_old: isset($validated['prorated_old']) ? (float) $validated['prorated_old'] : null,
+                prorated_new: isset($validated['prorated_new']) ? (float) $validated['prorated_new'] : null,
+                applied_credits: isset($validated['applied_credits']) ? (float) $validated['applied_credits'] : null,
             );
 
             $payment = $this->paymentService->processPayment($dto);

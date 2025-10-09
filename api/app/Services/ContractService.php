@@ -69,32 +69,58 @@ class ContractService implements ContractServiceInterface
         $userId = $contract->user_id;
         $now = Carbon::now();
 
-        // Calcular dias restantes e valores pro-rata
-        $daysRemaining = $this->calculateDaysRemaining($contract, $now);
-        Log::info("Dias restantes calculados", ['days_remaining' => $daysRemaining]);
+        // Calcular ciclo mensal baseado na especificação do README
+        // Sempre usar ciclo de 30 dias conforme exemplo: 01/09 → 15/09 = 14 dias utilizados
+        $totalDaysInCycle = 30; // Fixo conforme exemplo do README
 
-        // Assumir ciclo de 30 dias para cálculos pro-rata
-        $totalDaysInCycle = 30;
-        $daysUsed = $totalDaysInCycle - $daysRemaining;
+        // Calcular dias utilizados baseado na diferença entre start_date e now
+        $startDate = $contract->start_date;
+        $daysUsed = $startDate->diffInDays($now);
 
-        Log::info("Cálculo do ciclo", [
-            'total_days_in_cycle' => $totalDaysInCycle,
+        // Garantir que não exceda os dias totais do ciclo
+        if ($daysUsed > $totalDaysInCycle) {
+            $daysUsed = $totalDaysInCycle;
+        }
+
+        $daysRemaining = $totalDaysInCycle - $daysUsed;
+
+        Log::info("Ciclo mensal calculado (ESPECIFICAÇÃO README)", [
+            'start_date' => $startDate->toDateString(),
+            'current_date' => $now->toDateString(),
             'days_used' => $daysUsed,
-            'days_remaining' => $daysRemaining
+            'days_remaining' => $daysRemaining,
+            'total_days' => $totalDaysInCycle,
+            'specification_compliant' => 'Ciclo fixo de 30 dias conforme exemplo do README'
         ]);
 
-        // CORREÇÃO: Plano novo sempre usa valor cheio (não proporcional)
-        // pois representa o valor base para comparação com créditos disponíveis
-        $proratedOld = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
-        $proratedNew = $newPlan->price; // Sempre valor cheio do plano novo
+        // Calcular crédito proporcional do plano antigo baseado nos dias utilizados
+        // Crédito = Valor do plano antigo * (dias restantes / dias totais do ciclo)
+        // Fórmula EXATA do exemplo: Crédito proporcional = Valor plano antigo × (dias restantes ÷ 30)
+        $proratedOldCredit = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
 
-        Log::info("Cálculo de pro-rata corrigido", [
-            'prorated_old' => $proratedOld,
-            'prorated_new' => $proratedNew,
+        Log::info("Cálculo detalhado do crédito proporcional (README)", [
+            'old_plan_price' => $oldPlan->price,
+            'days_used' => $daysUsed,
+            'days_remaining' => $daysRemaining,
+            'total_days_in_cycle' => $totalDaysInCycle,
+            'prorated_old_credit' => $proratedOldCredit,
+            'calculation' => "{$oldPlan->price} × ({$daysRemaining} ÷ {$totalDaysInCycle}) = {$proratedOldCredit}",
+            'r' => $daysUsed === 14 && $daysRemaining === 16 ? 'CORRESPONDE AO EXEMPLO' : 'DIFERENTE DO EXEMPLO',
+            'readme_example' => '01/09 → 15/09 = 14 dias utilizados, 16 restantes, crédito = R$50 de R$100'
+        ]);
+
+        // Novo plano sempre cobra valor cheio (não proporcional)
+        $proratedNew = $newPlan->price;
+
+        Log::info("Cálculo de pro-rata conforme especificação", [
             'old_plan_price' => $oldPlan->price,
             'new_plan_price' => $newPlan->price,
+            'prorated_old_credit' => $proratedOldCredit,
+            'prorated_new' => $proratedNew,
+            'days_used' => $daysUsed,
             'days_remaining' => $daysRemaining,
-            'explanation' => 'Pro-rata antigo proporcional, plano novo sempre cheio'
+            'total_days' => $totalDaysInCycle,
+            'formula' => 'Crédito proporcional = Plano Antigo × (dias restantes ÷ dias totais)'
         ]);
 
         $userBalance = $this->getUserBalance($userId);
@@ -117,78 +143,76 @@ class ContractService implements ContractServiceInterface
             'new_price' => $newPlan->price
         ]);
 
-        // Lógica EXATA baseada no padrão solicitado pelo usuário
-        // Fórmula SIMPLIFICADA: Plano Novo - Plano Atual = Resultado
-        // Se resultado <= 0: À creditar = Abs(resultado), Pagamento = 0
-        // Se resultado > 0: Pagamento = resultado
+        // Lógica EXATA baseada na especificação do README
+        // Exemplo: Plano R$100 → R$200 no dia 15 = R$150 (200-50)
+        if ($isDowngrade) {
+            // Downgrade: Crédito proporcional antigo - Valor cheio novo
+            $planDifference = $proratedOldCredit - $newPlan->price;
 
-        $newPlanPrice = $newPlan->price; // Valor do novo plano
-        $oldPlanPrice = $oldPlan->price; // Valor do plano atual (não proporcional)
+            if ($planDifference > 0) {
+                // Crédito proporcional > Valor novo = gera saldo excedente
+                $additionalBalance = $planDifference;
+                $valorAPagar = 0;
 
-        $valorAPagar = 0;
-        $additionalBalance = 0;
+                Log::info("Downgrade com crédito excedente", [
+                    'prorated_old_credit' => $proratedOldCredit,
+                    'new_plan_price' => $newPlan->price,
+                    'plan_difference' => $planDifference,
+                    'additional_balance' => $additionalBalance,
+                    'valor_a_pagar' => $valorAPagar,
+                    'explanation' => 'Crédito proporcional antigo > Valor novo = gera saldo excedente'
+                ]);
+            } else {
+                // Crédito proporcional <= Valor novo = cobra diferença
+                $valorAPagar = abs($planDifference);
+                $additionalBalance = 0;
 
-        // Cálculo simples: Plano Novo - Plano Atual
-        $planDifference = $newPlanPrice - $oldPlanPrice;
-
-        if ($planDifference <= 0) {
-            // Downgrade - gera crédito
-            $additionalBalance = abs($planDifference);
-            $valorAPagar = 0;
-
-            Log::info("Downgrade - gerando crédito", [
-                'new_plan_price' => $newPlanPrice,
-                'old_plan_price' => $oldPlanPrice,
-                'plan_difference' => $planDifference,
-                'additional_balance' => $additionalBalance,
-                'valor_a_pagar' => $valorAPagar,
-                'explanation' => 'Plano Novo <= Plano Atual = gera crédito'
-            ]);
-        } else {
-            // Upgrade - cobrar diferença
-            $valorAPagar = $planDifference;
+                Log::info("Downgrade com cobrança adicional", [
+                    'prorated_old_credit' => $proratedOldCredit,
+                    'new_plan_price' => $newPlan->price,
+                    'plan_difference' => $planDifference,
+                    'valor_a_pagar' => $valorAPagar,
+                    'additional_balance' => $additionalBalance,
+                    'explanation' => 'Crédito proporcional antigo <= Valor novo = cobra diferença'
+                ]);
+            }
+        } elseif ($isUpgrade) {
+            // Upgrade: Valor cheio novo - Crédito proporcional antigo
+            $valorAPagar = $newPlan->price - $proratedOldCredit;
+            $additionalBalance = 0;
 
             Log::info("Upgrade - cobrar diferença", [
-                'new_plan_price' => $newPlanPrice,
-                'old_plan_price' => $oldPlanPrice,
-                'plan_difference' => $planDifference,
+                'new_plan_price' => $newPlan->price,
+                'prorated_old_credit' => $proratedOldCredit,
                 'valor_a_pagar' => $valorAPagar,
-                'explanation' => 'Plano Novo > Plano Atual = cobrar diferença'
+                'explanation' => 'Upgrade: Valor cheio novo - Crédito proporcional antigo'
+            ]);
+        } else {
+            // Mesmo preço - ajustar proporcionalmente
+            $valorAPagar = $newPlan->price - $proratedOldCredit;
+            $additionalBalance = 0;
+
+            Log::info("Mesmo preço - ajuste proporcional", [
+                'plan_price' => $newPlan->price,
+                'prorated_old_credit' => $proratedOldCredit,
+                'valor_a_pagar' => $valorAPagar,
+                'explanation' => 'Mesmo preço: ajuste proporcional baseado no período utilizado'
             ]);
         }
 
-        // Lógica final de processamento
-        Log::info("Resumo da troca de plano", [
-            'type' => $isDowngrade ? 'downgrade' : ($isUpgrade ? 'upgrade' : 'same_price'),
-            'prorated_old' => $proratedOld,
-            'prorated_new' => $proratedNew,
-            'new_plan_price' => $newPlanPrice,
-            'user_balance' => $userBalance,
-            'valor_a_pagar' => $valorAPagar,
-            'additional_balance' => $additionalBalance,
-            'explanation' => $isDowngrade ?
-                'Downgrade: compara crédito proporcional antigo vs custo proporcional novo' :
-                'Upgrade: cobra valor cheio novo menos crédito proporcional antigo'
-        ]);
-
-        // Aplicar saldo automaticamente se houver cobrança
-        $appliedBalance = 0;
+        // Aplicar saldo disponível apenas se houver cobrança
         $remainingAmount = $valorAPagar;
-        Log::info("Antes de aplicar saldo", [
-            'valor_a_pagar' => $valorAPagar,
-            'user_balance' => $userBalance
-        ]);
-
         if ($valorAPagar > 0) {
             $balanceResult = $this->applyBalanceToPayment($userId, $valorAPagar);
             $appliedBalance = $balanceResult['applied_balance'];
             $remainingAmount = $balanceResult['remaining_amount'];
+
             Log::info("Saldo aplicado ao pagamento", [
+                'valor_a_pagar_original' => $valorAPagar,
                 'applied_balance' => $appliedBalance,
-                'remaining_amount' => $remainingAmount
+                'remaining_amount' => $remainingAmount,
+                'user_balance_before' => $userBalance
             ]);
-        } else {
-            Log::info("Nenhum saldo aplicado, valor a pagar é 0 ou negativo");
         }
 
         // Desativar todos os contratos ativos do usuário (apenas um plano ativo por vez)
@@ -196,7 +220,7 @@ class ContractService implements ContractServiceInterface
             ->where('status', 'active')
             ->update(['status' => 'cancelled']);
 
-        // Adicionar saldo adicional no downgrade
+        // Adicionar saldo adicional apenas no downgrade se houver excedente
         if ($additionalBalance > 0) {
             $description = "Saldo excedente por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
             Log::info("Adicionando saldo adicional", [
@@ -204,20 +228,15 @@ class ContractService implements ContractServiceInterface
                 'description' => $description
             ]);
             $this->addBalance($userId, $additionalBalance, $description);
-        } else {
-            Log::info("Nenhum saldo adicional a adicionar");
         }
 
         // Criar novo contrato com end_date no mesmo dia do mês seguinte
-        $endDate = $now->copy()->addMonth()->startOfMonth()->addDays($now->day - 1);
-        // Se o dia do mês não existir no próximo mês, usar o último dia do mês
-        if ($endDate->month !== $now->copy()->addMonth()->month) {
-            $endDate = $now->copy()->addMonth()->endOfMonth();
-        }
+        $newCycle = $this->calculateNextMonthlyCycle($now);
+        $newEndDate = $newCycle['end_date'];
 
-        Log::info("Nova data de término calculada", [
+        Log::info("Novo ciclo mensal calculado", [
             'start_date' => $now->toDateString(),
-            'end_date' => $endDate->toDateString(),
+            'end_date' => $newEndDate->toDateString(),
             'day_of_month' => $now->day
         ]);
 
@@ -225,52 +244,66 @@ class ContractService implements ContractServiceInterface
             'user_id' => $userId,
             'plan_id' => $newPlanId,
             'start_date' => $now,
-            'end_date' => $endDate,
+            'end_date' => $newEndDate,
             'status' => 'active',
         ]);
-        Log::info("Novo contrato criado", ['new_contract_id' => $newContract->id]);
 
-        // Criar pagamento com o valor final após abatimento
-        $finalAmount = $remainingAmount;
-        Log::info("Criando pagamento", [
-            'final_amount' => $finalAmount,
-            'remaining_amount' => $remainingAmount,
-            'status' => $finalAmount > 0 ? 'pending' : 'paid',
-            'discount_applied' => $proratedOld + $appliedBalance,
-            'prorated_old' => $proratedOld,
-            'prorated_new' => $proratedNew,
-            'applied_credits' => $appliedBalance
+        Log::info("Novo contrato criado", [
+            'new_contract_id' => $newContract->id,
+            'plan_description' => $newPlan->description
         ]);
 
-        if ($finalAmount >= 0) {
+        // Criar pagamento apenas se houver valor a pagar após descontos
+        $finalAmount = $remainingAmount;
+        if ($finalAmount > 0) {
+            Log::info("Criando pagamento", [
+                'final_amount' => $finalAmount,
+                'status' => 'paid', // PIX simulado sempre pago
+                'discount_applied' => $proratedOldCredit + $appliedBalance,
+                'prorated_old' => $proratedOldCredit,
+                'prorated_new' => $proratedNew,
+                'applied_credits' => $appliedBalance
+            ]);
+
             Payment::create([
                 'contract_id' => $newContract->id,
                 'amount' => $finalAmount,
                 'payment_date' => $now,
-                'status' => 'paid', // Todos os pagamentos PIX simulados são pagos conforme especificação
-                'discount_applied' => $proratedOld + $appliedBalance,
-                'prorated_old' => $proratedOld,
+                'status' => 'paid',
+                'discount_applied' => $proratedOldCredit + $appliedBalance,
+                'prorated_old' => $proratedOldCredit,
                 'prorated_new' => $proratedNew,
                 'applied_credits' => $appliedBalance,
+            ]);
+        } else {
+            Log::info("Nenhum pagamento necessário", [
+                'final_amount' => $finalAmount,
+                'reason' => 'Valor final <= 0 após descontos'
             ]);
         }
 
         return [
             'contract' => $newContract,
-            'prorated_old' => $proratedOld,
+            'prorated_old' => $proratedOldCredit,
             'prorated_new' => $proratedNew,
-            'new_plan_price' => $newPlanPrice,
+            'new_plan_price' => $newPlan->price,
             'user_balance_before' => $userBalance,
             'applied_balance' => $appliedBalance,
             'additional_balance' => $additionalBalance,
             'final_amount' => $finalAmount,
-            'total_discount_applied' => $proratedOld + $appliedBalance, // desconto pro-rata + saldo aplicado
-            // Compatibility keys
+            'total_discount_applied' => $proratedOldCredit + $appliedBalance,
             'credits_available' => $userBalance,
             'balance_available' => $userBalance,
-            'discount_applied' => $proratedOld + $appliedBalance,
+            'discount_applied' => $proratedOldCredit + $appliedBalance,
             'remaining_credit' => $additionalBalance,
             'remaining_balance' => $additionalBalance,
+            'cycle_info' => [
+                'cycle_start' => $contract->start_date,
+                'cycle_end' => $contract->start_date->copy()->addDays(30),
+                'total_days' => $totalDaysInCycle,
+                'days_used' => $daysUsed,
+                'days_remaining' => $daysRemaining
+            ],
         ];
     }
 
@@ -355,36 +388,10 @@ class ContractService implements ContractServiceInterface
         }
     }
 
-    /**
-     * Calcular dias restantes do contrato atual
-     */
-    private function calculateDaysRemaining(Contract $contract, Carbon $now): int
-    {
-        // Usar end_date do contrato se existir, senão assumir 30 dias a partir da data de início
-        $endDate = $contract->end_date ?? $contract->start_date->copy()->addDays(30);
-
-        Log::info("Calculando dias restantes", [
-            'contract_id' => $contract->id,
-            'start_date' => $contract->start_date->toDateString(),
-            'end_date' => $endDate->toDateString(),
-            'now' => $now->toDateString(),
-            'has_explicit_end_date' => !is_null($contract->end_date)
-        ]);
-
-        if ($now->greaterThanOrEqualTo($endDate)) {
-            Log::info("Contrato já expirado, dias restantes = 0");
-            return 0;
-        }
-
-        $daysRemaining = $now->diffInDays($endDate);
-        Log::info("Dias restantes calculados", ['days_remaining' => $daysRemaining]);
-
-        return $daysRemaining;
-    }
 
     /**
-     * Renovar contrato expirado automaticamente
-     */
+      * Renovar contrato expirado automaticamente
+      */
     public function renewExpiredContract(int $contractId): Contract
     {
         Log::info("Iniciando renovação automática de contrato", ['contract_id' => $contractId]);
@@ -395,27 +402,33 @@ class ContractService implements ContractServiceInterface
             throw new \Exception('Contrato não está ativo para renovação');
         }
 
-        // Calcular nova data de fim (mesmo dia do mês seguinte)
         $now = Carbon::now();
-        $nextMonth = $now->copy()->addMonth();
-        $newStartDate = $contract->end_date ? $contract->end_date->copy() : $now;
-        $newEndDate = $nextMonth->startOfMonth()->addDays($now->day - 1);
 
-        // Se o dia do mês não existir no próximo mês, usar o último dia do mês
-        if ($newEndDate->month !== $nextMonth->month) {
-            $newEndDate = $nextMonth->endOfMonth();
+        // Usar o método de cálculo de ciclo mensal para determinar as datas corretas
+        if ($contract->end_date) {
+            // Contrato com data de fim definida - renovar a partir dessa data
+            $newStartDate = $contract->end_date->copy();
+        } else {
+            // Contrato sem data de fim - renovar a partir de hoje
+            $newStartDate = $now;
         }
 
+        // Calcular próximo ciclo mensal
+        $newCycle = $this->calculateNextMonthlyCycle($newStartDate);
+        $newEndDate = $newCycle['end_date'];
+
         Log::info("Datas calculadas para renovação automática", [
+            'old_contract_id' => $contract->id,
             'old_end_date' => $contract->end_date?->toDateString(),
             'new_start_date' => $newStartDate->toDateString(),
-            'new_end_date' => $newEndDate->toDateString()
+            'new_end_date' => $newEndDate->toDateString(),
+            'plan_description' => $contract->plan->description
         ]);
 
         // Desativar contrato atual
         $contract->update(['status' => 'completed']);
 
-        // Criar novo contrato
+        // Criar novo contrato usando o ciclo mensal correto
         $newContract = Contract::create([
             'user_id' => $contract->user_id,
             'plan_id' => $contract->plan_id,
@@ -427,15 +440,17 @@ class ContractService implements ContractServiceInterface
         Log::info("Contrato renovado automaticamente", [
             'old_contract_id' => $contract->id,
             'new_contract_id' => $newContract->id,
-            'plan_price' => $contract->plan->price
+            'plan_id' => $contract->plan_id,
+            'plan_price' => $contract->plan->price,
+            'renewal_type' => 'automatic_monthly_cycle'
         ]);
 
         return $newContract;
     }
 
     /**
-     * Processar cobrança recorrente automática
-     */
+      * Processar cobrança recorrente automática
+      */
     public function processRecurringPayment(int $contractId): array
     {
         Log::info("Processando cobrança recorrente", ['contract_id' => $contractId]);
@@ -444,50 +459,92 @@ class ContractService implements ContractServiceInterface
         $userId = $contract->user_id;
         $planPrice = $contract->plan->price;
         $userBalance = $this->getUserBalance($userId);
+        $now = Carbon::now();
+
+        // Calcular ciclo mensal atual para determinar se é cobrança proporcional
+        $cycleInfo = $this->calculateMonthlyCycle($contract, $now);
+
+        Log::info("Ciclo mensal para cobrança recorrente", [
+            'contract_id' => $contractId,
+            'plan_price' => $planPrice,
+            'cycle_start' => $cycleInfo['cycle_start']->toDateString(),
+            'cycle_end' => $cycleInfo['cycle_end']->toDateString(),
+            'days_used' => $cycleInfo['days_used'],
+            'days_remaining' => $cycleInfo['days_remaining'],
+            'total_days' => $cycleInfo['total_days']
+        ]);
 
         $valorAPagar = 0;
         $appliedBalance = 0;
+        $isProportionalBilling = false;
 
-        if ($userBalance >= $planPrice) {
-            // Saldo cobre totalmente - consumir saldo
-            $appliedBalance = $planPrice;
-            $valorAPagar = 0;
+        // Verificar se é dia de cobrança proporcional (início do ciclo)
+        $isCycleStart = $now->isSameDay($cycleInfo['cycle_start']);
 
-            Log::info("Cobrança totalmente coberta por saldo", [
+        if ($isCycleStart) {
+            // Cobrança proporcional no início do ciclo mensal
+            // Valor proporcional = Preço do plano × (dias restantes ÷ dias totais do ciclo)
+            $proportionalAmount = $planPrice * ($cycleInfo['days_remaining'] / $cycleInfo['total_days']);
+
+            Log::info("Cobrança proporcional no início do ciclo", [
                 'plan_price' => $planPrice,
-                'user_balance' => $userBalance,
-                'applied_balance' => $appliedBalance,
-                'valor_a_pagar' => $valorAPagar
+                'proportional_amount' => $proportionalAmount,
+                'days_remaining' => $cycleInfo['days_remaining'],
+                'total_days' => $cycleInfo['total_days'],
+                'calculation' => "Proporcional = {$planPrice} × ({$cycleInfo['days_remaining']} ÷ {$cycleInfo['total_days']})"
             ]);
 
-            // Consumir saldo
-            $this->consumeBalance($userId, $appliedBalance);
+            $isProportionalBilling = true;
+            $valorAPagar = $proportionalAmount;
         } else {
-            // Saldo não cobre totalmente - cobrar diferença
-            $valorAPagar = $planPrice - $userBalance;
-            $appliedBalance = $userBalance;
-
-            Log::info("Cobrança parcial - saldo insuficiente", [
+            // Cobrança normal mensal (fim do ciclo)
+            $valorAPagar = $planPrice;
+            Log::info("Cobrança normal mensal", [
                 'plan_price' => $planPrice,
-                'user_balance' => $userBalance,
-                'applied_balance' => $appliedBalance,
-                'valor_a_pagar' => $valorAPagar
+                'billing_type' => 'full_month'
             ]);
-
-            if ($appliedBalance > 0) {
-                $this->consumeBalance($userId, $appliedBalance);
-            }
         }
 
-        // Registrar pagamento da recorrência
+        // Aplicar saldo disponível se houver cobrança
+        if ($valorAPagar > 0) {
+            $balanceResult = $this->applyBalanceToPayment($userId, $valorAPagar);
+            $appliedBalance = $balanceResult['applied_balance'];
+            $remainingAmount = $balanceResult['remaining_amount'];
+
+            Log::info("Saldo aplicado na cobrança recorrente", [
+                'valor_a_pagar_original' => $valorAPagar,
+                'applied_balance' => $appliedBalance,
+                'remaining_amount' => $remainingAmount,
+                'user_balance_before' => $userBalance,
+                'is_proportional' => $isProportionalBilling
+            ]);
+
+            $valorAPagar = $remainingAmount;
+        }
+
+        // Registrar pagamento da recorrência apenas se houver valor a pagar
         $payment = null;
-        if ($valorAPagar >= 0) {
+        if ($valorAPagar > 0) {
             $payment = Payment::create([
                 'contract_id' => $contractId,
                 'amount' => $valorAPagar,
-                'payment_date' => Carbon::now(),
+                'payment_date' => $now,
                 'status' => 'paid', // Todos os pagamentos PIX simulados são pagos conforme especificação
                 'applied_credits' => $appliedBalance,
+                'discount_applied' => $appliedBalance,
+                'prorated_old' => $isProportionalBilling ? $planPrice - $valorAPagar : 0,
+                'prorated_new' => $isProportionalBilling ? $valorAPagar : $planPrice,
+            ]);
+
+            Log::info("Pagamento recorrente registrado", [
+                'payment_id' => $payment->id,
+                'amount' => $valorAPagar,
+                'is_proportional' => $isProportionalBilling
+            ]);
+        } else {
+            Log::info("Cobrança recorrente totalmente coberta por saldo", [
+                'applied_balance' => $appliedBalance,
+                'no_payment_needed' => true
             ]);
         }
 
@@ -496,6 +553,8 @@ class ContractService implements ContractServiceInterface
             'valor_a_pagar' => $valorAPagar,
             'applied_balance' => $appliedBalance,
             'contract' => $contract,
+            'is_proportional_billing' => $isProportionalBilling,
+            'cycle_info' => $cycleInfo,
         ];
     }
 
@@ -574,4 +633,109 @@ class ContractService implements ContractServiceInterface
             ],
         ]);
     }
+
+    /**
+     * Calcular ciclo mensal baseado na data de início do contrato
+     * Implementação CORRIGIDA para seguir exatamente a especificação do README
+     */
+    private function calculateMonthlyCycle(Contract $contract, Carbon $currentDate): array
+    {
+        $startDate = $contract->start_date;
+        $endDate = $contract->end_date;
+
+        // Se o contrato tem end_date definido, usar esse ciclo
+        if ($endDate) {
+            $cycleStart = $startDate;
+            $cycleEnd = $endDate;
+            $totalDays = $startDate->diffInDays($endDate);
+
+            // Se já passou da data de fim, considerar ciclo completo
+            if ($currentDate->greaterThan($endDate)) {
+                $daysUsed = $totalDays;
+                $daysRemaining = 0;
+            } else {
+                $daysUsed = $startDate->diffInDays($currentDate);
+                $daysRemaining = $currentDate->diffInDays($endDate);
+            }
+        } else {
+            // Contrato sem end_date definido - assumir ciclo mensal padrão de 30 dias
+            // Esta é a correção principal: usar sempre 30 dias conforme exemplo do README
+            $cycleStart = $startDate;
+
+            // Para seguir o exemplo do README, assumir sempre ciclo de 30 dias
+            $totalDays = 30;
+
+            // Calcular fim do ciclo baseado na data de início
+            $cycleEnd = $startDate->copy()->addDays($totalDays);
+
+            // Se já passou da data de fim do ciclo, considerar ciclo completo
+            if ($currentDate->greaterThan($cycleEnd)) {
+                $daysUsed = $totalDays;
+                $daysRemaining = 0;
+            } else {
+                $daysUsed = $startDate->diffInDays($currentDate);
+                $daysRemaining = $currentDate->diffInDays($cycleEnd);
+
+                // Correção: garantir que dias utilizados + dias restantes = dias totais
+                // Esta lógica garante que o cálculo seja consistente com o exemplo do README
+                if ($daysUsed + $daysRemaining !== $totalDays) {
+                    // Ajuste fino para casos extremos (mudanças de horário, anos bissextos, etc.)
+                    $daysRemaining = $totalDays - $daysUsed;
+                    if ($daysRemaining < 0) {
+                        $daysRemaining = 0;
+                        $daysUsed = $totalDays;
+                    }
+                }
+            }
+        }
+
+        Log::info("Ciclo mensal calculado (CORRIGIDO)", [
+            'contract_id' => $contract->id,
+            'cycle_start' => $cycleStart->toDateString(),
+            'cycle_end' => $cycleEnd->toDateString(),
+            'total_days' => $totalDays,
+            'days_used' => $daysUsed,
+            'days_remaining' => $daysRemaining,
+            'current_date' => $currentDate->toDateString(),
+            'calculation_consistent' => ($daysUsed + $daysRemaining) === $totalDays,
+            'specification_compliant' => 'Ciclo fixo de 30 dias conforme exemplo do README'
+        ]);
+
+        return [
+            'cycle_start' => $cycleStart,
+            'cycle_end' => $cycleEnd,
+            'total_days' => $totalDays,
+            'days_used' => $daysUsed,
+            'days_remaining' => $daysRemaining
+        ];
+    }
+
+    /**
+     * Calcular próximo ciclo mensal baseado na data atual
+     */
+    private function calculateNextMonthlyCycle(Carbon $currentDate): array
+    {
+        // Próximo ciclo começa hoje e termina no mesmo dia do mês seguinte
+        $startDate = $currentDate->copy();
+        $nextMonth = $currentDate->copy()->addMonth();
+        $endDate = $nextMonth->startOfMonth()->addDays($currentDate->day - 1);
+
+        // Se o dia não existir no próximo mês, usar último dia do mês
+        if ($endDate->month !== $nextMonth->month) {
+            $endDate = $nextMonth->endOfMonth();
+        }
+
+        Log::info("Próximo ciclo mensal calculado", [
+            'current_date' => $currentDate->toDateString(),
+            'cycle_start' => $startDate->toDateString(),
+            'cycle_end' => $endDate->toDateString(),
+            'day_of_month' => $currentDate->day
+        ]);
+
+        return [
+            'start_date' => $startDate,
+            'end_date' => $endDate
+        ];
+    }
+
 }

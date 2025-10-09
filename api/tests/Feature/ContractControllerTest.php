@@ -18,11 +18,13 @@ class ContractControllerTest extends TestCase
         $user = User::factory()->create();
         $plan = Plan::factory()->create();
 
+
+
         $data = [
             'user_id' => $user->id,
             'plan_id' => $plan->id,
-            'start_date' => '2023-01-01',
-            'end_date' => '2023-02-01',
+            'start_date' => '2025-10-08',
+            'end_date' => '2025-11-08',
             'status' => 'active',
         ];
 
@@ -34,6 +36,9 @@ class ContractControllerTest extends TestCase
 
     public function test_create_contract_error_missing_fields()
     {
+        $user = User::factory()->create();
+
+
         $response = $this->postJson('/api/contracts', []);
 
         $response->assertStatus(422);
@@ -45,6 +50,8 @@ class ContractControllerTest extends TestCase
         $oldPlan = Plan::factory()->create();
         $newPlan = Plan::factory()->create();
         $contract = Contract::factory()->create(['user_id' => $user->id, 'plan_id' => $oldPlan->id]);
+
+
 
         $data = ['new_plan_id' => $newPlan->id];
 
@@ -77,6 +84,8 @@ class ContractControllerTest extends TestCase
         $user = User::factory()->create();
         $plan = Plan::factory()->create();
         Contract::factory()->count(3)->create(['user_id' => $user->id, 'plan_id' => $plan->id]);
+
+
 
         $response = $this->getJson('/api/contracts?user_id=' . $user->id);
 

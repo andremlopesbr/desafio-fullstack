@@ -15,9 +15,9 @@ class PaymentDTO
         public Money $amount,
         public Carbon $payment_date,
         public PaymentStatus $status,
-        public ?int $discount_applied = null,
-        public ?int $prorated_old = null,
-        public ?int $prorated_new = null,
-        public ?int $applied_credits = null,
+        public ?float $discount_applied = null,
+        public ?float $prorated_old = null,
+        public ?float $prorated_new = null,
+        public ?float $applied_credits = null,
     ) {}
 }

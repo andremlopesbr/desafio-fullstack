@@ -44,13 +44,36 @@ class PaymentService implements PaymentServiceInterface
             'status' => $contract->status
         ]);
 
+        $proratedOldCredit = 0;
+        $proratedNew = $contract->plan->price;
+
         if ($isExpired) {
             Log::info('Contrato expirado, iniciando processo de renovação');
             $oldContractId = $contract->id;
             $contract = $this->renewExpiredContract($contract);
+
+            // Calcular crédito proporcional do plano antigo para renovação
+            // Usar a mesma lógica do changePlan para calcular pro-rata
+            $totalDaysInCycle = 30; // Fixo conforme exemplo do README
+            $startDate = $contract->start_date;
+            $daysUsed = $startDate->diffInDays(now());
+
+            if ($daysUsed > $totalDaysInCycle) {
+                $daysUsed = $totalDaysInCycle;
+            }
+
+            $daysRemaining = $totalDaysInCycle - $daysUsed;
+
+            // Crédito proporcional = Valor do plano antigo × (dias restantes ÷ dias totais do ciclo)
+            $proratedOldCredit = $contract->plan->price * ($daysRemaining / $totalDaysInCycle);
+
             Log::info('Renovação concluída', [
                 'old_contract_id' => $oldContractId,
-                'new_contract_id' => $contract->id
+                'new_contract_id' => $contract->id,
+                'prorated_old_credit' => $proratedOldCredit,
+                'plan_price' => $contract->plan->price,
+                'days_used' => $daysUsed,
+                'days_remaining' => $daysRemaining
             ]);
         } else {
             Log::info('Contrato não expirado, processando pagamento normalmente');
@@ -58,9 +81,22 @@ class PaymentService implements PaymentServiceInterface
 
         // Aplicar saldo disponível se houver
         $originalAmount = $dto->amount->getAmount(); // em reais
+
+        // Para renovação de contrato expirado, usar o valor proporcional calculado
+        $paymentAmount = $originalAmount;
+        if ($isExpired && $proratedOldCredit > 0) {
+            // Se foi uma renovação, usar o valor proporcional do plano antigo
+            $paymentAmount = $proratedOldCredit;
+            Log::info('Pagamento de renovação usando valor proporcional', [
+                'original_amount' => $originalAmount,
+                'prorated_old_credit' => $proratedOldCredit,
+                'payment_amount' => $paymentAmount
+            ]);
+        }
+
         $balanceResult = $this->contractService->applyBalanceToPayment(
             $contract->user_id,
-            $originalAmount
+            $paymentAmount
         );
 
         $finalAmount = $balanceResult['remaining_amount'];
@@ -76,10 +112,10 @@ class PaymentService implements PaymentServiceInterface
             'amount' => $finalAmount, // Em reais
             'payment_date' => $dto->payment_date,
             'status' => $processedStatus->value,
-            'discount_applied' => $dto->discount_applied,
-            'prorated_old' => $dto->prorated_old,
-            'prorated_new' => $dto->prorated_new,
-            'applied_credits' => $dto->applied_credits,
+            'discount_applied' => $dto->discount_applied ?? $proratedOldCredit,
+            'prorated_old' => $dto->prorated_old ?? $proratedOldCredit,
+            'prorated_new' => $dto->prorated_new ?? $proratedNew,
+            'applied_credits' => $dto->applied_credits ?? $balanceResult['applied_balance'],
         ]);
 
         return $payment;
