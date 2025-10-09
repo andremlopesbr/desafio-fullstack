@@ -26,21 +26,24 @@ Route::get('/', function () {
     return response()->json(['message' => 'ok']);
 });
 
+// Rotas públicas
 Route::apiResource('plans', PlanController::class, ['only' => 'index']);
 
-Route::apiSingleton('user', UserController::class, ['only' => 'show']);
-Route::get('users/{user}/balance-history', [UserController::class, 'balanceHistory']);
-Route::get('users/{user}/balance', [UserController::class, 'balance']);
+// Rotas protegidas por autenticação
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiSingleton('user', UserController::class, ['only' => 'show']);
+    Route::get('users/{user}/balance-history', [UserController::class, 'balanceHistory']);
+    Route::get('users/{user}/balance', [UserController::class, 'balance']);
 
-Route::post('contracts', [ContractController::class, 'create']);
-Route::patch('contracts/{contract}/change-plan', [ContractController::class, 'changePlan']);
-Route::get('contracts', [ContractController::class, 'listForUser']);
-Route::post('contracts/{contract}/renew', [ContractController::class, 'renew']);
-Route::post('contracts/{contract}/recurring-payment', [ContractController::class, 'processRecurring']);
-Route::post('maintenance/daily', [ContractController::class, 'processDailyMaintenance']);
+    Route::post('contracts', [ContractController::class, 'create']);
+    Route::patch('contracts/{contract}/change-plan', [ContractController::class, 'changePlan']);
+    Route::get('contracts', [ContractController::class, 'listForUser']);
+    Route::post('contracts/{contract}/renew', [ContractController::class, 'renew']);
+    Route::post('contracts/{contract}/recurring-payment', [ContractController::class, 'processRecurring']);
+    Route::post('maintenance/daily', [ContractController::class, 'processDailyMaintenance']);
 
-Route::get('payments', [PaymentController::class, 'listForUser']);
-Route::post('payments', [PaymentController::class, 'process']);
-Route::post('payments/process', [PaymentController::class, 'process']);
+    Route::get('payments', [PaymentController::class, 'listForUser'])->middleware('throttle:30,1'); // 30 requests per minute
+    Route::post('payments/process', [PaymentController::class, 'process'])->middleware('throttle:10,1'); // 10 requests per minute for payments
 
-Route::post('balance', [BalanceController::class, 'store']);
+    Route::post('balance', [BalanceController::class, 'store']);
+});

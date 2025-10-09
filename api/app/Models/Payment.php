@@ -29,15 +29,6 @@ class Payment extends Model
         'applied_credits' => 'decimal:2',
     ];
 
-    protected $casts = [
-        'amount' => 'decimal:2',
-        'payment_date' => 'date',
-        'discount_applied' => 'decimal:2',
-        'prorated_old' => 'decimal:2',
-        'prorated_new' => 'decimal:2',
-        'applied_credits' => 'decimal:2',
-    ];
-
     public function contract()
     {
         return $this->belongsTo(Contract::class);
