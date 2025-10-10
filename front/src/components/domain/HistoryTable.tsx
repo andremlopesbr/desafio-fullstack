@@ -277,74 +277,24 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
 
                   <TableCell className="bg-white">
                     {(() => {
-                      // Buscar o pagamento mais recente para este contrato
-                      const latestPayment =
-                        payments.length > 0
-                          ? payments[payments.length - 1]
-                          : null;
+                      // Usar os dados já calculados de discountDetails (CORRIGIDO)
+                      const { prorrata, balanceCredit, totalDiscount } = discountDetails;
 
-                      if (
-                        latestPayment &&
-                        latestPayment.discount_applied &&
-                        latestPayment.discount_applied > 0
-                      ) {
-                        const proratedOldInReais =
-                          latestPayment.prorated_old || 0; // Já em reais
-                        const proratedNewInReais =
-                          latestPayment.prorated_new || 0; // Já em reais
-                        const appliedCreditsInReais =
-                          latestPayment.applied_credits || 0; // Já em reais
-
-                        // Determinar se é downgrade baseado na diferença: prorated_new - prorated_old
-                        const planDifference =
-                          proratedNewInReais - proratedOldInReais;
-
+                      if (totalDiscount > 0) {
                         return (
                           <div className="space-y-1 text-sm">
-                            {appliedCreditsInReais > 0 && (
+                            {balanceCredit > 0 && (
                               <div className="text-green-600">
-                                Créditos:{" "}
-                                {formatCurrency(appliedCreditsInReais)}
+                                Créditos: {formatCurrency(balanceCredit)}
                               </div>
                             )}
-                            {planDifference <= 0 ? (
-                              // DOWNGRADE: prorated_old > prorated_new
-                              <>
-                                <div className="text-blue-600">
-                                  Pro-rata: {formatCurrency(Math.min(proratedNewInReais, proratedOldInReais))}{" "}
-                                  [de {formatCurrency(proratedOldInReais)}]
-                                </div>
-                                <div className="font-semibold text-purple-700 border-t border-gray-200 pt-1 mt-1">
-                                  À creditar: {formatCurrency(Math.max(0, proratedOldInReais - proratedNewInReais))}
-                                </div>
-                              </>
-                            ) : (
-                              // UPGRADE: prorated_new > prorated_old
+                            {prorrata > 0 && (
                               <div className="text-blue-600">
-                                Pro-rata: {formatCurrency(proratedOldInReais)}
+                                Pro-rata: {formatCurrency(prorrata)}
                               </div>
                             )}
-                          </div>
-                        );
-                      } else if (discountDetails.totalDiscount > 0) {
-                        // Fallback para o cálculo antigo se não houver dados no pagamento
-                        return (
-                          <div className="space-y-1 text-sm">
-                            {discountDetails.balanceCredit > 0 && (
-                              <div className="text-green-600">
-                                Créditos:{" "}
-                                {formatCurrency(discountDetails.balanceCredit)}
-                              </div>
-                            )}
-                            {discountDetails.prorrata > 0 && (
-                              <div className="text-blue-600">
-                                Pro-rata:{" "}
-                                {formatCurrency(discountDetails.prorrata)}
-                              </div>
-                            )}
-                            <div className="font-semibold text-purple-700 border-t border-gray-200 pt-1 mt-1">
-                              Total:{" "}
-                              {formatCurrency(discountDetails.totalDiscount)}
+                            <div className="font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1">
+                              Total de Desconto: {formatCurrency(totalDiscount)}
                             </div>
                           </div>
                         );

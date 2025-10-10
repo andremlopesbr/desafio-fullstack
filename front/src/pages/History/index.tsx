@@ -73,36 +73,40 @@ export const History = () => {
   const historyItems = sortedContracts.map((contract, index) => {
     const contractPayments = payments.filter(p => p.contract_id === contract.id);
 
-    // Verificar se é o primeiro contrato (contrato inicial)
-    const isFirstContract = index === 0;
+    // Usar os dados reais de desconto dos pagamentos do contrato
+    const calculateDiscountDetails = (contract: Contract, contractPayments: Payment[]) => {
+      // Buscar o pagamento mais recente apenas deste contrato
+      const latestPayment = contractPayments.length > 0 ? contractPayments[contractPayments.length - 1] : null;
 
-    // Calcular detalhes do desconto baseado nos pagamentos e créditos aplicados
-    const calculateDiscountDetails = (contract: Contract, payments: Payment[], isFirstContract: boolean) => {
-      const planPrice = contract.plan.price;
-      const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount < 100 ? payment.amount : payment.amount / 100), 0);
+      console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Contract Payments:`, contractPayments);
+      console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Latest Payment:`, latestPayment);
 
-      console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Plan Price: ${planPrice}, Total Paid: ${totalPaid}, Is First: ${isFirstContract}`);
+      if (latestPayment && latestPayment.discount_applied && latestPayment.discount_applied > 0) {
+        // Usar dados reais do pagamento deste contrato
+        const prorrata = latestPayment.prorated_old || 0;
+        const appliedCredits = latestPayment.applied_credits || 0;
+        const totalDiscount = latestPayment.discount_applied || 0;
 
-      // Prorrata: diferença entre preço do plano e valor pago (representa período proporcional)
-      const prorrata = isFirstContract ? 0 : Math.max(planPrice - totalPaid, 0);
+        console.log(`💰 [DISCOUNT CALC] Contract ${contract.id} - Usando dados reais: Prorrata: ${prorrata}, Applied Credits: ${appliedCredits}, Total Discount: ${totalDiscount}`);
 
-      // Balance Credit: por enquanto assumimos que é baseado no balance disponível
-      // Em um cenário real, isso seria calculado baseado em créditos específicos aplicados
-      const balanceCredit = balance > 0 ? Math.min(balance, prorrata) : 0;
+        return {
+          prorrata,
+          balanceCredit: appliedCredits,
+          totalDiscount
+        };
+      } else {
+        // Para contratos sem pagamentos com desconto (como o inicial)
+        console.log(`💰 [DISCOUNT CALC] Contract ${contract.id} - Sem descontos (contrato inicial)`);
 
-      // Total discount: soma do prorrata e créditos aplicados
-      const totalDiscount = prorrata + balanceCredit;
-
-      console.log(`💰 [DISCOUNT CALC] Contract ${contract.id} - Prorrata: ${prorrata}, Balance Credit: ${balanceCredit}, Total Discount: ${totalDiscount}`);
-
-      return {
-        prorrata,
-        balanceCredit,
-        totalDiscount
-      };
+        return {
+          prorrata: 0,
+          balanceCredit: 0,
+          totalDiscount: 0
+        };
+      }
     };
 
-    const discountDetails = calculateDiscountDetails(contract, contractPayments, isFirstContract);
+    const discountDetails = calculateDiscountDetails(contract, contractPayments);
 
     return {
       contract,
