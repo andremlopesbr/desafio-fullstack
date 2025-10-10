@@ -20,7 +20,7 @@ export function usePlanDiscount(
   } | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const calculateDiscount = async () => {
@@ -32,12 +32,12 @@ export function usePlanDiscount(
         !userId
       ) {
         setDiscountData(null);
-        setError(null);
+        setError(undefined);
         return;
       }
 
       setLoading(true);
-      setError(null);
+      setError(undefined);
 
       try {
         // Buscar saldo do banco de dados
@@ -100,7 +100,7 @@ export function usePlanDiscount(
       if (activeContract && selectedPlan && userId) {
         const calculateDiscount = async () => {
           setLoading(true);
-          setError(null);
+          setError(undefined);
           try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`);
             if (!response.ok) {

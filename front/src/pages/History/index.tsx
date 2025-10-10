@@ -6,53 +6,22 @@ import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
 import { HistoryTable } from '../../components/domain';
 import { formatCurrency } from '../../utils/formatters';
+import { Payment } from '../../types';
 
-interface Payment {
-  id: number;
-  contract_id: number;
-  amount: number;
-  payment_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  discount_applied?: number;
-  prorated_old?: number;
-  prorated_new?: number;
-  applied_credits?: number;
-}
-
-interface Contract {
-  id: number;
-  user_id: number;
-  plan_id: number;
-  start_date: string | null;
-  end_date: string | null;
-  status: string | null;
-  created_at: string;
-  updated_at: string;
-  plan: {
-    id: number;
-    description: string;
-    numberOfClients: number;
-    gigabytesStorage: number;
-    price: number;
-    active: boolean;
-  };
-}
-
-const userId = 1; // Assume logged-in user
+// TODO adicionar usuário persistido no AuthContext/Storage quando faz login
+const userId = 1; 
 
 
 export const History = () => {
-   console.log('📋 [HISTORY PAGE] Inicializando página de histórico')
-   const { contracts, loading: loadingContracts } = useContracts(userId);
+   const { contracts, contractsLoading } = useContracts();
    const { payments, loading: loadingPayments } = usePayments(userId);
-   const { balance } = useUserBalance(userId);
+   const { balance } = useUserBalance();
 
   console.log('📊 [HISTORY PAGE] Dados carregados:', {
+    userId,
     contracts: contracts.length,
     payments: payments.length,
-    loadingContracts,
+    contractsLoading,
     loadingPayments
   })
 
@@ -70,8 +39,9 @@ export const History = () => {
   });
 
   // Combinar contratos com seus pagamentos para mostrar o histórico
+  // TODO Podemos usar a api de pagamentos para trazer todas as informações dessa area e evitar essa combinação?
   const historyItems = sortedContracts.map((contract) => {
-    const contractPayments = payments.filter(p => p.contract_id === contract.id);
+    const contractPayments = payments.filter((p: Payment) => p.contract_id === contract.id);
 
     return {
       contract,
@@ -93,14 +63,14 @@ export const History = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             <span className="text-sm font-medium text-blue-800">Saldo: </span>
             {/* Carregar saldo do Balance */}
-            <span className="text-lg font-bold text-blue-900">{formatCurrency(balance)}</span>
+            <span className="text-lg font-bold text-blue-900">{formatCurrency(typeof balance === 'number' ? balance : 0)}</span>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Planos Contratados</h2>
 
-          {(loadingContracts || loadingPayments) && <p>Carregando histórico...</p>}
+          {(contractsLoading || loadingPayments) && <p>Carregando histórico...</p>}
 
           <HistoryTable
             historyItems={historyItems}
@@ -108,7 +78,7 @@ export const History = () => {
             formatDate={formatDate}
           />
 
-          {!loadingContracts && !loadingPayments && historyItems.length === 0 && (
+          {!contractsLoading && !loadingPayments && historyItems.length === 0 && (
             <p className="text-gray-500 text-center py-8">
               Nenhum plano contratado ainda.
             </p>

@@ -11,13 +11,14 @@ import Pix from "react-qrcode-pix";
 import { Footer, Modal, LoadingSpinner } from "../../components/ui";
 import { PlanChangeDetails } from "../../components/domain/PlanChangeDetails";
 import { formatCurrency } from "../../utils/formatters";
+import { Plano, Contract } from "../../types";
 
 export const Payment = () => {
   const [pixPayload, setPixPayload] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
-  const { plans, loading: plansLoading, error: plansError } = usePlans();
+  const { plans, plansLoading, plansError } = usePlans();
   const {
     createContract,
     loading: contractLoading,
@@ -28,7 +29,7 @@ export const Payment = () => {
     loading: paymentLoading,
     error: paymentError,
   } = useProcessPayment();
-  const { contracts } = useContracts(1); // Usuário fixo por enquanto
+  const { contracts } = useContracts();
   const { refreshContracts, refreshPayments, refreshBalance } = useApiData();
 
   console.log("💳 [PAYMENT PAGE] Inicializando página de pagamento:", {
@@ -37,14 +38,14 @@ export const Payment = () => {
     contractsLoading: false,
   });
 
-  const plan = plans.find((p) => p.id === Number(planId));
+  const plan = plans.find((p: Plano) => p.id === Number(planId));
   console.log(
     "📦 [PAYMENT PAGE] Plano encontrado:",
     plan ? { id: plan.id, name: plan.description, price: plan.price } : "NENHUM"
   );
 
   // Verificar se é troca de plano (usuário tem contrato ativo)
-  const activeContract = contracts.find((c) => c.status === "active");
+  const activeContract = contracts.find((c: Contract) => c.status === "active");
   console.log(
     "📋 [PAYMENT PAGE] Contratos carregados:",
     contracts.length,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useApiMutation } from './useApiMutation';
 
 interface Contract {
   id: number;
@@ -27,34 +27,27 @@ interface ChangePlanResult {
   remaining_credit: number;
 }
 
+/**
+ * Hook para alteração de planos
+ * Usa o padrão de mutação padronizado seguindo SRP
+ */
 export function useChangePlan() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, execute } = useApiMutation<ChangePlanResult>();
 
   const changePlan = async (contractId: number, newPlanId: number): Promise<ChangePlanResult | null> => {
-    setLoading(true);
-    setError(null);
-    console.log('Iniciando troca de plano', { contractId, newPlanId });
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contracts/${contractId}/change-plan`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ new_plan_id: newPlanId }),
-      });
-      if (!response.ok) throw new Error('Failed to change plan');
-      const result = await response.json();
-      console.log('Troca de plano bem-sucedida', result);
-      return result;
-    } catch (err) {
-      console.error('Erro na troca de plano', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
-    } finally {
-      setLoading(false);
+    console.log('🔄 [USE_CHANGE_PLAN] Iniciando troca de plano', { contractId, newPlanId });
+    const result = await execute(
+      `/contracts/${contractId}/change-plan`,
+      { method: 'PATCH' },
+      { new_plan_id: newPlanId }
+    );
+
+    if (result) {
+      console.log('✅ [USE_CHANGE_PLAN] Troca de plano bem-sucedida', result);
     }
+
+    return result;
   };
 
-  return { changePlan, loading, error };
+  return { changePlan, data, loading, error };
 }

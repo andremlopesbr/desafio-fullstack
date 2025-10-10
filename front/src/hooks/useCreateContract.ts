@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useApiMutation } from './useApiMutation';
 
 interface ContractCreate {
   user_id: number;
@@ -27,31 +27,16 @@ interface Contract {
   };
 }
 
+/**
+ * Hook para criação de contratos
+ * Usa o padrão de mutação padronizado seguindo SRP
+ */
 export function useCreateContract() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, execute } = useApiMutation<Contract>();
 
   const createContract = async (data: ContractCreate): Promise<Contract | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contracts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to create contract');
-      const contract = await response.json();
-      return contract;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    return execute<ContractCreate>('/contracts', { method: 'POST' }, data);
   };
 
-  return { createContract, loading, error };
+  return { createContract, data, loading, error };
 }

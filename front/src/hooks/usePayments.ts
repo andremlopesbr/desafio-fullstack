@@ -1,30 +1,14 @@
-import { useEffect, useState, useRef } from 'react';
-import { useApiData } from './useApiData';
+import { createApiHook } from './useApiHooksFactory';
+import { useApiMutation } from './useApiMutation';
 
-export function usePayments(userId: number) {
-  const { payments, paymentsLoading, paymentsError, refreshPayments } = useApiData();
-  const hasFetchedRef = useRef(false);
-  const lastUserIdRef = useRef<number | null>(null);
+export const usePayments = createApiHook('payments', undefined, 'payments');
 
-  useEffect(() => {
-    if (userId && !paymentsLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
-      hasFetchedRef.current = true;
-      lastUserIdRef.current = userId;
-      refreshPayments(userId);
-    }
-  }, [userId, paymentsLoading, refreshPayments]);
-
-  return {
-    payments,
-    loading: paymentsLoading,
-    error: paymentsError,
-    refetch: () => refreshPayments(userId)
-  };
-}
-
+/**
+ * Hook para processamento de pagamentos
+ * Usa padrão de mutação seguindo SRP
+ */
 export function useProcessPayment() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, execute } = useApiMutation();
 
   const processPayment = async (data: {
     contract_id: number;
@@ -32,26 +16,8 @@ export function useProcessPayment() {
     payment_date: string;
     status?: string;
   }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to process payment');
-      const payment = await response.json();
-      return payment;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    return execute('/payments', { method: 'POST' }, data);
   };
 
-  return { processPayment, loading, error };
+  return { processPayment, data, loading, error };
 }

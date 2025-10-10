@@ -1,16 +1,29 @@
-import { useEffect, useRef } from 'react';
-import { useApiData } from './useApiData';
+import { useContext } from 'react';
+import { createApiHook } from './useApiHooksFactory';
+import { AuthContext } from '../contexts/AuthContext';
 
-export function usePlans() {
-  const { plans, plansLoading, plansError, refreshPlans } = useApiData();
-  const hasFetchedRef = useRef(false);
+const plansHook = createApiHook(
+  'plans',
+  (data: any) => data.plans || data,
+  'plans'
+);
 
-  useEffect(() => {
-    if (!hasFetchedRef.current && plans.length === 0 && !plansLoading) {
-      hasFetchedRef.current = true;
-      refreshPlans();
-    }
-  }, [plans.length, plansLoading, refreshPlans]);
+export const usePlans = () => {
+  const authContext = useContext(AuthContext);
 
-  return { plans, loading: plansLoading, error: plansError, refetch: refreshPlans };
-}
+  if (!authContext) {
+    throw new Error('usePlans deve ser usado dentro de um AuthProvider');
+  }
+
+  if (!authContext.user) {
+    return {
+      plans: [],
+      plansLoading: false,
+      plansError: null,
+      refreshPlans: () => {},
+      refetch: () => {}
+    };
+  }
+
+  return plansHook(authContext.user.id);
+};

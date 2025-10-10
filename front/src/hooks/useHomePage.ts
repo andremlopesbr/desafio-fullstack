@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Contract, Plano } from '../types';
 import { useContracts } from './useContracts';
-import { useAuth } from './useAuth';
 import { useNavigate } from 'react-router-dom';
 
 export function useHomePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
 
-  const { contracts: userContracts, loading: contractsLoading } = useContracts(user?.id || 0);
+  const { contracts: userContracts, contractsLoading } = useContracts();
 
   useEffect(() => {
     setContracts(userContracts);

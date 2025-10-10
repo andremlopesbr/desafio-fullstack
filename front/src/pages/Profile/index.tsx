@@ -4,12 +4,13 @@ import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
 import { useContracts } from '../../hooks/useContracts';
 import { formatCurrency } from '../../utils/formatters';
+import { Contract } from '../../types';
 
 const Profile = () => {
   console.log('👤 [PROFILE PAGE] Inicializando página de perfil')
   const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const { contracts, loading: contractsLoading } = useContracts(1);
+  const { contracts, contractsLoading } = useContracts();
   console.log('📊 [PROFILE PAGE] Carregando contratos e usuário:', { contractsLoading })
 
   useEffect(() => {
@@ -54,7 +55,7 @@ const Profile = () => {
   }
 
   // Encontrar contrato ativo
-  const activeContract = contracts.find(contract => contract.status === 'active');
+  const activeContract = contracts.find((contract: Contract) => contract.status === 'active');
   console.log('🎯 [PROFILE PAGE] Contrato ativo encontrado:', activeContract ? { id: activeContract.id, planId: activeContract.plan_id, status: activeContract.status, plan: activeContract.plan } : 'NENHUM')
 
 

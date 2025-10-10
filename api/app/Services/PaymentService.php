@@ -101,12 +101,11 @@ class PaymentService implements PaymentServiceInterface
 
         $finalAmount = $balanceResult['remaining_amount'];
 
-        // CORREÇÃO: Todos os pagamentos PIX simulados são considerados pagos
-        // Conforme especificação do README, pagamentos devem sempre ser marcados como paid
+        // Os pagamentos via PIX simulados são considerados pagos
+        // Conforme especificação do README
         $processedStatus = PaymentStatus::PAID;
 
         // Criar pagamento com o valor final (após aplicação de créditos)
-        // TODOS os valores salvos em reais (não centavos)
         $payment = Payment::create([
             'contract_id' => $contract->id,
             'amount' => $finalAmount, // Em reais

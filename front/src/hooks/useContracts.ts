@@ -1,18 +1,25 @@
-import { useEffect, useRef } from 'react';
-import { useApiData } from './useApiData';
+import { useContext } from 'react';
+import { createApiHook } from './useApiHooksFactory';
+import { AuthContext } from '../contexts/AuthContext';
 
-export function useContracts(userId: number) {
-  const { contracts, contractsLoading, contractsError, refreshContracts } = useApiData();
-  const hasFetchedRef = useRef(false);
-  const lastUserIdRef = useRef<number | null>(null);
+const contractsHook = createApiHook('contracts', undefined, 'contracts');
 
-  useEffect(() => {
-    if (userId && !contractsLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
-      hasFetchedRef.current = true;
-      lastUserIdRef.current = userId;
-      refreshContracts(userId);
-    }
-  }, [userId, contractsLoading, refreshContracts]);
+export const useContracts = () => {
+  const authContext = useContext(AuthContext);
 
-  return { contracts, loading: contractsLoading, error: contractsError, refetch: () => refreshContracts(userId) };
-}
+  if (!authContext) {
+    throw new Error('useContracts deve ser usado dentro de um AuthProvider');
+  }
+
+  if (!authContext.user) {
+    return {
+      contracts: [],
+      contractsLoading: false,
+      contractsError: null,
+      refreshContracts: () => {},
+      refetch: () => {}
+    };
+  }
+
+  return contractsHook(authContext.user.id);
+};

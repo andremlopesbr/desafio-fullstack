@@ -1,32 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { createApiHook } from './useApiHooksFactory';
 
-export function useUserCredits(userId: number) {
-  const [credits, setCredits] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCredits = useCallback(async () => {
-    if (!userId) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`);
-      if (!response.ok) throw new Error('Failed to fetch balance');
-
-      const data = await response.json();
-      setCredits(data.total_balance || 0);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchCredits();
-  }, [userId, fetchCredits]);
-
-  return { credits, loading, error, refetch: fetchCredits };
+interface UserBalanceResponse {
+ total_balance: number;
 }
+
+/**
+* Hook para obter créditos do usuário
+* Usa padrão Factory seguindo princípio DRY e OCP
+*/
+export const useUserCredits = createApiHook<UserBalanceResponse>(
+ `users/${window.location.pathname.split('/')[2]}/balance`,
+ (data: any) => ({ total_balance: data.total_balance || data.balance || 0 }),
+ 'credits'
+);

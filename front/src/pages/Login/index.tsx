@@ -11,10 +11,11 @@ const Login = () => {
     setLoading(true);
 
     // Simulação de login - cria usuário demo e salva no contexto
+    // TODO deve propagar em todas as paginas o usuário logado, evitando contantes com id
     const demoUser = {
       id: 1,
       name: 'Usuário da Silva',
-      email: 'usuario@silva.com' // Padronizado com UserSeeder
+      email: 'usuario@silva.com'
     };
 
     login(demoUser);

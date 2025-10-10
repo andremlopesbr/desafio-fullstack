@@ -1,23 +1,31 @@
-import { useEffect, useRef } from 'react';
-import { useApiData } from './useApiData';
+import { useContext } from 'react';
+import { createTransformingApiHook } from './useApiHooksFactory';
+import { AuthContext } from '../contexts/AuthContext';
 
-export function useUserBalance(userId: number) {
-  const { balance, balanceLoading, balanceError, refreshBalance } = useApiData();
-  const hasFetchedRef = useRef(false);
-  const lastUserIdRef = useRef<number | null>(null);
+const userBalanceHook = createTransformingApiHook(
+  'users/${userId}/balance',
+  (data: { total_balance: number }) => data.total_balance || 0,
+  'balance'
+);
 
-  useEffect(() => {
-    if (userId && !balanceLoading && (!hasFetchedRef.current || lastUserIdRef.current !== userId)) {
-      hasFetchedRef.current = true;
-      lastUserIdRef.current = userId;
-      refreshBalance(userId);
-    }
-  }, [userId, balanceLoading, refreshBalance]);
+export const useUserBalance = (userId?: number) => {
+  const authContext = useContext(AuthContext);
 
-  return {
-    balance,
-    loading: balanceLoading,
-    error: balanceError,
-    refetch: () => refreshBalance(userId)
-  };
-}
+  if (!authContext) {
+    throw new Error('useUserBalance deve ser usado dentro de um AuthProvider');
+  }
+
+  const targetUserId = userId || authContext.user?.id;
+
+  if (!targetUserId) {
+    return {
+      balance: 0,
+      balanceLoading: false,
+      balanceError: null,
+      refreshBalance: () => {},
+      refetch: () => {}
+    };
+  }
+
+  return userBalanceHook(targetUserId);
+};

@@ -8,28 +8,22 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Notification, Footer, Card } from "../../components/ui";
 import { PlanChangeModal, PlanCard } from "../../components/domain";
-import { Plano } from "../../types";
+import { Plano, Contract } from "../../types";
 import { formatCurrency } from "../../utils/formatters";
 
 export const Home = () => {
   const { user } = useAuth();
   useUserBalance(user?.id || 0);
-  const { plans, loading: plansLoading, error: plansError } = usePlans();
+  const { plans, plansLoading, plansError } = usePlans();
   const {
     contracts,
-    loading: contractsLoading,
-    error: contractsError,
-    refetch: refetchContracts,
-  } = useContracts(user?.id || 0);
-  const {
-    changePlan,
-    loading: changePlanLoading,
-    error: changePlanError,
-  } = useChangePlan();
+    contractsLoading,
+    contractsError,
+  } = useContracts();
+  const { } = useChangePlan();
 
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [notification, setNotification] = useState<{
     type: "success" | "error";
@@ -59,72 +53,12 @@ export const Home = () => {
 
   // Verificar se há contrato ativo
   const activeContract = contracts.find(
-    (contract) => contract.status === "active"
+    (contract: Contract) => contract.status === "active"
   );
 
-  const handleChangePlan = async () => {
-    if (!activeContract || !selectedPlanId) return;
-
-    const selectedPlan = plans.find((p) => p.id === selectedPlanId);
-    console.log("🔄 INICIANDO TROCA DE PLANO:", {
-      contratoAtual: activeContract.id,
-      planoAtual: activeContract.plan?.description,
-      novoPlanoId: selectedPlanId,
-      novoPlano: selectedPlan?.description,
-    });
-
-    try {
-      const result = await changePlan(activeContract.id, selectedPlanId);
-      if (result) {
-        console.log("✅ TROCA DE PLANO CONCLUÍDA:", {
-          novoContrato: result.contract,
-          plano: result.contract.plan?.description,
-          creditos: result,
-        });
-        await refetchContracts();
-        setIsModalOpen(false);
-        setSelectedPlanId(null);
-
-        const successMessage =
-          result.final_amount === 0
-            ? `🎉 Plano alterado para ${
-                selectedPlan?.description || "novo plano"
-              }! Créditos aplicados automaticamente.`
-            : `🎉 Plano alterado para ${
-                selectedPlan?.description || "novo plano"
-              }`;
-
-        const remainingCreditMessage =
-          result.remaining_credit > 0
-            ? ` Crédito restante: R$ ${result.remaining_credit.toFixed(
-                2
-              )} (adicionado como saldo para débitos futuros).`
-            : "";
-
-        setNotification({
-          type: "success",
-          message: successMessage + remainingCreditMessage,
-        });
-        setTimeout(() => setNotification(null), 5000);
-      } else {
-        setNotification({
-          type: "error",
-          message: "❌ Falha ao alterar plano. Tente novamente.",
-        });
-        setTimeout(() => setNotification(null), 5000);
-      }
-    } catch (error) {
-      console.log("❌ FALHA NA TROCA DE PLANO:", error);
-      setNotification({
-        type: "error",
-        message: "❌ Erro ao alterar plano. Tente novamente.",
-      });
-      setTimeout(() => setNotification(null), 5000);
-    }
-  };
 
   const availablePlans = plans.filter(
-    (plan) =>
+    (plan: Plano) =>
       !activeContract ||
       !activeContract.plan ||
       plan.id !== activeContract.plan.id
@@ -182,7 +116,7 @@ export const Home = () => {
           </Card>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {plans.map((plan) => {
+          {plans.map((plan: Plano) => {
             const isCurrentPlan =
               activeContract && activeContract.plan?.id === plan.id;
 
@@ -208,16 +142,9 @@ export const Home = () => {
             currentPlan={activeContract.plan}
             currentContract={activeContract}
             availablePlans={availablePlans}
-            loading={changePlanLoading}
-            error={changePlanError || undefined}
             userId={userId}
             onClose={() => {
               setIsModalOpen(false);
-              setSelectedPlanId(null);
-            }}
-            onConfirm={async (newPlanId) => {
-              setSelectedPlanId(newPlanId);
-              await handleChangePlan();
             }}
           />
         )}

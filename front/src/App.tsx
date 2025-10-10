@@ -3,11 +3,12 @@ import { useAuth } from './hooks/useAuth';
 import { useHomePage } from './hooks/useHomePage';
 import Header from './components/Header';
 import { PlanCard } from './components/domain';
+import { Plano } from './types';
 
 export function App() {
   const { user } = useAuth();
 
-  const { plans, loading: plansLoading, error: plansError } = usePlans();
+  const { plans, plansLoading, plansError } = usePlans();
   const { contracts, contractsLoading, handleSelecionarPlano, isCurrentPlan } = useHomePage();
 
   if (plansLoading || contractsLoading) {
@@ -45,7 +46,7 @@ export function App() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {plans.map((plano) => (
+            {plans.map((plano: Plano) => (
               <PlanCard
                 key={plano.id}
                 plan={plano}
@@ -59,4 +60,3 @@ export function App() {
     </div>
   );
 }
-
