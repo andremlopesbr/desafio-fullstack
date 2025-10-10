@@ -70,48 +70,12 @@ export const History = () => {
   });
 
   // Combinar contratos com seus pagamentos para mostrar o histórico
-  const historyItems = sortedContracts.map((contract, index) => {
+  const historyItems = sortedContracts.map((contract) => {
     const contractPayments = payments.filter(p => p.contract_id === contract.id);
-
-    // Usar os dados reais de desconto dos pagamentos do contrato
-    const calculateDiscountDetails = (contract: Contract, contractPayments: Payment[]) => {
-      // Buscar o pagamento mais recente apenas deste contrato
-      const latestPayment = contractPayments.length > 0 ? contractPayments[contractPayments.length - 1] : null;
-
-      console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Contract Payments:`, contractPayments);
-      console.log(`🔍 [DISCOUNT CALC] Contract ${contract.id} - Latest Payment:`, latestPayment);
-
-      if (latestPayment && latestPayment.discount_applied && latestPayment.discount_applied > 0) {
-        // Usar dados reais do pagamento deste contrato
-        const prorrata = latestPayment.prorated_old || 0;
-        const appliedCredits = latestPayment.applied_credits || 0;
-        const totalDiscount = latestPayment.discount_applied || 0;
-
-        console.log(`💰 [DISCOUNT CALC] Contract ${contract.id} - Usando dados reais: Prorrata: ${prorrata}, Applied Credits: ${appliedCredits}, Total Discount: ${totalDiscount}`);
-
-        return {
-          prorrata,
-          balanceCredit: appliedCredits,
-          totalDiscount
-        };
-      } else {
-        // Para contratos sem pagamentos com desconto (como o inicial)
-        console.log(`💰 [DISCOUNT CALC] Contract ${contract.id} - Sem descontos (contrato inicial)`);
-
-        return {
-          prorrata: 0,
-          balanceCredit: 0,
-          totalDiscount: 0
-        };
-      }
-    };
-
-    const discountDetails = calculateDiscountDetails(contract, contractPayments);
 
     return {
       contract,
       payments: contractPayments,
-      discountDetails
     };
   });
 

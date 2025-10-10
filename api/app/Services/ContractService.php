@@ -69,240 +69,111 @@ class ContractService implements ContractServiceInterface
         $userId = $contract->user_id;
         $now = Carbon::now();
 
-        // Calcular ciclo mensal baseado na especificação do README
-        // Sempre usar ciclo de 30 dias conforme exemplo: 01/09 → 15/09 = 14 dias utilizados
-        $totalDaysInCycle = 30; // Fixo conforme exemplo do README
-
-        // Calcular dias utilizados baseado na diferença entre start_date e now
+        $totalDaysInCycle = 30;
         $startDate = $contract->start_date;
-        $daysUsed = $startDate->diffInDays($now);
+        $isSameDayChange = $startDate->isSameDay($now);
 
-        // Garantir que não exceda os dias totais do ciclo
-        if ($daysUsed > $totalDaysInCycle) {
-            $daysUsed = $totalDaysInCycle;
-        }
-
-        $daysRemaining = $totalDaysInCycle - $daysUsed;
-
-        Log::info("Ciclo mensal calculado (ESPECIFICAÇÃO README)", [
-            'start_date' => $startDate->toDateString(),
-            'current_date' => $now->toDateString(),
-            'days_used' => $daysUsed,
-            'days_remaining' => $daysRemaining,
-            'total_days' => $totalDaysInCycle,
-            'specification_compliant' => 'Ciclo fixo de 30 dias conforme exemplo do README'
-        ]);
-
-        // Calcular crédito proporcional do plano antigo baseado nos dias utilizados
-        // Crédito = Valor do plano antigo * (dias restantes / dias totais do ciclo)
-        // Fórmula EXATA do exemplo: Crédito proporcional = Valor plano antigo × (dias restantes ÷ 30)
-        $proratedOldCredit = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
-
-        Log::info("Cálculo detalhado do crédito proporcional (README)", [
-            'old_plan_price' => $oldPlan->price,
-            'days_used' => $daysUsed,
-            'days_remaining' => $daysRemaining,
-            'total_days_in_cycle' => $totalDaysInCycle,
-            'prorated_old_credit' => $proratedOldCredit,
-            'calculation' => "{$oldPlan->price} × ({$daysRemaining} ÷ {$totalDaysInCycle}) = {$proratedOldCredit}",
-            'r' => $daysUsed === 14 && $daysRemaining === 16 ? 'CORRESPONDE AO EXEMPLO' : 'DIFERENTE DO EXEMPLO',
-            'readme_example' => '01/09 → 15/09 = 14 dias utilizados, 16 restantes, crédito = R$50 de R$100'
-        ]);
-
-        // Novo plano sempre cobra valor cheio (não proporcional)
-        $proratedNew = $newPlan->price;
-
-        Log::info("Cálculo de pro-rata conforme especificação", [
-            'old_plan_price' => $oldPlan->price,
-            'new_plan_price' => $newPlan->price,
-            'prorated_old_credit' => $proratedOldCredit,
-            'prorated_new' => $proratedNew,
-            'days_used' => $daysUsed,
-            'days_remaining' => $daysRemaining,
-            'total_days' => $totalDaysInCycle,
-            'formula' => 'Crédito proporcional = Plano Antigo × (dias restantes ÷ dias totais)'
-        ]);
-
-        $userBalance = $this->getUserBalance($userId);
-        Log::info("Saldo do usuário", ['user_balance' => $userBalance]);
-
-        $valorAPagar = 0;
-        $additionalBalance = 0;
-        $appliedBalance = 0;
-
-        // Determinar se é upgrade ou downgrade baseado nos preços
-        $isDowngrade = $newPlan->price < $oldPlan->price;
-        $isUpgrade = $newPlan->price > $oldPlan->price;
-        $isSamePrice = $newPlan->price == $oldPlan->price;
-
-        Log::info("Tipo de troca determinado", [
-            'is_downgrade' => $isDowngrade,
-            'is_upgrade' => $isUpgrade,
-            'is_same_price' => $isSamePrice,
-            'old_price' => $oldPlan->price,
-            'new_price' => $newPlan->price
-        ]);
-
-        // Lógica EXATA baseada na especificação do README
-        // Exemplo: Plano R$100 → R$200 no dia 15 = R$150 (200-50)
-        if ($isDowngrade) {
-            // Downgrade: Crédito proporcional antigo - Valor cheio novo
-            $planDifference = $proratedOldCredit - $newPlan->price;
-
-            if ($planDifference > 0) {
-                // Crédito proporcional > Valor novo = gera saldo excedente
-                $additionalBalance = $planDifference;
-                $valorAPagar = 0;
-
-                Log::info("Downgrade com crédito excedente", [
-                    'prorated_old_credit' => $proratedOldCredit,
-                    'new_plan_price' => $newPlan->price,
-                    'plan_difference' => $planDifference,
-                    'additional_balance' => $additionalBalance,
-                    'valor_a_pagar' => $valorAPagar,
-                    'explanation' => 'Crédito proporcional antigo > Valor novo = gera saldo excedente'
-                ]);
-            } else {
-                // Crédito proporcional <= Valor novo = cobra diferença
-                $valorAPagar = abs($planDifference);
-                $additionalBalance = 0;
-
-                Log::info("Downgrade com cobrança adicional", [
-                    'prorated_old_credit' => $proratedOldCredit,
-                    'new_plan_price' => $newPlan->price,
-                    'plan_difference' => $planDifference,
-                    'valor_a_pagar' => $valorAPagar,
-                    'additional_balance' => $additionalBalance,
-                    'explanation' => 'Crédito proporcional antigo <= Valor novo = cobra diferença'
-                ]);
-            }
-        } elseif ($isUpgrade) {
-            // Upgrade: Valor cheio novo - Crédito proporcional antigo
-            $valorAPagar = $newPlan->price - $proratedOldCredit;
-            $additionalBalance = 0;
-
-            Log::info("Upgrade - cobrar diferença", [
-                'new_plan_price' => $newPlan->price,
-                'prorated_old_credit' => $proratedOldCredit,
-                'valor_a_pagar' => $valorAPagar,
-                'explanation' => 'Upgrade: Valor cheio novo - Crédito proporcional antigo'
-            ]);
+        if ($isSameDayChange) {
+            $proratedOldCredit = $oldPlan->price; // 100% de crédito no mesmo dia
+            $daysUsed = 0;
+            $daysRemaining = $totalDaysInCycle;
         } else {
-            // Mesmo preço - ajustar proporcionalmente
-            $valorAPagar = $newPlan->price - $proratedOldCredit;
-            $additionalBalance = 0;
-
-            Log::info("Mesmo preço - ajuste proporcional", [
-                'plan_price' => $newPlan->price,
-                'prorated_old_credit' => $proratedOldCredit,
-                'valor_a_pagar' => $valorAPagar,
-                'explanation' => 'Mesmo preço: ajuste proporcional baseado no período utilizado'
-            ]);
+            $daysUsed = $startDate->diffInDays($now);
+            if ($daysUsed > $totalDaysInCycle) {
+                $daysUsed = $totalDaysInCycle;
+            }
+            $daysRemaining = $totalDaysInCycle - $daysUsed;
+            $proratedOldCredit = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
         }
 
-        // Aplicar saldo disponível apenas se houver cobrança
-        $remainingAmount = $valorAPagar;
-        if ($valorAPagar > 0) {
-            $balanceResult = $this->applyBalanceToPayment($userId, $valorAPagar);
-            $appliedBalance = $balanceResult['applied_balance'];
-            $remainingAmount = $balanceResult['remaining_amount'];
-
-            Log::info("Saldo aplicado ao pagamento", [
-                'valor_a_pagar_original' => $valorAPagar,
-                'applied_balance' => $appliedBalance,
-                'remaining_amount' => $remainingAmount,
-                'user_balance_before' => $userBalance
-            ]);
-        }
-
-        // Desativar todos os contratos ativos do usuário (apenas um plano ativo por vez)
-        Contract::where('user_id', $userId)
-            ->where('status', 'active')
-            ->update(['status' => 'cancelled']);
-
-        // Adicionar saldo adicional apenas no downgrade se houver excedente
-        if ($additionalBalance > 0) {
-            $description = "Saldo excedente por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
-            Log::info("Adicionando saldo adicional", [
-                'additional_balance' => $additionalBalance,
-                'description' => $description
-            ]);
-            $this->addBalance($userId, $additionalBalance, $description);
-        }
-
-        // Criar novo contrato com end_date no mesmo dia do mês seguinte
-        $newCycle = $this->calculateNextMonthlyCycle($now);
-        $newEndDate = $newCycle['end_date'];
-
-        Log::info("Novo ciclo mensal calculado", [
-            'start_date' => $now->toDateString(),
-            'end_date' => $newEndDate->toDateString(),
-            'day_of_month' => $now->day
+        Log::info("Cálculo de crédito pro-rata", [
+            'is_same_day_change' => $isSameDayChange,
+            'prorated_old_credit' => $proratedOldCredit
         ]);
 
+        $proratedNew = $newPlan->price;
+        $userBalance = $this->getUserBalance($userId);
+
+        $amount = 0;
+        $creditGenerated = 0;
+        $appliedCredits = 0;
+        $discountApplied = 0;
+
+        if ($proratedOldCredit >= $newPlan->price) { // Downgrade ou mesmo valor com crédito
+            $discountApplied = $newPlan->price;
+            $creditGenerated = $proratedOldCredit - $newPlan->price;
+            $amount = 0;
+
+            Log::info("Cenário de Downgrade", [
+                'prorated_old_credit' => $proratedOldCredit,
+                'new_plan_price' => $newPlan->price,
+                'discount_applied' => $discountApplied,
+                'credit_generated' => $creditGenerated,
+                'amount' => $amount
+            ]);
+        } else { // Upgrade
+            $remainingToPay = $newPlan->price - $proratedOldCredit;
+            $appliedCredits = min($remainingToPay, $userBalance);
+            $discountApplied = $proratedOldCredit + $appliedCredits;
+            $amount = $newPlan->price - $discountApplied;
+
+            Log::info("Cenário de Upgrade", [
+                'prorated_old_credit' => $proratedOldCredit,
+                'new_plan_price' => $newPlan->price,
+                'user_balance' => $userBalance,
+                'applied_credits' => $appliedCredits,
+                'discount_applied' => $discountApplied,
+                'amount' => $amount
+            ]);
+        }
+
+        // Desativar contrato antigo
+        $contract->update(['status' => 'cancelled']);
+
+        // Adicionar crédito gerado ao saldo do usuário
+        if ($creditGenerated > 0) {
+            $description = "Crédito gerado por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
+            $this->addBalance($userId, $creditGenerated, $description);
+        }
+
+        // Consumir créditos do saldo se aplicável
+        if ($appliedCredits > 0) {
+            $this->consumeBalance($userId, $appliedCredits);
+        }
+
+        // Criar novo contrato
+        $newCycle = $this->calculateNextMonthlyCycle($now);
         $newContract = Contract::create([
             'user_id' => $userId,
             'plan_id' => $newPlanId,
             'start_date' => $now,
-            'end_date' => $newEndDate,
+            'end_date' => $newCycle['end_date'],
             'status' => 'active',
         ]);
 
-        Log::info("Novo contrato criado", [
-            'new_contract_id' => $newContract->id,
-            'plan_description' => $newPlan->description
-        ]);
-
-        // Criar pagamento apenas se houver valor a pagar após descontos
-        $finalAmount = $remainingAmount;
-        if ($finalAmount > 0) {
-            Log::info("Criando pagamento", [
-                'final_amount' => $finalAmount,
-                'status' => 'paid', // PIX simulado sempre pago
-                'discount_applied' => $proratedOldCredit + $appliedBalance,
-                'prorated_old' => $proratedOldCredit,
-                'prorated_new' => $proratedNew,
-                'applied_credits' => $appliedBalance
-            ]);
-
-            Payment::create([
-                'contract_id' => $newContract->id,
-                'amount' => $finalAmount,
-                'payment_date' => $now,
-                'status' => 'paid',
-                'discount_applied' => $proratedOldCredit + $appliedBalance,
-                'prorated_old' => $proratedOldCredit,
-                'prorated_new' => $proratedNew,
-                'applied_credits' => $appliedBalance,
-            ]);
-        } else {
-            Log::info("Nenhum pagamento necessário", [
-                'final_amount' => $finalAmount,
-                'reason' => 'Valor final <= 0 após descontos'
-            ]);
-        }
-
-        return [
-            'contract' => $newContract,
+        // Criar registro de pagamento para o histórico
+        $payment = Payment::create([
+            'contract_id' => $newContract->id,
+            'amount' => $amount,
+            'payment_date' => $now,
+            'status' => 'paid', // Simulação de PIX sempre paga
             'prorated_old' => $proratedOldCredit,
             'prorated_new' => $proratedNew,
-            'new_plan_price' => $newPlan->price,
-            'user_balance_before' => $userBalance,
-            'applied_balance' => $appliedBalance,
-            'additional_balance' => $additionalBalance,
-            'final_amount' => $finalAmount,
-            'total_discount_applied' => $proratedOldCredit + $appliedBalance,
-            'credits_available' => $userBalance,
-            'balance_available' => $userBalance,
-            'discount_applied' => $proratedOldCredit + $appliedBalance,
-            'remaining_credit' => $additionalBalance,
-            'remaining_balance' => $additionalBalance,
-            'cycle_info' => [
-                'cycle_start' => $contract->start_date,
-                'cycle_end' => $contract->start_date->copy()->addDays(30),
-                'total_days' => $totalDaysInCycle,
-                'days_used' => $daysUsed,
-                'days_remaining' => $daysRemaining
+            'applied_credits' => $appliedCredits,
+            'discount_applied' => $discountApplied,
+        ]);
+
+        Log::info("Registro de pagamento criado", ['payment_id' => $payment->id]);
+
+        return [
+            'old_contract' => $contract,
+            'new_contract' => $newContract,
+            'payment' => $payment,
+            'balance_info' => [
+                'previous_balance' => $userBalance,
+                'credits_used' => $appliedCredits,
+                'credits_generated' => $creditGenerated,
+                'new_balance' => $this->getUserBalance($userId),
             ],
         ];
     }

@@ -51,11 +51,6 @@ interface Payment {
 interface HistoryItem {
   contract: Contract;
   payments: Payment[];
-  discountDetails: {
-    prorrata: number;
-    balanceCredit: number;
-    totalDiscount: number;
-  };
 }
 
 interface HistoryTableProps {
@@ -115,8 +110,8 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
           bValue = b.contract.plan.price;
           break;
         case "discount":
-          aValue = a.discountDetails.totalDiscount;
-          bValue = b.discountDetails.totalDiscount;
+          aValue = a.payments[a.payments.length - 1]?.discount_applied || 0;
+          bValue = b.payments[b.payments.length - 1]?.discount_applied || 0;
           break;
         case "status":
           aValue = a.contract.status || "";
@@ -204,6 +199,9 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
             <TableHead className="bg-gray-50">
               <TableRow>
                 <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
+                  ID
+                </TableHeadCell>
+                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
                   <Button
                     size="sm"
                     color="light"
@@ -256,8 +254,11 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedItems.map(({ contract, payments, discountDetails }) => (
+              {paginatedItems.map(({ contract, payments }, index) => (
                 <TableRow key={contract.id}>
+                  <TableCell className="bg-white font-medium text-gray-500">
+                    {(currentPage - 1) * pageSize + index + 1}
+                  </TableCell>
                   <TableCell className="bg-white">
                     <div className="font-medium text-gray-900">
                       {contract.plan.description}
@@ -277,34 +278,47 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
 
                   <TableCell className="bg-white">
                     {(() => {
-                      // Usar os dados já calculados de discountDetails (CORRIGIDO)
-                      const { prorrata, balanceCredit, totalDiscount } = discountDetails;
+                      const sortedPayments = [...payments].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                      const latestPayment = sortedPayments.length > 0 ? sortedPayments[sortedPayments.length - 1] : null;
+                      if (!latestPayment) return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
 
-                      if (totalDiscount > 0) {
-                        return (
-                          <div className="space-y-1 text-sm">
-                            {balanceCredit > 0 && (
-                              <div className="text-green-600">
-                                Créditos: {formatCurrency(balanceCredit)}
-                              </div>
-                            )}
-                            {prorrata > 0 && (
-                              <div className="text-blue-600">
-                                Pro-rata: {formatCurrency(prorrata)}
-                              </div>
-                            )}
-                            <div className="font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1">
-                              Total de Desconto: {formatCurrency(totalDiscount)}
-                            </div>
-                          </div>
-                        );
-                      } else {
-                        return (
-                          <span className="text-gray-400 text-sm">
-                            Nenhum desconto
-                          </span>
-                        );
+                      const { prorated_old = 0, prorated_new = 0, applied_credits = 0, discount_applied = 0 } = latestPayment;
+                      const discountLines = [];
+
+                      if (applied_credits > 0) {
+                        discountLines.push(`Créditos: ${formatCurrency(applied_credits)}`);
                       }
+
+                      if (prorated_old > 0) {
+                        if (prorated_old > prorated_new) { // Downgrade
+                          const prorataUsed = Math.min(prorated_old, prorated_new);
+                          discountLines.push(`Pro-rata: ${formatCurrency(prorataUsed)} [de ${formatCurrency(prorated_old)}]`);
+                          const creditGenerated = prorated_old - prorated_new;
+                          if (creditGenerated > 0) {
+                            discountLines.push(`À creditar: ${formatCurrency(creditGenerated)}`);
+                          }
+                        } else { // Upgrade
+                          discountLines.push(`Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`);
+                        }
+                      }
+
+                      if (discount_applied > 0) {
+                        discountLines.push(`Total de Desconto: ${formatCurrency(discount_applied)}`);
+                      }
+
+                      if (discountLines.length === 0) {
+                        return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
+                      }
+
+                      return (
+                        <div className="space-y-1 text-sm">
+                          {discountLines.map((line, index) => (
+                            <div key={index} className={line.includes('Total') ? 'font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1' : (line.includes('Créditos') ? 'text-green-600' : 'text-blue-600')}>
+                              {line}
+                            </div>
+                          ))}
+                        </div>
+                      );
                     })()}
                   </TableCell>
 
@@ -334,22 +348,14 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
 
                   <TableCell className="bg-white">
                     {(() => {
-                      // Filtrar para mostrar apenas um pagamento por data (o mais recente)
                       const uniquePaymentsMap = new Map();
-
-                      // Ordenar por data decrescente (mais recentes primeiro)
-                      const sortedPayments = [...payments].sort((a, b) =>
-                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                      );
-
-                      // Manter apenas um pagamento por data (o mais recente)
+                      const sortedPayments = [...payments].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                       sortedPayments.forEach((payment) => {
-                        const dateKey = payment.payment_date.split('T')[0]; // YYYY-MM-DD
+                        const dateKey = payment.payment_date.split('T')[0];
                         if (!uniquePaymentsMap.has(dateKey)) {
                           uniquePaymentsMap.set(dateKey, payment);
                         }
                       });
-
                       const uniquePayments = Array.from(uniquePaymentsMap.values());
 
                       return uniquePayments.length > 0 ? (

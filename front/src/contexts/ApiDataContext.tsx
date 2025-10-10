@@ -85,78 +85,50 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
-  // Plans methods
-  const refreshPlans = useCallback(async () => {
-    setPlansLoading(true);
-    setPlansError(null);
+  // Generic fetcher
+  const fetchData = useCallback(async <T,>(
+    url: string,
+    setData: (data: T) => void,
+    setLoading: (loading: boolean) => void,
+    setError: (error: string | null) => void,
+    transform?: (data: any) => T
+  ) => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
-      if (!response.ok) throw new Error('Failed to fetch plans');
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to fetch from ${url}`);
       const data = await response.json();
-      setPlans(data);
+      const transformedData = transform ? transform(data) : data;
+      setData(transformedData);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      setPlansError(message);
-      console.error('Error fetching plans:', message);
+      setError(message);
+      console.error(`Error fetching from ${url}:`, message);
     } finally {
-      setPlansLoading(false);
+      setLoading(false);
     }
   }, []);
+
+  // Plans methods
+  const refreshPlans = useCallback(async () => {
+    await fetchData(`${import.meta.env.VITE_API_URL}/plans`, setPlans, setPlansLoading, setPlansError);
+  }, [fetchData]);
 
   // Contracts methods
   const refreshContracts = useCallback(async (userId: number) => {
-    setContractsLoading(true);
-    setContractsError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`);
-      if (!response.ok) throw new Error('Failed to fetch contracts');
-      const data = await response.json();
-      setContracts(data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setContractsError(message);
-      console.error('Error fetching contracts:', message);
-    } finally {
-      setContractsLoading(false);
-    }
-  }, []);
+    await fetchData(`${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`, setContracts, setContractsLoading, setContractsError);
+  }, [fetchData]);
 
   // Payments methods
   const refreshPayments = useCallback(async (userId: number) => {
-    setPaymentsLoading(true);
-    setPaymentsError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`);
-      if (!response.ok) throw new Error('Failed to fetch payments');
-      const data = await response.json();
-      setPayments(data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setPaymentsError(message);
-      console.error('Error fetching payments:', message);
-    } finally {
-      setPaymentsLoading(false);
-    }
-  }, []);
+    await fetchData(`${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`, setPayments, setPaymentsLoading, setPaymentsError);
+  }, [fetchData]);
 
   // Balance methods
   const refreshBalance = useCallback(async (userId: number) => {
-    setBalanceLoading(true);
-    setBalanceError(null);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`);
-      if (!response.ok) throw new Error('Failed to fetch balance');
-      const data = await response.json();
-      const balanceValue = data.total_balance || 0;
-      setBalance(balanceValue);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setBalanceError(message);
-      console.error('Error fetching balance:', message);
-    } finally {
-      setBalanceLoading(false);
-    }
-  }, []);
+    await fetchData(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`, setBalance, setBalanceLoading, setBalanceError, (data: { total_balance: number }) => data.total_balance || 0);
+  }, [fetchData]);
 
   const value: ApiDataContextType = {
     // Plans
