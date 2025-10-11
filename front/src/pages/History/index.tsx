@@ -1,28 +1,55 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useContracts } from '../../hooks/useContracts';
-import { usePayments } from '../../hooks/usePayments';
-import { useUserBalance } from '../../hooks/useUserBalance';
+import { useApiData } from '../../hooks/useApiData';
+import { useAuth } from '../../hooks/useAuth';
 import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
 import { HistoryTable } from '../../components/domain';
 import { formatCurrency } from '../../utils/formatters';
 import { Payment } from '../../types';
 
-// TODO adicionar usuário persistido no AuthContext/Storage quando faz login
-const userId = 1; 
-
 
 export const History = () => {
-   const { contracts, contractsLoading } = useContracts();
-   const { payments, loading: loadingPayments } = usePayments(userId);
-   const { balance } = useUserBalance();
+  const { user } = useAuth();
+  const userId = user?.id || 1; // Obter ID do usuário autenticado ou fallback
+  const {
+    contracts,
+    contractsLoading,
+    payments,
+    paymentsLoading,
+    balance,
+    refreshContracts,
+    refreshPayments,
+    refreshBalance
+  } = useApiData();
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadHistoryData = async () => {
+      try {
+        await Promise.all([
+          refreshContracts(userId),
+          refreshPayments(userId),
+          refreshBalance(userId)
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados do histórico:', error);
+      }
+    };
+
+    if (userId) {
+      loadHistoryData();
+    }
+  }, [userId, refreshContracts, refreshPayments, refreshBalance]);
+
+  const loading = contractsLoading || paymentsLoading;
 
   console.log('📊 [HISTORY PAGE] Dados carregados:', {
     userId,
     contracts: contracts.length,
     payments: payments.length,
     contractsLoading,
-    loadingPayments
+    paymentsLoading: loading
   })
 
   const formatDate = (dateString: string) => {
@@ -53,7 +80,7 @@ export const History = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header user={{ id: userId, name: "Usuário da Silva" }} />
+      <Header user={{ id: userId, name: user?.name || "Usuário da Silva" }} />
       <Breadcrumbs items={[{ name: 'Histórico', href: '/history' }]} />
       <div className="container mx-auto px-4 py-8">
         <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
@@ -70,7 +97,7 @@ export const History = () => {
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Planos Contratados</h2>
 
-          {(contractsLoading || loadingPayments) && <p>Carregando histórico...</p>}
+          {loading && <p>Carregando histórico...</p>}
 
           <HistoryTable
             historyItems={historyItems}
@@ -78,7 +105,7 @@ export const History = () => {
             formatDate={formatDate}
           />
 
-          {!contractsLoading && !loadingPayments && historyItems.length === 0 && (
+          {!loading && historyItems.length === 0 && (
             <p className="text-gray-500 text-center py-8">
               Nenhum plano contratado ainda.
             </p>

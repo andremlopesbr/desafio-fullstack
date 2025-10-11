@@ -1,41 +1,70 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { useApiData } from '../../hooks/useApiData';
 import Header from '../../components/Header';
 import { Breadcrumbs, Footer } from '../../components/ui';
-import { useContracts } from '../../hooks/useContracts';
 import { formatCurrency } from '../../utils/formatters';
 import { Contract } from '../../types';
 
 const Profile = () => {
   console.log('👤 [PROFILE PAGE] Inicializando página de perfil')
+  const { user: authUser } = useAuth();
   const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const { contracts, contractsLoading } = useContracts();
-  console.log('📊 [PROFILE PAGE] Carregando contratos e usuário:', { contractsLoading })
+  const [contractsLoaded, setContractsLoaded] = useState(false);
+  const { contracts, contractsLoading, refreshContracts } = useApiData();
+  console.log('📊 [PROFILE PAGE] Carregando contratos e usuário:', { contractsLoading, contractsLoaded })
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/user`);
-        if (!response.ok) throw new Error('Failed to fetch user');
-        const userData = await response.json();
-        setUser(userData);
-        console.log('✅ [PROFILE PAGE] Usuário carregado:', userData);
-      } catch (error) {
-        console.error('❌ [PROFILE PAGE] Erro ao buscar usuário:', error);
-      } finally {
+    // Usar dados do contexto de autenticação
+    if (authUser) {
+      setUser(authUser);
+      console.log('✅ [PROFILE PAGE] Usuário carregado do contexto:', authUser);
+    } else {
+      // Fallback para busca de API se contexto não estiver disponível
+      const fetchUser = async () => {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/user`);
+          if (!response.ok) throw new Error('Failed to fetch user');
+          const userData = await response.json();
+          setUser(userData);
+          console.log('✅ [PROFILE PAGE] Usuário carregado da API:', userData);
+        } catch (error) {
+          console.error('❌ [PROFILE PAGE] Erro ao buscar usuário:', error);
+        }
+      };
+
+      fetchUser();
+    }
+  }, [authUser]);
+
+  // Carregar contratos quando usuário estiver disponível - APENAS UMA VEZ
+  useEffect(() => {
+    const loadContracts = async () => {
+      if (authUser?.id && !contractsLoaded && !contractsLoading) {
+        try {
+          console.log('🔄 [PROFILE PAGE] Iniciando carregamento de contratos...');
+          await refreshContracts(authUser.id);
+          setContractsLoaded(true);
+          console.log('✅ [PROFILE PAGE] Contratos carregados');
+        } catch (error) {
+          console.error('❌ [PROFILE PAGE] Erro ao carregar contratos:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else if (!authUser?.id) {
         setLoading(false);
-        console.log('🏁 [PROFILE PAGE] Loading finalizado');
       }
     };
 
-    fetchUser();
-  }, []);
+    loadContracts();
+  }, [authUser?.id, contractsLoaded, contractsLoading, refreshContracts]);
 
   if (loading || contractsLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header user={{ id: 1, name: "Carregando..." }} />
+        <Header user={{ id: authUser?.id || 1, name: authUser?.name || "Carregando..." }} />
         <div className="flex justify-center items-center h-screen">
           <div className="text-lg">Carregando perfil...</div>
         </div>
@@ -46,7 +75,7 @@ const Profile = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header user={{ id: 1, name: "Erro" }} />
+        <Header user={{ id: authUser?.id || 1, name: authUser?.name || "Erro" }} />
         <div className="flex justify-center items-center h-screen">
           <div className="text-red-500 text-lg">Erro ao carregar perfil</div>
         </div>

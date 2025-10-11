@@ -31,7 +31,6 @@ export function createApiHook<T>(
     return {
       [`${propertyName}`]: result.data,
       [`${propertyName}Loading`]: result.loading,
-      [`${propertyName}Error`]: result.error,
       [`refresh${propertyName.charAt(0).toUpperCase() + propertyName.slice(1)}`]: result.refetch,
       refetch: result.refetch
     };
@@ -68,7 +67,6 @@ export function createTransformingApiHook<T>(
     return {
       [`${propertyName}`]: result.data,
       [`${propertyName}Loading`]: result.loading,
-      [`${propertyName}Error`]: result.error,
       [`refresh${propertyName.charAt(0).toUpperCase() + propertyName.slice(1)}`]: result.refetch,
       refetch: result.refetch
     };

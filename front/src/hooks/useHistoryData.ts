@@ -6,7 +6,7 @@ import { Payment } from '../types';
 
 export function useHistoryData(userId: number) {
   const { contracts, contractsLoading, contractsError } = useContracts();
-  const { payments, loading: paymentsLoading, error: paymentsError } = usePayments(userId);
+  const { payments, paymentsLoading, paymentsError } = usePayments(userId);
 
   const loading = contractsLoading || paymentsLoading;
   const error = contractsError || paymentsError;

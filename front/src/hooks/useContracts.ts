@@ -1,11 +1,14 @@
 import { useContext } from 'react';
-import { createApiHook } from './useApiHooksFactory';
+import { ContractsContext } from '../contexts/ContractsContext';
 import { AuthContext } from '../contexts/AuthContext';
 
-const contractsHook = createApiHook('contracts', undefined, 'contracts');
-
 export const useContracts = () => {
+  const contractsContext = useContext(ContractsContext);
   const authContext = useContext(AuthContext);
+
+  if (!contractsContext) {
+    throw new Error('useContracts deve ser usado dentro de um ContractsProvider');
+  }
 
   if (!authContext) {
     throw new Error('useContracts deve ser usado dentro de um AuthProvider');
@@ -21,5 +24,15 @@ export const useContracts = () => {
     };
   }
 
-  return contractsHook(authContext.user.id);
+  const refreshContracts = async () => {
+    await contractsContext.refreshContracts(authContext.user!.id);
+  };
+
+  return {
+    contracts: contractsContext.contracts,
+    contractsLoading: contractsContext.loading,
+    contractsError: contractsContext.error,
+    refreshContracts,
+    refetch: refreshContracts
+  };
 };

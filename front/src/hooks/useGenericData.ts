@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useErrorHandler } from './useErrorHandler';
 
 /**
  * Hook genérico para gerenciar estado de dados de API com cache e controle de loading
  * Implementa padrão de cache baseado em userId para evitar requisições desnecessárias
+ * Integrado com tratamento de erros centralizado
  */
 export function useGenericData<T>(
   fetcher: (userId: number) => Promise<T>,
@@ -10,7 +12,7 @@ export function useGenericData<T>(
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { setError, clearError, setRetry } = useErrorHandler();
 
   const hasFetchedRef = useRef(false);
   const lastUserIdRef = useRef<number | null>(null);
@@ -31,7 +33,7 @@ export function useGenericData<T>(
     }
 
     setLoading(true);
-    setError(null);
+    clearError();
 
     try {
       const result = await fetcher(userId);
@@ -44,12 +46,17 @@ export function useGenericData<T>(
         return;
       }
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMessage);
+      const errorObj = new Error(errorMessage);
+
+      // Usar tratamento de erros centralizado
+      setError(errorObj, `Erro ao buscar dados do usuário ${userId}`);
+      setRetry(() => fetchData(true));
+
       console.error('Erro ao buscar dados:', errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [fetcher, userId, data]);
+  }, [fetcher, userId, data, setError, clearError, setRetry]);
 
   useEffect(() => {
     if (userId) {
@@ -69,7 +76,6 @@ export function useGenericData<T>(
   return {
     data,
     loading,
-    error,
     refetch
   };
 }

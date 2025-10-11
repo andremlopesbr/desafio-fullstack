@@ -43,12 +43,18 @@ interface ApiDataContextType {
   contractsLoading: boolean;
   contractsError: string | null;
   refreshContracts: (userId: number) => Promise<void>;
+  createContract: (contractData: any) => Promise<Contract | null>;
+  contractLoading: boolean;
+  contractError: string | null;
 
   // Payments
   payments: Payment[];
   paymentsLoading: boolean;
   paymentsError: string | null;
   refreshPayments: (userId: number) => Promise<void>;
+  processPayment: (paymentData: any) => Promise<Payment | null>;
+  paymentLoading: boolean;
+  paymentError: string | null;
 
   // Balance
   balance: number;
@@ -84,6 +90,14 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  // Contract creation state
+  const [contractLoading, setContractLoading] = useState(false);
+  const [contractError, setContractError] = useState<string | null>(null);
+
+  // Payment processing state
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Generic fetcher
   const fetchData = useCallback(async <T,>(
@@ -130,6 +144,62 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     await fetchData(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`, setBalance, setBalanceLoading, setBalanceError, (data: { total_balance: number }) => data.total_balance || 0);
   }, [fetchData]);
 
+  // Contract creation methods
+  const createContract = useCallback(async (contractData: any) => {
+    setContractLoading(true);
+    setContractError(null);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/contracts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contractData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao criar contrato');
+      }
+
+      const contract = await response.json();
+      return contract;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      setContractError(message);
+      return null;
+    } finally {
+      setContractLoading(false);
+    }
+  }, []);
+
+  // Payment processing methods
+  const processPayment = useCallback(async (paymentData: any) => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paymentData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao processar pagamento');
+      }
+
+      const payment = await response.json();
+      return payment;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      setPaymentError(message);
+      return null;
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, []);
+
   const value: ApiDataContextType = {
     // Plans
     plans,
@@ -142,12 +212,18 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     contractsLoading,
     contractsError,
     refreshContracts,
+    createContract,
+    contractLoading,
+    contractError,
 
     // Payments
     payments,
     paymentsLoading,
     paymentsError,
     refreshPayments,
+    processPayment,
+    paymentLoading,
+    paymentError,
 
     // Balance
     balance,

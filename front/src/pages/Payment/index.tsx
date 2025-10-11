@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { usePlans } from "../../hooks/usePlans";
-import { useCreateContract } from "../../hooks/useCreateContract";
-import { useProcessPayment } from "../../hooks/usePayments";
-import { useContracts } from "../../hooks/useContracts";
-import { usePlanCredits } from "../../hooks/usePlanCredits";
 import { useApiData } from "../../hooks/useApiData";
+import { useAuth } from "../../hooks/useAuth";
+import { usePlanCredits } from "../../hooks/usePlanCredits";
 import Header from "../../components/Header";
 import Pix from "react-qrcode-pix";
 import { Footer, Modal, LoadingSpinner } from "../../components/ui";
@@ -18,27 +15,35 @@ export const Payment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
-  const { plans, plansLoading, plansError } = usePlans();
+  const { user } = useAuth();
   const {
+    plans,
+    plansLoading,
+    plansError,
+    contracts,
     createContract,
-    loading: contractLoading,
-    error: contractError,
-  } = useCreateContract();
-  const {
+    contractLoading,
+    contractError,
     processPayment,
-    loading: paymentLoading,
-    error: paymentError,
-  } = useProcessPayment();
-  const { contracts } = useContracts();
-  const { refreshContracts, refreshPayments, refreshBalance } = useApiData();
+    paymentLoading,
+    paymentError,
+    refreshContracts,
+    refreshPayments,
+    refreshBalance
+  } = useApiData();
 
   console.log("💳 [PAYMENT PAGE] Inicializando página de pagamento:", {
     planId,
     plansLoading,
-    contractsLoading: false,
   });
 
   const plan = plans.find((p: Plano) => p.id === Number(planId));
+
+  // Validação: verificar se planId é válido
+  if (!planId || isNaN(Number(planId))) {
+    console.error("❌ [PAYMENT PAGE] planId inválido:", planId);
+  }
+
   console.log(
     "📦 [PAYMENT PAGE] Plano encontrado:",
     plan ? { id: plan.id, name: plan.description, price: plan.price } : "NENHUM"
@@ -60,7 +65,7 @@ export const Payment = () => {
   console.log("🔄 [PAYMENT PAGE] É troca de plano?", isPlanChange);
 
   // Calcular créditos sempre (para demonstrar descontos no checkout)
-  const userId = 1; // Simulação com user_id fixo
+  const userId = user?.id || 1; // Obter ID do usuário autenticado ou fallback para 1
   const { creditInfo } = usePlanCredits(
     activeContract,
     plan || undefined,
@@ -68,22 +73,40 @@ export const Payment = () => {
   );
   console.log("💰 [PAYMENT PAGE] Créditos calculados:", creditInfo);
 
-  // Para novos contratos, buscar apenas créditos em saldo se não houver cálculo pro-rata
-  const [balanceCredits, setBalanceCredits] = useState<number>(0);
+  // Carregar dados iniciais usando o contexto centralizado
   useEffect(() => {
-    if (!creditInfo && plan) {
-      fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
-        .then((res) => res.json())
-        .then((data) => setBalanceCredits(data.total_balance || 0))
-        .catch((err) => console.error("Erro ao buscar saldo:", err));
-    }
-  }, [creditInfo, plan, userId]);
+    const loadPaymentData = async () => {
+      try {
+        await Promise.all([
+          refreshContracts(user?.id || 1),
+          refreshBalance(user?.id || 1)
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados de pagamento:', error);
+      }
+    };
 
-  // Saldo já vem em reais do backend
-  const balanceCreditsInReais = balanceCredits;
+    if (user?.id) {
+      loadPaymentData();
+    }
+  }, [user?.id, refreshContracts, refreshBalance]);
+
+  // Usar saldo do contexto em vez de estado local
+  const currentBalance = 0; // TODO: obter do contexto quando disponível
+
+  // Usar saldo do contexto (temporariamente 0 até implementar)
+
 
   const handleConfirmPayment = async () => {
-    if (!plan) return;
+    if (!plan) {
+      console.error("❌ [PAYMENT] Plano não encontrado");
+      return;
+    }
+
+    if (!planId || isNaN(Number(planId))) {
+      console.error("❌ [PAYMENT] planId inválido:", planId);
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -134,7 +157,7 @@ export const Payment = () => {
         endDate.setDate(today.getDate() + 30);
 
         const contractData = {
-          user_id: 1, // Simulação com user_id fixo
+          user_id: user?.id || 1, // Obter ID do usuário autenticado ou fallback
           plan_id: plan.id,
           start_date: today.toISOString().split("T")[0],
           end_date: endDate.toISOString().split("T")[0],
@@ -156,81 +179,80 @@ export const Payment = () => {
         let proratedNew: number = 0;
         let appliedCredits: number = 0;
 
-        if (creditInfo && isPlanChange) {
+        if (isPlanChange && creditInfo) {
           finalAmount = creditInfo.finalPrice;
           proratedOld = creditInfo.proratedDiscount || 0;
           proratedNew = creditInfo.proratedNew || 0; // Valor cheio do plano novo
           appliedCredits = creditInfo.discount || 0;
           discountApplied = proratedOld + proratedNew + appliedCredits;
           console.log(
-            "💰 [PAYMENT CALC] Usando creditInfo.finalPrice:",
+            "💰 [PAYMENT CALC] Usando creditInfo.finalPrice para mudança de plano:",
             finalAmount
           );
         } else {
-          finalAmount = Math.max(0, plan.price - balanceCredits);
-          appliedCredits = balanceCredits;
+          finalAmount = Math.max(0, plan.price - currentBalance);
+          appliedCredits = currentBalance;
           discountApplied = appliedCredits;
-          console.log("💰 [PAYMENT CALC] Calculando manualmente:", {
+          console.log("💰 [PAYMENT CALC] Calculando com saldo para novo contrato:", {
             planPrice: plan.price,
-            balanceCredits: balanceCredits,
+            currentBalance: currentBalance,
             finalAmount: finalAmount,
           });
         }
 
         // Garantir que o valor seja exatamente 0 quando não houver cobrança
         if (finalAmount <= 0) {
-          finalAmount = 0; // Exatamente 0 para evitar R$ 0,01
-        } else {
-          finalAmount = Math.max(0.01, finalAmount); // Mínimo de 0.01 apenas se houver cobrança
+          finalAmount = 0; // Exatamente 0 quando não há cobrança
         }
         finalAmount = Math.round(finalAmount * 100) / 100; // Arredondar para 2 casas decimais
 
-        // Sempre processar pagamento via PIX Simulado, independente do valor
-        const paymentData = {
-          contract_id: contract.id,
-          amount: finalAmount, // Valor em reais
-          payment_date: new Date().toISOString().split("T")[0],
-          status: "paid",
-          discount_applied: discountApplied,
-          prorated_old: proratedOld,
-          prorated_new: proratedNew,
-          applied_credits: appliedCredits,
-        };
+        // Processar pagamento apenas se houver valor a ser pago
+        if (finalAmount > 0) {
+          const paymentData = {
+            contract_id: contract.id,
+            amount: finalAmount, // Valor em reais
+            payment_date: new Date().toISOString().split("T")[0],
+            status: "paid",
+            discount_applied: discountApplied,
+            prorated_old: proratedOld,
+            prorated_new: proratedNew,
+            applied_credits: appliedCredits,
+          };
 
-        console.log("💳 PROCESSANDO PAGAMENTO VIA PIX SIMULADO:", {
-          valorBruto: plan.price,
-          valorFinalComDescontos: finalAmount,
-          valorEnviadoReais: finalAmount, // Valor em reais (padrão americano)
-          creditosAplicados: appliedCredits,
-          status: "paid",
-          descontos: {
-            discount_applied: paymentData.discount_applied,
-            prorated_old: paymentData.prorated_old,
-            prorated_new: paymentData.prorated_new,
-            applied_credits: paymentData.applied_credits,
-          },
-        });
-
-        const payment = await processPayment(paymentData);
-
-        if (payment) {
-          console.log("🎉 PAGAMENTO CONFIRMADO VIA PIX SIMULADO:", {
-            paymentId: payment.id,
-            contractId: contract.id,
-            valorPago: payment.amount, // payment.amount vem em reais do backend
-            descontosAplicados: payment.discount_applied,
+          console.log("💳 PROCESSANDO PAGAMENTO VIA PIX SIMULADO:", {
+            valorBruto: plan.price,
+            valorFinalComDescontos: finalAmount,
+            valorEnviadoReais: finalAmount, // Valor em reais (padrão americano)
+            creditosAplicados: appliedCredits,
+            status: "paid",
+            descontos: {
+              discount_applied: paymentData.discount_applied,
+              prorated_old: paymentData.prorated_old,
+              prorated_new: paymentData.prorated_new,
+              applied_credits: paymentData.applied_credits,
+            },
           });
-        } else {
-          throw new Error("Falha no processamento do pagamento");
+
+          const payment = await processPayment(paymentData);
+
+          if (payment) {
+            console.log("🎉 PAGAMENTO CONFIRMADO VIA PIX SIMULADO:", {
+              paymentId: payment.id,
+              contractId: contract.id,
+              valorPago: payment.amount, // payment.amount vem em reais do backend
+            });
+          } else {
+            throw new Error("Falha no processamento do pagamento");
+          }
         }
       }
 
       // Atualizar dados após contratação bem-sucedida (para ambos os casos)
       console.log("🔄 ATUALIZANDO DADOS APÓS PAGAMENTO...");
       await Promise.all([
-        refreshContracts(1),
-        refreshPayments(1),
-        refreshBalance(1),
+        refreshContracts(user?.id || 1),
+        refreshPayments(user?.id || 1),
+        refreshBalance(user?.id || 1),
       ]);
       console.log("✅ DADOS ATUALIZADOS COM SUCESSO");
 
@@ -276,7 +298,7 @@ export const Payment = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header user={{ id: 1, name: "Usuário Teste" }} />
+      <Header user={{ id: user?.id || 1, name: user?.name || "Usuário Teste" }} />
 
       <Modal
         isOpen={isProcessing}
@@ -324,6 +346,7 @@ export const Payment = () => {
             </p>
           </div>
 
+          {/* Detalhes de descontos para mudança de plano */}
           {creditInfo && isPlanChange && (
             <PlanChangeDetails
               creditInfo={creditInfo}
@@ -332,36 +355,38 @@ export const Payment = () => {
             />
           )}
 
-          {!isPlanChange && balanceCredits > 0 && (
+          {/* Descontos para novos contratos com saldo */}
+          {!isPlanChange && currentBalance > 0 && (
             <div className="mb-4 p-3 bg-blue-50 rounded">
               <h3 className="font-semibold text-blue-800">
                 Descontos Aplicados
               </h3>
               <p className="text-blue-700">
-                Saldo em Crédito: {formatCurrency(balanceCreditsInReais)}
+                Saldo em Crédito: {formatCurrency(currentBalance)}
               </p>
               <p className="text-blue-700 font-bold">
                 Valor Final:{" "}
                 {formatCurrency(
-                  Math.max(0, plan.price - balanceCreditsInReais)
+                  Math.max(0, plan.price - currentBalance)
                 )}
               </p>
             </div>
           )}
 
-          {!isPlanChange && balanceCredits === 0 && (
+          {/* Preço sem descontos */}
+          {!isPlanChange && currentBalance === 0 && (
             <p className="text-lg font-bold mb-4">
               Preço: {formatCurrency(plan.price)}
             </p>
           )}
 
-          {/* Se 'Total a pagar' > 0, mostra PIX Simulator */}
+          {/* PIX Simulator - mostra apenas se houver valor a pagar */}
           {(() => {
             let finalAmount = 0;
             if (creditInfo && isPlanChange) {
               finalAmount = creditInfo.finalPrice;
             } else {
-              finalAmount = Math.max(0, plan.price - balanceCreditsInReais);
+              finalAmount = Math.max(0, plan.price - currentBalance);
             }
             return finalAmount > 0 ? (
               <div className="mb-6 text-center">
@@ -437,3 +462,4 @@ export const Payment = () => {
     </div>
   );
 };
+

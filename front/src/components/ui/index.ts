@@ -1,4 +1,5 @@
 export { LoadingSpinner } from './LoadingSpinner';
+export { LoadingState } from './LoadingState';
 export { ErrorMessage } from './ErrorMessage';
 export { Button } from './Button';
 export { Modal } from './Modal';

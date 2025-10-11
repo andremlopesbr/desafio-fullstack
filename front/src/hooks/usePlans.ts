@@ -1,15 +1,14 @@
 import { useContext } from 'react';
-import { createApiHook } from './useApiHooksFactory';
+import { PlansContext } from '../contexts/PlansContext';
 import { AuthContext } from '../contexts/AuthContext';
 
-const plansHook = createApiHook(
-  'plans',
-  (data: any) => data.plans || data,
-  'plans'
-);
-
 export const usePlans = () => {
+  const plansContext = useContext(PlansContext);
   const authContext = useContext(AuthContext);
+
+  if (!plansContext) {
+    throw new Error('usePlans deve ser usado dentro de um PlansProvider');
+  }
 
   if (!authContext) {
     throw new Error('usePlans deve ser usado dentro de um AuthProvider');
@@ -25,5 +24,16 @@ export const usePlans = () => {
     };
   }
 
-  return plansHook(authContext.user.id);
+  // Refresh plans if needed (plans context doesn't depend on userId)
+  const refreshPlans = async () => {
+    await plansContext.refreshPlans();
+  };
+
+  return {
+    plans: plansContext.plans,
+    plansLoading: plansContext.loading,
+    plansError: plansContext.error,
+    refreshPlans,
+    refetch: refreshPlans
+  };
 };

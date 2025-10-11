@@ -1,15 +1,14 @@
 import { useContext } from 'react';
-import { createTransformingApiHook } from './useApiHooksFactory';
+import { BalanceContext } from '../contexts/BalanceContext';
 import { AuthContext } from '../contexts/AuthContext';
 
-const userBalanceHook = createTransformingApiHook(
-  'users/${userId}/balance',
-  (data: { total_balance: number }) => data.total_balance || 0,
-  'balance'
-);
-
 export const useUserBalance = (userId?: number) => {
+  const balanceContext = useContext(BalanceContext);
   const authContext = useContext(AuthContext);
+
+  if (!balanceContext) {
+    throw new Error('useUserBalance deve ser usado dentro de um BalanceProvider');
+  }
 
   if (!authContext) {
     throw new Error('useUserBalance deve ser usado dentro de um AuthProvider');
@@ -27,5 +26,15 @@ export const useUserBalance = (userId?: number) => {
     };
   }
 
-  return userBalanceHook(targetUserId);
+  const refreshBalance = async () => {
+    await balanceContext.refreshBalance(targetUserId);
+  };
+
+  return {
+    balance: balanceContext.balance,
+    balanceLoading: balanceContext.loading,
+    balanceError: balanceContext.error,
+    refreshBalance,
+    refetch: refreshBalance
+  };
 };

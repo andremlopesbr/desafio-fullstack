@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-import { usePlans } from "../../hooks/usePlans";
-import { useContracts } from "../../hooks/useContracts";
-import { useChangePlan } from "../../hooks/useChangePlan";
-import { useUserBalance } from "../../hooks/useUserBalance";
+import { useApiData } from "../../hooks/useApiData";
+import { useAuth } from "../../hooks/useAuth";
 import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
 import { Notification, Footer, Card } from "../../components/ui";
 import { PlanChangeModal, PlanCard } from "../../components/domain";
 import { Plano, Contract } from "../../types";
@@ -13,14 +10,17 @@ import { formatCurrency } from "../../utils/formatters";
 
 export const Home = () => {
   const { user } = useAuth();
-  useUserBalance(user?.id || 0);
-  const { plans, plansLoading, plansError } = usePlans();
   const {
+    plans,
+    plansLoading,
+    plansError,
     contracts,
     contractsLoading,
     contractsError,
-  } = useContracts();
-  const { } = useChangePlan();
+    refreshContracts,
+    refreshPlans,
+    refreshBalance
+  } = useApiData();
 
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,6 +30,24 @@ export const Home = () => {
     message: string;
   } | null>(null);
 
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          refreshPlans(),
+          refreshContracts(user?.id || 1),
+          refreshBalance(user?.id || 1)
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados iniciais:', error);
+      }
+    };
+
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id, refreshPlans, refreshContracts, refreshBalance]);
 
   // Verificar parâmetro de sucesso na URL
   useEffect(() => {
@@ -65,8 +83,6 @@ export const Home = () => {
   );
 
   // Removido: lógica para plano popular, pois no protótipo não há badges
-
-  const userId = user?.id || 0;
 
   if (loading) {
     return (
@@ -142,7 +158,7 @@ export const Home = () => {
             currentPlan={activeContract.plan}
             currentContract={activeContract}
             availablePlans={availablePlans}
-            userId={userId}
+            userId={user?.id || 1}
             onClose={() => {
               setIsModalOpen(false);
             }}

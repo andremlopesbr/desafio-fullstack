@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface User {
   id: number;
@@ -22,6 +23,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { setError, clearError } = useErrorHandler();
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -30,12 +32,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         setIsAuthenticated(true);
+        clearError();
       } catch (error) {
+        const errorObj = error instanceof Error ? error : new Error('Erro ao fazer parse do usuário');
         console.error('Erro ao carregar usuário do localStorage:', error);
+        setError(errorObj, 'Carregamento de sessão do usuário');
         localStorage.removeItem('user');
       }
     }
-  }, []);
+  }, [setError, clearError]);
 
   const login = (userData: User) => {
     setUser(userData);

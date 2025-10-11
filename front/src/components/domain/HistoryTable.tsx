@@ -1,19 +1,8 @@
 import React, { useState, useMemo } from "react";
-import {
-  Table,
-  TableHead,
-  TableHeadCell,
-  TableBody,
-  TableRow,
-  TableCell,
-  Button,
-  TextInput,
-  Dropdown,
-  DropdownItem,
-  Pagination,
-  Card,
-} from "flowbite-react";
-import { HiChevronUp, HiChevronDown, HiFilter } from "react-icons/hi";
+import { Table, TableBody, Pagination, Card } from "flowbite-react";
+import { HistoryTableControls } from "./HistoryTable/HistoryTableControls";
+import { HistoryTableHeader } from "./HistoryTable/HistoryTableHeader"; // Supondo que você criou este arquivo
+import { HistoryTableRow } from "./HistoryTable/HistoryTableRow"; // Supondo que você criou este arquivo
 
 interface Contract {
   id: number;
@@ -149,254 +138,37 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
     }
   };
 
-  const renderSortIcon = (field: SortField) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
-      <HiChevronUp className="inline ml-1" />
-    ) : (
-      <HiChevronDown className="inline ml-1" />
-    );
-  };
-
   return (
     <Card>
       <div className="space-y-4">
-        {/* Search and Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <div className="flex-1">
-            <TextInput
-              placeholder="Buscar por plano ou status..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Dropdown
-            label={
-              <div className="flex items-center">
-                <HiFilter className="mr-2" />
-                Filtrar por Status
-              </div>
-            }
-            color="light"
-          >
-            <DropdownItem onClick={() => setStatusFilter("all")}>
-              Todos
-            </DropdownItem>
-            <DropdownItem onClick={() => setStatusFilter("active")}>
-              Ativo
-            </DropdownItem>
-            <DropdownItem onClick={() => setStatusFilter("cancelled")}>
-              Cancelado
-            </DropdownItem>
-            <DropdownItem onClick={() => setStatusFilter("other")}>
-              Outros
-            </DropdownItem>
-          </Dropdown>
-        </div>
+        {/* Search and Filter Controls - SRP: apenas controles */}
+        <HistoryTableControls
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
 
         <div className="overflow-x-auto shadow-sm rounded-lg">
           <Table striped hoverable className="border-collapse">
-            <TableHead className="bg-gray-50">
-              <TableRow>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  ID
-                </TableHeadCell>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleSort("plan")}
-                    className="p-0 hover:bg-transparent font-semibold text-gray-700"
-                  >
-                    Plano {renderSortIcon("plan")}
-                  </Button>
-                </TableHeadCell>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleSort("price")}
-                    className="p-0 hover:bg-transparent font-semibold text-gray-700"
-                  >
-                    Valor {renderSortIcon("price")}
-                  </Button>
-                </TableHeadCell>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleSort("discount")}
-                    className="p-0 hover:bg-transparent font-semibold text-gray-700"
-                  >
-                    Descontos {renderSortIcon("discount")}
-                  </Button>
-                </TableHeadCell>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleSort("status")}
-                    className="p-0 hover:bg-transparent font-semibold text-gray-700"
-                  >
-                    Status {renderSortIcon("status")}
-                  </Button>
-                </TableHeadCell>
-                <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleSort("payments")}
-                    className="p-0 hover:bg-transparent font-semibold text-gray-700"
-                  >
-                    Pagamentos {renderSortIcon("payments")}
-                  </Button>
-                </TableHeadCell>
-              </TableRow>
-            </TableHead>
+            {/* Table Header - SRP: apenas cabeçalhos ordenáveis */}
+            <HistoryTableHeader
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+            />
             <TableBody>
-              {paginatedItems.map(({ contract, payments }, index) => (
-                <TableRow key={contract.id}>
-                  <TableCell className="bg-white font-medium text-gray-500">
-                    {(currentPage - 1) * pageSize + index + 1}
-                  </TableCell>
-                  <TableCell className="bg-white">
-                    <div className="font-medium text-gray-900">
-                      {contract.plan.description}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {contract.plan.numberOfClients} vistorias,{" "}
-                      {contract.plan.gigabytesStorage} GB
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    <div className="text-lg font-medium text-green-600">
-                      {formatCurrency(contract.plan.price)}
-                    </div>
-                    <div className="text-sm text-gray-500">por mês</div>
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    {(() => {
-                      const sortedPayments = [...payments].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                      const latestPayment = sortedPayments.length > 0 ? sortedPayments[sortedPayments.length - 1] : null;
-                      if (!latestPayment) return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
-
-                      const { prorated_old = 0, prorated_new = 0, applied_credits = 0, discount_applied = 0 } = latestPayment;
-                      const discountLines = [];
-
-                      if (applied_credits > 0) {
-                        discountLines.push(`Créditos: ${formatCurrency(applied_credits)}`);
-                      }
-
-                      if (prorated_old > 0) {
-                        if (prorated_old > prorated_new) { // Downgrade
-                          const prorataUsed = Math.min(prorated_old, prorated_new);
-                          discountLines.push(`Pro-rata: ${formatCurrency(prorataUsed)} [de ${formatCurrency(prorated_old)}]`);
-                          const creditGenerated = prorated_old - prorated_new;
-                          if (creditGenerated > 0) {
-                            discountLines.push(`À creditar: ${formatCurrency(creditGenerated)}`);
-                          }
-                        } else { // Upgrade
-                          discountLines.push(`Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`);
-                        }
-                      }
-
-                      if (discount_applied > 0) {
-                        discountLines.push(`Total de Desconto: ${formatCurrency(discount_applied)}`);
-                      }
-
-                      if (discountLines.length === 0) {
-                        return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
-                      }
-
-                      return (
-                        <div className="space-y-1 text-sm">
-                          {discountLines.map((line, index) => (
-                            <div key={index} className={line.includes('Total') ? 'font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1' : (line.includes('Créditos') ? 'text-green-600' : 'text-blue-600')}>
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    <span
-                      className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        contract.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : contract.status === "cancelled"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {contract.status === "active"
-                        ? "Ativo"
-                        : contract.status === "cancelled"
-                        ? "Cancelado"
-                        : contract.status}
-                    </span>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Contratado:{" "}
-                      {contract.start_date
-                        ? formatDate(contract.start_date)
-                        : "N/A"}
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    {(() => {
-                      const uniquePaymentsMap = new Map();
-                      const sortedPayments = [...payments].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                      sortedPayments.forEach((payment) => {
-                        const dateKey = payment.payment_date.split('T')[0];
-                        if (!uniquePaymentsMap.has(dateKey)) {
-                          uniquePaymentsMap.set(dateKey, payment);
-                        }
-                      });
-                      const uniquePayments = Array.from(uniquePaymentsMap.values());
-
-                      return uniquePayments.length > 0 ? (
-                        <div className="space-y-2">
-                          {uniquePayments.map((payment) => (
-                            <div
-                              key={payment.id}
-                              className="bg-gray-50 p-2 rounded text-sm"
-                            >
-                              <div className="font-medium text-gray-900">
-                                {formatCurrency(payment.amount)}
-                              </div>
-                              <div className="text-gray-600">
-                                {formatDate(payment.payment_date)}
-                              </div>
-                              <span
-                                className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${
-                                  payment.status === "paid"
-                                    ? "bg-green-100 text-green-800"
-                                    : payment.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {payment.status === "paid"
-                                  ? "Pago"
-                                  : payment.status === "pending"
-                                  ? "Pendente"
-                                  : payment.status}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm">
-                          Nenhum pagamento
-                        </span>
-                      );
-                    })()}
-                  </TableCell>
-                </TableRow>
+              {/* Table Rows - SRP: cada linha individual */}
+              {paginatedItems.map((item, index) => (
+                <HistoryTableRow
+                  key={item.contract.id}
+                  item={item}
+                  index={index}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  formatCurrency={formatCurrency}
+                  formatDate={formatDate}
+                />
               ))}
             </TableBody>
           </Table>
