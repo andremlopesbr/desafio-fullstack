@@ -8,6 +8,7 @@ import { Contract } from "../types";
 export interface CreditCalculationResult {
   databaseCredits: number;
   proratedDiscount: number;
+  proratedOld: number; // ✅ Valor total disponível do pro-rata (DEBUG.md)
   proratedNew: number;
   availableCredits: number;
   finalPrice: number;
@@ -43,6 +44,7 @@ export class CreditCalculator {
     return {
       databaseCredits: databaseCreditsInReais,
       proratedDiscount: proratedDiscount,
+      proratedOld: Number(activeContract.plan.price), // ✅ Valor total do plano antigo (DEBUG.md)
       proratedNew: proratedNew,
       availableCredits: totalAvailableCredits,
       finalPrice: finalPrice,

@@ -104,13 +104,38 @@ class ContractService implements ContractServiceInterface
             $creditGenerated = $proratedOldCredit - $newPlan->price;
             $amount = 0;
 
-            Log::info("Cenário de Downgrade", [
+            Log::info("Cenário de Downgrade - ANTES", [
                 'prorated_old_credit' => $proratedOldCredit,
                 'new_plan_price' => $newPlan->price,
                 'discount_applied' => $discountApplied,
                 'credit_generated' => $creditGenerated,
-                'amount' => $amount
+                'amount' => $amount,
+                'user_balance_before' => $userBalance,
+                'is_credit_generated_positive' => $creditGenerated > 0,
+                'comparison_exact' => $proratedOldCredit >= $newPlan->price,
+                'difference' => $proratedOldCredit - $newPlan->price
             ]);
+
+            // Adicionar crédito gerado ao saldo do usuário (Cenário 4 - DEBUG.md)
+            if ($creditGenerated > 0) {
+                $description = "Crédito gerado por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
+                Log::info("ADICIONANDO CRÉDITO AO SALDO", [
+                    'user_id' => $userId,
+                    'credit_amount' => $creditGenerated,
+                    'description' => $description
+                ]);
+                $this->addBalance($userId, $creditGenerated, $description);
+
+                Log::info("CRÉDITO ADICIONADO - VERIFICAÇÃO", [
+                    'user_balance_after' => $this->getUserBalance($userId),
+                    'expected_balance' => $userBalance + $creditGenerated
+                ]);
+            } else {
+                Log::info("NENHUM CRÉDITO GERADO", [
+                    'credit_generated' => $creditGenerated,
+                    'reason' => 'Valor menor ou igual a zero'
+                ]);
+            }
         } else { // Upgrade
             $remainingToPay = $newPlan->price - $proratedOldCredit;
             $appliedCredits = min($remainingToPay, $userBalance);
@@ -130,11 +155,13 @@ class ContractService implements ContractServiceInterface
         // Desativar contrato antigo
         $contract->update(['status' => 'cancelled']);
 
-        // Adicionar crédito gerado ao saldo do usuário
-        if ($creditGenerated > 0) {
-            $description = "Crédito gerado por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
-            $this->addBalance($userId, $creditGenerated, $description);
-        }
+        // REMOVIDO: Segunda chamada duplicada de addBalance já foi feita anteriormente (linha 127)
+        Log::info("VERIFICAÇÃO FINAL - Cenário Downgrade", [
+            'credit_generated' => $creditGenerated,
+            'user_balance_current' => $this->getUserBalance($userId),
+            'expected_balance' => $userBalance + $creditGenerated,
+            'duplication_prevented' => true
+        ]);
 
         // Consumir créditos do saldo se aplicável
         if ($appliedCredits > 0) {
@@ -152,7 +179,8 @@ class ContractService implements ContractServiceInterface
         ]);
 
         // Criar registro de pagamento para o histórico
-        $payment = Payment::create([
+        // Criar registro de pagamento para o histórico - Cenário 4 do DEBUG.md
+        $paymentData = [
             'contract_id' => $newContract->id,
             'amount' => $amount,
             'payment_date' => $now,
@@ -161,7 +189,20 @@ class ContractService implements ContractServiceInterface
             'prorated_new' => $proratedNew,
             'applied_credits' => $appliedCredits,
             'discount_applied' => $discountApplied,
-        ]);
+            'credits_generated' => $creditGenerated, // Campo novo para Cenário 4
+        ];
+
+        // Cenário 4: Downgrade - DEBUG.md Cenário 4
+        if ($proratedOldCredit > $newPlan->price && $amount == 0) {
+            Log::info("Cenário 4 - Downgrade com crédito gerado", [
+                'prorated_old_credit' => $proratedOldCredit,
+                'new_plan_price' => $newPlan->price,
+                'credit_generated' => $creditGenerated,
+                'discount_applied' => $discountApplied
+            ]);
+        }
+
+        $payment = Payment::create($paymentData);
 
         Log::info("Registro de pagamento criado", ['payment_id' => $payment->id]);
 
@@ -175,6 +216,12 @@ class ContractService implements ContractServiceInterface
                 'credits_generated' => $creditGenerated,
                 'new_balance' => $this->getUserBalance($userId),
             ],
+            // Campos de compatibilidade com testes existentes
+            'additional_balance' => $creditGenerated, // Crédito gerado em downgrade
+            'final_amount' => $amount, // Valor final a pagar
+            'applied_balance' => $appliedCredits, // Créditos utilizados
+            'prorated_old' => $proratedOldCredit, // Crédito proporcional
+            'prorated_new' => $proratedNew, // Valor do plano novo
         ];
     }
 
@@ -482,26 +529,67 @@ class ContractService implements ContractServiceInterface
      */
     public function addBalance(int $userId, float $amount, string $description): void
     {
+        Log::info("INICIANDO addBalance", [
+            'user_id' => $userId,
+            'amount' => $amount,
+            'description' => $description,
+            'amount_positive' => $amount > 0
+        ]);
+
         if ($amount <= 0) {
+            Log::info("addBalance ABORTADO - valor menor ou igual a zero", [
+                'amount' => $amount
+            ]);
             return;
         }
 
+        // Verificar saldo antes de adicionar
+        $balanceBefore = UserBalance::getTotalBalanceForUser($userId);
+
         // Adicionar o valor ao saldo do usuário
+        Log::info("CRIANDO UserBalance", [
+            'user_id' => $userId,
+            'amount' => $amount,
+            'description' => $description
+        ]);
+
         UserBalance::create([
             'user_id' => $userId,
             'amount' => $amount, // O valor em reais
             'description' => $description,
         ]);
 
+        // Verificar saldo após adicionar
+        $balanceAfter = UserBalance::getTotalBalanceForUser($userId);
+
         // Registrar a transação de crédito
+        Log::info("CRIANDO UserBalanceTransaction", [
+            'user_id' => $userId,
+            'amount' => $amount,
+            'type' => 'credit',
+            'description' => $description,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'difference' => $balanceAfter - $balanceBefore
+        ]);
+
         UserBalanceTransaction::create([
             'user_id' => $userId,
             'amount' => $amount, // Armazenar em reais
             'type' => 'credit',
             'description' => $description,
             'metadata' => [
-                'source' => 'manual_addition' // ou outra fonte, se aplicável
+                'source' => 'plan_downgrade', // fonte específica para downgrade
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter
             ],
+        ]);
+
+        Log::info("addBalance CONCLUÍDO", [
+            'user_id' => $userId,
+            'amount_added' => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter
         ]);
     }
 

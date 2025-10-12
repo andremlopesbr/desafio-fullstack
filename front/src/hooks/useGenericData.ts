@@ -17,6 +17,7 @@ export function useGenericData<T>(
   const hasFetchedRef = useRef(false);
   const lastUserIdRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const dataRef = useRef<T | null>(null); // ✅ Movido para o nível do componente
 
   const fetchData = useCallback(async (force = false) => {
     // Cancelar requisição anterior se existir
@@ -27,8 +28,10 @@ export function useGenericData<T>(
     // Criar novo AbortController
     abortControllerRef.current = new AbortController();
 
-    // Verificar se já buscou dados para este usuário (cache)
-    if (!force && hasFetchedRef.current && lastUserIdRef.current === userId && data) {
+    // ✅ CORREÇÃO: Usar ref para verificar cache ao invés de state
+    // Verificar se já buscou dados para este usuário (cache usando ref)
+    if (!force && hasFetchedRef.current && lastUserIdRef.current === userId && dataRef.current) {
+      setData(dataRef.current); // Garantir que o estado esteja sincronizado
       return;
     }
 
@@ -38,6 +41,7 @@ export function useGenericData<T>(
     try {
       const result = await fetcher(userId);
       setData(result);
+      dataRef.current = result; // ✅ Atualizar ref também
       hasFetchedRef.current = true;
       lastUserIdRef.current = userId;
     } catch (err) {
@@ -56,7 +60,7 @@ export function useGenericData<T>(
     } finally {
       setLoading(false);
     }
-  }, [fetcher, userId, data, setError, clearError, setRetry]);
+  }, [fetcher, userId, setError, clearError, setRetry]); // ✅ Removido 'data' das dependências
 
   useEffect(() => {
     if (userId) {

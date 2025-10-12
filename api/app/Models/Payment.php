@@ -18,6 +18,7 @@ class Payment extends Model
         'prorated_old',
         'prorated_new',
         'applied_credits',
+        'credits_generated', // Campo adicional para Cenário 4 - Downgrade
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class Payment extends Model
         'prorated_old' => 'decimal:2',
         'prorated_new' => 'decimal:2',
         'applied_credits' => 'decimal:2',
+        'credits_generated' => 'decimal:2',
     ];
 
     public function contract()

@@ -92,67 +92,69 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-100">
       <Header user={{ id: user.id, name: user.name }} />
       <Breadcrumbs items={[{ name: 'Perfil', href: '/profile' }]} />
-      <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
-        <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
+      <main className="bg-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-4xl mx-auto">
+          <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">&larr; Voltar aos Planos</Link>
 
-        <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg p-6">
-          <h1 className="text-2xl font-bold text-center mb-6">Meu Perfil</h1>
+          <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg p-4 sm:p-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">Meu Perfil</h1>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Nome</label>
-              <p className="mt-1 text-lg text-gray-900">{user.name}</p>
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nome</label>
+                <p className="mt-1 text-lg text-gray-900">{user.name}</p>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <p className="mt-1 text-lg text-gray-900">{user.email}</p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <p className="mt-1 text-lg text-gray-900">{user.email}</p>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">ID do Usuário</label>
-              <p className="mt-1 text-lg text-gray-900">{user.id}</p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">ID do Usuário</label>
+                <p className="mt-1 text-lg text-gray-900">{user.id}</p>
+              </div>
 
-            <hr className="my-6" />
+              <hr className="my-6" />
 
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Plano Atual</h2>
-              {activeContract && activeContract.plan ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-green-800 font-medium">Plano Ativo</span>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">Plano Atual</h2>
+                {activeContract && activeContract.plan ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center mb-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                      <span className="text-green-800 font-medium">Plano Ativo</span>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-gray-900 font-medium">{activeContract.plan.description}</p>
+                      <p className="text-gray-700">Preço: {formatCurrency(activeContract.plan.price)}/mês</p>
+                      <p className="text-gray-700">Vistorias: {activeContract.plan.numberOfClients}</p>
+                      <p className="text-gray-700">Armazenamento: {activeContract.plan.gigabytesStorage} GB</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-gray-900 font-medium">{activeContract.plan.description}</p>
-                    <p className="text-gray-700">Preço: {formatCurrency(activeContract.plan.price)}/mês</p>
-                    <p className="text-gray-700">Vistorias: {activeContract.plan.numberOfClients}</p>
-                    <p className="text-gray-700">Armazenamento: {activeContract.plan.gigabytesStorage} GB</p>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-2">
+                      <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+                      <span className="text-gray-600 font-medium">Nenhum Plano Ativo</span>
+                    </div>
+                    <p className="text-gray-500 text-sm">Você ainda não possui um plano contratado.</p>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
-                    <span className="text-gray-600 font-medium">Nenhum Plano Ativo</span>
-                  </div>
-                  <p className="text-gray-500 text-sm">Você ainda não possui um plano contratado.</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-8 text-center">
-            <Link
-              to="/"
-              className="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600 transition-colors"
-            >
-              Ver Planos Disponíveis
-            </Link>
+            <div className="mt-6 sm:mt-8 text-center">
+              <Link
+                to="/"
+                className="bg-orange-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-orange-600 transition-colors"
+              >
+                Ver Planos Disponíveis
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
     </div>
   );
