@@ -297,7 +297,7 @@ export const Payment = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header user={{ id: user?.id || 1, name: user?.name || "Usuário Teste" }} />
 
       <Modal
@@ -315,7 +315,7 @@ export const Payment = () => {
         </div>
       </Modal>
 
-      <div className="container mx-auto px-4 py-8 pb-20 sm:pb-16">
+      <div className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
           Pagamento
         </h1>

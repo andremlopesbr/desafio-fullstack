@@ -80,10 +80,10 @@ export const History = () => {
   console.log('📈 [HISTORY PAGE] Itens de histórico processados:', historyItems.length)
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header user={{ id: userId, name: user?.name || "Usuário da Silva" }} />
       <Breadcrumbs items={[{ name: 'Histórico', href: '/history' }]} />
-      <main className="bg-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <main className="flex-grow bg-gray-100 p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6">
             <Link to="/" className="text-blue-500 hover:underline mb-2 sm:mb-0">&larr; Voltar aos Planos</Link>

@@ -21,18 +21,18 @@ interface Contract {
 }
 
 interface Payment {
-   id: number;
-   contract_id: number;
-   amount: number;
-   payment_date: string;
-   status: string;
-   created_at: string;
-   updated_at: string;
-   discount_applied?: number;
-   prorated_old?: number;
-   prorated_new?: number;
-   applied_credits?: number;
-   credits_generated?: number;
+  id: number;
+  contract_id: number;
+  amount: number;
+  payment_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  discount_applied?: number;
+  prorated_old?: number;
+  prorated_new?: number;
+  applied_credits?: number;
+  credits_generated?: number;
 }
 
 interface HistoryItem {
@@ -95,13 +95,38 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
           const { prorated_old = 0, prorated_new = 0, applied_credits = 0, discount_applied = 0, credits_generated = 0 } = latestPayment;
           const discountLines = [];
 
+          // DIAGNOSTIC LOGS - validar lógica de negócio conforme DEBUG.md
+          console.log('=== DIAGNÓSTICO HistoryTableRow ===');
+          console.log('Dados recebidos:', {
+            prorated_old,
+            prorated_new,
+            applied_credits,
+            discount_applied,
+            credits_generated,
+            amount: latestPayment.amount
+          });
+
+          // Validação: discount_applied deve ser ≤ prorated_old + applied_credits
+          const expectedMaxDiscount = prorated_old + applied_credits;
+          if (discount_applied > expectedMaxDiscount) {
+            console.warn('⚠️ POSSÍVEL INCONSISTÊNCIA:', {
+              discount_applied,
+              expectedMaxDiscount,
+              prorated_old,
+              applied_credits,
+              message: 'discount_applied > prorated_old + applied_credits'
+            });
+          }
+
           // Cenário Prático 1: Contratação Inicial
           if (prorated_old === 0 && applied_credits === 0 && discount_applied === 0) {
+            console.log('✅ Cenário 1: Contratação Inicial - sem descontos');
             return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
           }
 
           // Cenário Prático 5: Upgrade com Créditos
           if (applied_credits > 0) {
+            console.log('✅ Cenário 5: Upgrade com Créditos aplicados:', applied_credits);
             discountLines.push(`Créditos: R$ ${formatCurrency(applied_credits)} [de R$ ${formatCurrency(applied_credits)}]`);
           }
 
@@ -110,15 +135,23 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
             if (prorated_old > prorated_new) {
               // Cenário Prático 4: Downgrade - DEBUG.md Cenário 4
               const prorataUsed = Math.min(prorated_old, prorated_new);
+              console.log('✅ Cenário 4: Downgrade - prorata usado:', prorataUsed, 'de:', prorated_old);
               discountLines.push(`Pro-rata: R$ ${formatCurrency(prorataUsed)} [de R$ ${formatCurrency(prorated_old)}]`);
 
               // Mostrar crédito gerado (vem do banco - DEBUG.md linha 196)
               if (credits_generated > 0) {
+                console.log('✅ Downgrade com crédito gerado:', credits_generated);
                 discountLines.push(`À creditar: R$ ${formatCurrency(credits_generated)}`);
               }
-            } else {
+              // TODO Se desconto menor ou igual a pro-rota, mostra seu valor integral
+            } else if (discount_applied < prorated_old || discount_applied == prorated_old) {
               // Cenário Prático 2/3: Upgrade - DEBUG.md Cenários 2 e 3
-              discountLines.push(`Pro-rata: R$ ${formatCurrency(prorated_old)} [de R$ ${formatCurrency(prorated_old)}]`);
+              console.log('✅ Cenário 2/3: Upgrade - discount_applied <= prorated_old:', discount_applied, '<=', prorated_old);
+              discountLines.push(`Pro-rata: R$ ${formatCurrency(discount_applied)} [de R$ ${formatCurrency(prorated_old)}]`);
+            } else {
+              // Cenário quando discount_applied > prorated_old - mostra o valor utilizado do pro-rata
+              console.log('✅ Cenário Especial: discount_applied > prorated_old:', discount_applied, '>', prorated_old);
+              discountLines.push(`Pro-rata: R$ ${formatCurrency(discount_applied)} [de R$ ${formatCurrency(prorated_old)}]`);
             }
           }
 
@@ -127,6 +160,8 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
             discountLines.push(`Total de Desconto: R$ ${formatCurrency(discount_applied)}`);
           }
 
+          console.log('✅ Exibição final - linhas de desconto:', discountLines);
+
           return (
             <div className="space-y-1 text-sm">
               {discountLines.map((line, index) => (
@@ -134,10 +169,10 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
                   line.includes('Total de Desconto')
                     ? 'font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1'
                     : line.includes('Créditos')
-                    ? 'text-green-600'
-                    : line.includes('À creditar')
-                    ? 'text-purple-600'
-                    : 'text-blue-600'
+                      ? 'text-green-600'
+                      : line.includes('À creditar')
+                        ? 'text-purple-600'
+                        : 'text-blue-600'
                 }>
                   {line}
                 </div>
@@ -149,19 +184,18 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
 
       <TableCell className="bg-white">
         <span
-          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-            contract.status === "active"
-              ? "bg-green-100 text-green-800"
-              : contract.status === "cancelled"
+          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${contract.status === "active"
+            ? "bg-green-100 text-green-800"
+            : contract.status === "cancelled"
               ? "bg-red-100 text-red-800"
               : "bg-gray-100 text-gray-800"
-          }`}
+            }`}
         >
           {contract.status === "active"
             ? "Ativo"
             : contract.status === "cancelled"
-            ? "Cancelado"
-            : contract.status}
+              ? "Cancelado"
+              : contract.status}
         </span>
         <div className="text-sm text-gray-500 mt-1">
           Contratado:{" "}
