@@ -75,7 +75,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const { hasError } = this.state;
 
     if (hasError && resetOnPropsChange && prevProps.resetKeys !== resetKeys) {
-      if (resetKeys?.some((key, idx) => prevProps.resetKeys?.[idx] !== key)) {
+      const keysChanged = resetKeys?.some((key, idx) => prevProps.resetKeys?.[idx] !== key);
+      if (keysChanged) {
         this.resetErrorBoundary();
       }
     }
@@ -85,12 +86,30 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * Reinicia o Error Boundary após um pequeno delay.
    */
   resetErrorBoundary = () => {
+    console.log('🔄 ErrorBoundary: resetErrorBoundary() chamado');
+
     if (this.resetTimeoutId) {
       window.clearTimeout(this.resetTimeoutId);
+      console.log('🔄 ErrorBoundary: Timeout anterior cancelado');
     }
 
     this.resetTimeoutId = window.setTimeout(() => {
-      this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+      console.log('🔄 ErrorBoundary: Executando reset completo do estado');
+
+      // Reset completo de todos os estados internos
+      this.setState({
+        hasError: false,
+        error: undefined,
+        errorInfo: undefined
+      });
+
+      // Limpeza adicional: forçar limpeza do timeout e atualização forçada
+      this.resetTimeoutId = null;
+
+      // Forçar re-renderização para garantir que o estado seja completamente limpo
+      this.forceUpdate();
+
+      console.log('🔄 ErrorBoundary: Estado completamente resetado e componente forçado a re-renderizar');
     }, 100);
   };
 

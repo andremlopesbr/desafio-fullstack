@@ -407,4 +407,180 @@ class ContractServiceTest extends TestCase
         ]);
     }
 
+    public function test_pix_004_scenario_exact_reproduction()
+    {
+        // Cenário PIX-004: Downgrade R$ 197,00 → R$ 9,90 no mesmo dia
+        // Deve gerar crédito excedente de R$ 187,10 (SEM DUPLICAÇÃO)
+
+        $oldPlan = Plan::create([
+            'description' => 'Plano 3',
+            'numberOfClients' => 10,
+            'gigabytesStorage' => 100,
+            'price' => 197.00,
+            'active' => true
+        ]);
+
+        $newPlan = Plan::create([
+            'description' => 'Plano 1',
+            'numberOfClients' => 5,
+            'gigabytesStorage' => 50,
+            'price' => 9.90,
+            'active' => true
+        ]);
+
+        $user = User::create([
+            'name' => 'PIX-004 Test User',
+            'email' => 'pix004@example.com',
+            'password' => bcrypt('password')
+        ]);
+
+        // Contratação hoje (cenário exato do problema)
+        $today = Carbon::now()->startOfDay();
+
+        $dto = new ContractCreateDTO(
+            user_id: $user->id,
+            plan_id: $oldPlan->id,
+            start_date: $today,
+            end_date: null,
+            status: 'active'
+        );
+        $contract = $this->contractService->createContract($dto);
+
+        // Verificar saldo inicial
+        $initialBalance = $this->contractService->getUserBalance($user->id);
+        $this->assertEquals(0, $initialBalance);
+
+        Log::info("=== INICIANDO CENÁRIO PIX-004 - ANTES DA MUDANÇA ===", [
+            'user_id' => $user->id,
+            'contract_id' => $contract->id,
+            'old_plan_price' => $oldPlan->price,
+            'new_plan_price' => $newPlan->price,
+            'initial_balance' => $initialBalance,
+            'change_date' => $today->toDateString()
+        ]);
+
+        // Executar downgrade
+        $result = $this->contractService->changePlan($contract->id, $newPlan->id);
+
+        // Verificar resultado
+        $finalBalance = $this->contractService->getUserBalance($user->id);
+
+        Log::info("=== RESULTADO CENÁRIO PIX-004 ===", [
+            'expected_balance' => 187.10,
+            'actual_balance' => $finalBalance,
+            'difference' => $finalBalance - 187.10,
+            'is_duplicated' => $finalBalance == 374.20,
+            'duplication_factor' => $finalBalance > 0 ? $finalBalance / 187.10 : 0,
+            'credits_generated' => $result['credits_generated'] ?? 'NOT_FOUND',
+            'prorated_old' => $result['prorated_old'] ?? 'NOT_FOUND',
+            'prorated_new' => $result['prorated_new'] ?? 'NOT_FOUND'
+        ]);
+
+        // ✅ VERIFICAÇÃO FINAL: Saldo deve ser exatamente R$ 187,10 (não duplicado)
+        $this->assertEquals(187.10, $finalBalance, "Saldo duplicado detectado! PIX-004 não foi corrigido.");
+
+        // Verificar registros (deve haver apenas 1)
+        $userBalances = UserBalance::forUser($user->id)->get();
+        $this->assertCount(1, $userBalances, "Múltiplos registros de saldo detectados - possível duplicação");
+
+        // Verificar transações (deve haver apenas 1)
+        $transactions = UserBalanceTransaction::where('user_id', $user->id)->where('type', 'credit')->get();
+        $this->assertCount(1, $transactions, "Múltiplas transações detectadas - possível duplicação");
+
+        Log::info("=== CENÁRIO PIX-004 VALIDADO COM SUCESSO ===", [
+            'test_passed' => true,
+            'balance_correct' => $finalBalance == 187.10,
+            'no_duplication' => $finalBalance != 374.20,
+            'single_balance_record' => $userBalances->count() == 1,
+            'single_transaction_record' => $transactions->count() == 1
+        ]);
+    }
+
+    public function test_pix_004_multiple_executions_scenario()
+    {
+        // Teste para verificar se múltiplas execuções causam duplicação
+        // Simula cenário onde changePlan pode ser chamado várias vezes
+
+        $oldPlan = Plan::create([
+            'description' => 'Plano 3',
+            'numberOfClients' => 10,
+            'gigabytesStorage' => 100,
+            'price' => 197.00,
+            'active' => true
+        ]);
+
+        $newPlan = Plan::create([
+            'description' => 'Plano 1',
+            'numberOfClients' => 5,
+            'gigabytesStorage' => 50,
+            'price' => 9.90,
+            'active' => true
+        ]);
+
+        $user = User::create([
+            'name' => 'PIX-004 Multiple Test User',
+            'email' => 'pix004-multiple@example.com',
+            'password' => bcrypt('password')
+        ]);
+
+        $today = Carbon::now()->startOfDay();
+
+        $dto = new ContractCreateDTO(
+            user_id: $user->id,
+            plan_id: $oldPlan->id,
+            start_date: $today,
+            end_date: null,
+            status: 'active'
+        );
+        $contract = $this->contractService->createContract($dto);
+
+        Log::info("=== TESTE MÚLTIPLAS EXECUÇÕES - INÍCIO ===");
+
+        // Executar changePlan múltiplas vezes para verificar duplicação
+        for ($i = 0; $i < 3; $i++) {
+            Log::info("=== EXECUÇÃO #" . ($i + 1) . " ===");
+
+            try {
+                $result = $this->contractService->changePlan($contract->id, $newPlan->id);
+                $currentBalance = $this->contractService->getUserBalance($user->id);
+
+                Log::info("Resultado execução #" . ($i + 1), [
+                    'execution' => $i + 1,
+                    'balance_after_execution' => $currentBalance,
+                    'credits_generated' => $result['credits_generated'] ?? 'NOT_FOUND',
+                    'balance_records_count' => UserBalance::forUser($user->id)->count(),
+                    'transaction_records_count' => UserBalanceTransaction::where('user_id', $user->id)->where('type', 'credit')->count()
+                ]);
+
+                // Recarregar contrato (pode ter sido alterado)
+                $contract = Contract::find($contract->id);
+
+            } catch (\Exception $e) {
+                Log::error("Erro na execução #" . ($i + 1), [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        }
+
+        $finalBalance = $this->contractService->getUserBalance($user->id);
+        $balanceRecords = UserBalance::forUser($user->id)->get();
+        $creditTransactions = UserBalanceTransaction::where('user_id', $user->id)->where('type', 'credit')->get();
+
+        Log::info("=== RESULTADO FINAL MÚLTIPLAS EXECUÇÕES ===", [
+            'expected_balance' => 187.10,
+            'actual_balance' => $finalBalance,
+            'is_duplicated' => $finalBalance > 187.10 * 1.1, // Mais de 10% acima do esperado
+            'balance_records_count' => $balanceRecords->count(),
+            'transaction_records_count' => $creditTransactions->count(),
+            'total_balance_amount' => $balanceRecords->sum('amount'),
+            'total_transaction_amount' => $creditTransactions->sum('amount')
+        ]);
+
+        // Verificações finais
+        $this->assertLessThanOrEqual(187.10 * 1.1, $finalBalance, "Possível duplicação detectada após múltiplas execuções");
+        $this->assertLessThanOrEqual(3, $balanceRecords->count(), "Muitos registros de saldo criados");
+        $this->assertLessThanOrEqual(3, $creditTransactions->count(), "Muitas transações de crédito criadas");
+    }
+
 }

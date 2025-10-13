@@ -69,6 +69,35 @@ class ContractService implements ContractServiceInterface
         $userId = $contract->user_id;
         $now = Carbon::now();
 
+        if ($contract->status === 'cancelled') {
+            // Retornar dados do último contrato ativo do usuário
+            $activeContract = Contract::where('user_id', $userId)
+                ->where('status', 'active')
+                ->with('plan')
+                ->first();
+
+            if ($activeContract) {
+                return [
+                    'old_contract' => $contract,
+                    'new_contract' => $activeContract,
+                    'payment' => null,
+                    'balance_info' => [
+                        'previous_balance' => $this->getUserBalance($userId),
+                        'credits_used' => 0,
+                        'credits_generated' => 0,
+                        'new_balance' => $this->getUserBalance($userId),
+                    ],
+                    'additional_balance' => 0,
+                    'final_amount' => 0,
+                    'applied_balance' => 0,
+                    'prorated_old' => 0,
+                    'prorated_new' => $activeContract->plan->price,
+                ];
+            }
+
+            throw new \Exception('Contrato já foi cancelado e não há contrato ativo disponível');
+        }
+
         $totalDaysInCycle = 30;
         $startDate = $contract->start_date;
         $isSameDayChange = $startDate->isSameDay($now);
@@ -86,10 +115,6 @@ class ContractService implements ContractServiceInterface
             $proratedOldCredit = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
         }
 
-        Log::info("Cálculo de crédito pro-rata", [
-            'is_same_day_change' => $isSameDayChange,
-            'prorated_old_credit' => $proratedOldCredit
-        ]);
 
         $proratedNew = $newPlan->price;
         $userBalance = $this->getUserBalance($userId);
@@ -104,37 +129,19 @@ class ContractService implements ContractServiceInterface
             $creditGenerated = $proratedOldCredit - $newPlan->price;
             $amount = 0;
 
-            Log::info("Cenário de Downgrade - ANTES", [
-                'prorated_old_credit' => $proratedOldCredit,
-                'new_plan_price' => $newPlan->price,
-                'discount_applied' => $discountApplied,
-                'credit_generated' => $creditGenerated,
-                'amount' => $amount,
-                'user_balance_before' => $userBalance,
-                'is_credit_generated_positive' => $creditGenerated > 0,
-                'comparison_exact' => $proratedOldCredit >= $newPlan->price,
-                'difference' => $proratedOldCredit - $newPlan->price
-            ]);
-
-            // Adicionar crédito gerado ao saldo do usuário (Cenário 4 - DEBUG.md)
             if ($creditGenerated > 0) {
                 $description = "Crédito gerado por downgrade do plano {$oldPlan->description} para {$newPlan->description}";
-                Log::info("ADICIONANDO CRÉDITO AO SALDO", [
-                    'user_id' => $userId,
-                    'credit_amount' => $creditGenerated,
-                    'description' => $description
-                ]);
-                $this->addBalance($userId, $creditGenerated, $description);
 
-                Log::info("CRÉDITO ADICIONADO - VERIFICAÇÃO", [
-                    'user_balance_after' => $this->getUserBalance($userId),
-                    'expected_balance' => $userBalance + $creditGenerated
-                ]);
-            } else {
-                Log::info("NENHUM CRÉDITO GERADO", [
-                    'credit_generated' => $creditGenerated,
-                    'reason' => 'Valor menor ou igual a zero'
-                ]);
+                // Verificar se já existe crédito recente com mesmo valor (últimas 24h)
+                $recentDuplicateCredit = UserBalance::where('user_id', $userId)
+                    ->where('amount', $creditGenerated)
+                    ->where('description', $description)
+                    ->where('created_at', '>=', now()->subDay())
+                    ->exists();
+
+                if (!$recentDuplicateCredit) {
+                    $this->addBalance($userId, $creditGenerated, $description);
+                }
             }
         } else { // Upgrade
             $remainingToPay = $newPlan->price - $proratedOldCredit;
@@ -155,14 +162,6 @@ class ContractService implements ContractServiceInterface
         // Desativar contrato antigo
         $contract->update(['status' => 'cancelled']);
 
-        // REMOVIDO: Segunda chamada duplicada de addBalance já foi feita anteriormente (linha 127)
-        Log::info("VERIFICAÇÃO FINAL - Cenário Downgrade", [
-            'credit_generated' => $creditGenerated,
-            'user_balance_current' => $this->getUserBalance($userId),
-            'expected_balance' => $userBalance + $creditGenerated,
-            'duplication_prevented' => true
-        ]);
-
         // Consumir créditos do saldo se aplicável
         if ($appliedCredits > 0) {
             $this->consumeBalance($userId, $appliedCredits);
@@ -179,7 +178,6 @@ class ContractService implements ContractServiceInterface
         ]);
 
         // Criar registro de pagamento para o histórico
-        // Criar registro de pagamento para o histórico - Cenário 4 do DEBUG.md
         $paymentData = [
             'contract_id' => $newContract->id,
             'amount' => $amount,
@@ -189,18 +187,8 @@ class ContractService implements ContractServiceInterface
             'prorated_new' => $proratedNew,
             'applied_credits' => $appliedCredits,
             'discount_applied' => $discountApplied,
-            'credits_generated' => $creditGenerated, // Campo novo para Cenário 4
+            'credits_generated' => $creditGenerated,
         ];
-
-        // Cenário 4: Downgrade - DEBUG.md Cenário 4
-        if ($proratedOldCredit > $newPlan->price && $amount == 0) {
-            Log::info("Cenário 4 - Downgrade com crédito gerado", [
-                'prorated_old_credit' => $proratedOldCredit,
-                'new_plan_price' => $newPlan->price,
-                'credit_generated' => $creditGenerated,
-                'discount_applied' => $discountApplied
-            ]);
-        }
 
         $payment = Payment::create($paymentData);
 
@@ -216,7 +204,6 @@ class ContractService implements ContractServiceInterface
                 'credits_generated' => $creditGenerated,
                 'new_balance' => $this->getUserBalance($userId),
             ],
-            // Campos de compatibilidade com testes existentes
             'additional_balance' => $creditGenerated, // Crédito gerado em downgrade
             'final_amount' => $amount, // Valor final a pagar
             'applied_balance' => $appliedCredits, // Créditos utilizados
@@ -335,13 +322,6 @@ class ContractService implements ContractServiceInterface
         $newCycle = $this->calculateNextMonthlyCycle($newStartDate);
         $newEndDate = $newCycle['end_date'];
 
-        Log::info("Datas calculadas para renovação automática", [
-            'old_contract_id' => $contract->id,
-            'old_end_date' => $contract->end_date?->toDateString(),
-            'new_start_date' => $newStartDate->toDateString(),
-            'new_end_date' => $newEndDate->toDateString(),
-            'plan_description' => $contract->plan->description
-        ]);
 
         // Desativar contrato atual
         $contract->update(['status' => 'completed']);
@@ -355,13 +335,6 @@ class ContractService implements ContractServiceInterface
             'status' => 'active',
         ]);
 
-        Log::info("Contrato renovado automaticamente", [
-            'old_contract_id' => $contract->id,
-            'new_contract_id' => $newContract->id,
-            'plan_id' => $contract->plan_id,
-            'plan_price' => $contract->plan->price,
-            'renewal_type' => 'automatic_monthly_cycle'
-        ]);
 
         return $newContract;
     }
@@ -382,15 +355,6 @@ class ContractService implements ContractServiceInterface
         // Calcular ciclo mensal atual para determinar se é cobrança proporcional
         $cycleInfo = $this->calculateMonthlyCycle($contract, $now);
 
-        Log::info("Ciclo mensal para cobrança recorrente", [
-            'contract_id' => $contractId,
-            'plan_price' => $planPrice,
-            'cycle_start' => $cycleInfo['cycle_start']->toDateString(),
-            'cycle_end' => $cycleInfo['cycle_end']->toDateString(),
-            'days_used' => $cycleInfo['days_used'],
-            'days_remaining' => $cycleInfo['days_remaining'],
-            'total_days' => $cycleInfo['total_days']
-        ]);
 
         $valorAPagar = 0;
         $appliedBalance = 0;
@@ -401,26 +365,12 @@ class ContractService implements ContractServiceInterface
 
         if ($isCycleStart) {
             // Cobrança proporcional no início do ciclo mensal
-            // Valor proporcional = Preço do plano × (dias restantes ÷ dias totais do ciclo)
             $proportionalAmount = $planPrice * ($cycleInfo['days_remaining'] / $cycleInfo['total_days']);
-
-            Log::info("Cobrança proporcional no início do ciclo", [
-                'plan_price' => $planPrice,
-                'proportional_amount' => $proportionalAmount,
-                'days_remaining' => $cycleInfo['days_remaining'],
-                'total_days' => $cycleInfo['total_days'],
-                'calculation' => "Proporcional = {$planPrice} × ({$cycleInfo['days_remaining']} ÷ {$cycleInfo['total_days']})"
-            ]);
-
             $isProportionalBilling = true;
             $valorAPagar = $proportionalAmount;
         } else {
             // Cobrança normal mensal (fim do ciclo)
             $valorAPagar = $planPrice;
-            Log::info("Cobrança normal mensal", [
-                'plan_price' => $planPrice,
-                'billing_type' => 'full_month'
-            ]);
         }
 
         // Aplicar saldo disponível se houver cobrança
@@ -429,13 +379,6 @@ class ContractService implements ContractServiceInterface
             $appliedBalance = $balanceResult['applied_balance'];
             $remainingAmount = $balanceResult['remaining_amount'];
 
-            Log::info("Saldo aplicado na cobrança recorrente", [
-                'valor_a_pagar_original' => $valorAPagar,
-                'applied_balance' => $appliedBalance,
-                'remaining_amount' => $remainingAmount,
-                'user_balance_before' => $userBalance,
-                'is_proportional' => $isProportionalBilling
-            ]);
 
             $valorAPagar = $remainingAmount;
         }
@@ -447,7 +390,7 @@ class ContractService implements ContractServiceInterface
                 'contract_id' => $contractId,
                 'amount' => $valorAPagar,
                 'payment_date' => $now,
-                'status' => 'paid', // Todos os pagamentos PIX simulados são pagos conforme especificação
+                'status' => 'paid',
                 'applied_credits' => $appliedBalance,
                 'discount_applied' => $appliedBalance,
                 'prorated_old' => $isProportionalBilling ? $planPrice - $valorAPagar : 0,
@@ -458,11 +401,6 @@ class ContractService implements ContractServiceInterface
                 'payment_id' => $payment->id,
                 'amount' => $valorAPagar,
                 'is_proportional' => $isProportionalBilling
-            ]);
-        } else {
-            Log::info("Cobrança recorrente totalmente coberta por saldo", [
-                'applied_balance' => $appliedBalance,
-                'no_payment_needed' => true
             ]);
         }
 
@@ -529,74 +467,44 @@ class ContractService implements ContractServiceInterface
      */
     public function addBalance(int $userId, float $amount, string $description): void
     {
-        Log::info("INICIANDO addBalance", [
+        Log::info("Iniciando adição de saldo", [
             'user_id' => $userId,
             'amount' => $amount,
-            'description' => $description,
-            'amount_positive' => $amount > 0
+            'description' => $description
         ]);
 
         if ($amount <= 0) {
-            Log::info("addBalance ABORTADO - valor menor ou igual a zero", [
-                'amount' => $amount
-            ]);
             return;
         }
 
         // Verificar saldo antes de adicionar
         $balanceBefore = UserBalance::getTotalBalanceForUser($userId);
 
-        // Adicionar o valor ao saldo do usuário
-        Log::info("CRIANDO UserBalance", [
-            'user_id' => $userId,
-            'amount' => $amount,
-            'description' => $description
-        ]);
-
         UserBalance::create([
             'user_id' => $userId,
-            'amount' => $amount, // O valor em reais
+            'amount' => $amount,
             'description' => $description,
         ]);
 
         // Verificar saldo após adicionar
         $balanceAfter = UserBalance::getTotalBalanceForUser($userId);
 
-        // Registrar a transação de crédito
-        Log::info("CRIANDO UserBalanceTransaction", [
+        UserBalanceTransaction::create([
             'user_id' => $userId,
             'amount' => $amount,
             'type' => 'credit',
             'description' => $description,
-            'balance_before' => $balanceBefore,
-            'balance_after' => $balanceAfter,
-            'difference' => $balanceAfter - $balanceBefore
-        ]);
-
-        UserBalanceTransaction::create([
-            'user_id' => $userId,
-            'amount' => $amount, // Armazenar em reais
-            'type' => 'credit',
-            'description' => $description,
             'metadata' => [
-                'source' => 'plan_downgrade', // fonte específica para downgrade
+                'source' => 'plan_downgrade',
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter
             ],
         ]);
-
-        Log::info("addBalance CONCLUÍDO", [
-            'user_id' => $userId,
-            'amount_added' => $amount,
-            'balance_before' => $balanceBefore,
-            'balance_after' => $balanceAfter
-        ]);
     }
 
     /**
-     * Calcular ciclo mensal baseado na data de início do contrato
-     * Implementação CORRIGIDA para seguir exatamente a especificação do README
-     */
+      * Calcular ciclo mensal baseado na data de início do contrato
+      */
     private function calculateMonthlyCycle(Contract $contract, Carbon $currentDate): array
     {
         $startDate = $contract->start_date;
@@ -648,16 +556,13 @@ class ContractService implements ContractServiceInterface
             }
         }
 
-        Log::info("Ciclo mensal calculado (CORRIGIDO)", [
+        Log::info("Ciclo mensal calculado", [
             'contract_id' => $contract->id,
             'cycle_start' => $cycleStart->toDateString(),
             'cycle_end' => $cycleEnd->toDateString(),
             'total_days' => $totalDays,
             'days_used' => $daysUsed,
-            'days_remaining' => $daysRemaining,
-            'current_date' => $currentDate->toDateString(),
-            'calculation_consistent' => ($daysUsed + $daysRemaining) === $totalDays,
-            'specification_compliant' => 'Ciclo fixo de 30 dias conforme exemplo do README'
+            'days_remaining' => $daysRemaining
         ]);
 
         return [
@@ -684,12 +589,6 @@ class ContractService implements ContractServiceInterface
             $endDate = $nextMonth->endOfMonth();
         }
 
-        Log::info("Próximo ciclo mensal calculado", [
-            'current_date' => $currentDate->toDateString(),
-            'cycle_start' => $startDate->toDateString(),
-            'cycle_end' => $endDate->toDateString(),
-            'day_of_month' => $currentDate->day
-        ]);
 
         return [
             'start_date' => $startDate,

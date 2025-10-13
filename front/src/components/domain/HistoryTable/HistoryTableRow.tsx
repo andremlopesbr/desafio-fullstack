@@ -65,8 +65,13 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
 
   return (
     <TableRow>
+      {/* Order Exibição */}
       <TableCell className="bg-white font-medium text-gray-500">
         {(currentPage - 1) * pageSize + index + 1}
+      </TableCell>
+      {/* Coluna ID */}
+      <TableCell className="bg-white font-medium text-gray-500">
+        #{contract.id}
       </TableCell>
       <TableCell className="bg-white">
         <div className="font-medium text-gray-900">
@@ -127,37 +132,31 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
           // Cenário Prático 5: Upgrade com Créditos
           if (applied_credits > 0) {
             console.log('✅ Cenário 5: Upgrade com Créditos aplicados:', applied_credits);
-            discountLines.push(`Créditos: R$ ${formatCurrency(applied_credits)} [de R$ ${formatCurrency(applied_credits)}]`);
+            discountLines.push(`Créditos: ${formatCurrency(applied_credits)} [de ${formatCurrency(applied_credits)}]`);
           }
 
           // Cenário Prático 2/3/4: Pro-rata (Upgrade/Downgrade)
           if (prorated_old > 0) {
-            if (prorated_old > prorated_new) {
-              // Cenário Prático 4: Downgrade - DEBUG.md Cenário 4
-              const prorataUsed = Math.min(prorated_old, prorated_new);
-              console.log('✅ Cenário 4: Downgrade - prorata usado:', prorataUsed, 'de:', prorated_old);
-              discountLines.push(`Pro-rata: R$ ${formatCurrency(prorataUsed)} [de R$ ${formatCurrency(prorated_old)}]`);
-
-              // Mostrar crédito gerado (vem do banco - DEBUG.md linha 196)
-              if (credits_generated > 0) {
-                console.log('✅ Downgrade com crédito gerado:', credits_generated);
-                discountLines.push(`À creditar: R$ ${formatCurrency(credits_generated)}`);
-              }
-              // TODO Se desconto menor ou igual a pro-rota, mostra seu valor integral
-            } else if (discount_applied < prorated_old || discount_applied == prorated_old) {
+            if (discount_applied < prorated_old || discount_applied == prorated_old) {
               // Cenário Prático 2/3: Upgrade - DEBUG.md Cenários 2 e 3
               console.log('✅ Cenário 2/3: Upgrade - discount_applied <= prorated_old:', discount_applied, '<=', prorated_old);
-              discountLines.push(`Pro-rata: R$ ${formatCurrency(discount_applied)} [de R$ ${formatCurrency(prorated_old)}]`);
+              discountLines.push(`Pro-rata: ${formatCurrency(discount_applied)} [de ${formatCurrency(prorated_old)}]`);
             } else {
               // Cenário quando discount_applied > prorated_old - mostra o valor utilizado do pro-rata
               console.log('✅ Cenário Especial: discount_applied > prorated_old:', discount_applied, '>', prorated_old);
-              discountLines.push(`Pro-rata: R$ ${formatCurrency(discount_applied)} [de R$ ${formatCurrency(prorated_old)}]`);
+              discountLines.push(`Pro-rata: ${formatCurrency(discount_applied)} [de ${formatCurrency(prorated_old)}]`);
             }
+          }
+
+          // Mostrar crédito gerado (vem do banco - DEBUG.md linha 196)
+          if (credits_generated > 0) {
+            console.log('✅ Downgrade com crédito gerado:', credits_generated);
+            discountLines.push(`À creditar: ${formatCurrency(credits_generated)}`);
           }
 
           // Total de Desconto - sempre mostrar quando há descontos
           if (discount_applied > 0) {
-            discountLines.push(`Total de Desconto: R$ ${formatCurrency(discount_applied)}`);
+            discountLines.push(`Total de Desconto: ${formatCurrency(discount_applied)}`);
           }
 
           console.log('✅ Exibição final - linhas de desconto:', discountLines);
@@ -220,7 +219,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
           return uniquePayments.length > 0 ? (
             <div className="space-y-2">
               {uniquePayments.map((payment) => {
-                const formattedAmount = `R$ ${formatCurrency(payment.amount)}`;
+                const formattedAmount = `${formatCurrency(payment.amount)}`;
                 const formattedDate = formatDate(payment.payment_date);
                 const statusText = payment.status === "paid" ? "Pago" : "Pendente";
 

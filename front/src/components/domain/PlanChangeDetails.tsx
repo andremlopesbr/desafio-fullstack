@@ -31,11 +31,21 @@ export const PlanChangeDetails: React.FC<PlanChangeDetailsProps> = ({
         </p>
 
         {/* ✅ CORREÇÃO: Formato exato do DEBUG.md - "Pro-rata: R$ X,XX [de R$ Y,YY]" */}
+        {/* Em caso de downgrade, o valor a ser descontado (proratedDiscount) é o valor do novo plano (proratedNew) */}
         <p>
           Pro-rata (Plano Atual):{" "}
           <span className="font-bold">
-            {formatCurrency(creditInfo.proratedDiscount)} [de {formatCurrency(creditInfo.proratedOld || creditInfo.proratedDiscount)}]
-          </span>
+            {creditInfo.proratedOld &&
+            creditInfo.proratedNew !== undefined &&
+            creditInfo.proratedOld > creditInfo.proratedNew
+              ? formatCurrency(creditInfo.proratedNew)
+              : formatCurrency(creditInfo.proratedDiscount)}{" "}
+            [de{" "}
+            {formatCurrency(
+              creditInfo.proratedOld || creditInfo.proratedDiscount
+            )}
+            ]
+          *</span>
         </p>
 
         <p className="text-lg font-bold text-yellow-800 border-t pt-2 mt-2">

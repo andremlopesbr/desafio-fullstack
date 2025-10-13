@@ -33,7 +33,10 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
     <TableHead className="bg-gray-50">
       <TableRow>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-          ID
+          #
+        </TableHeadCell>
+        <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
+          Fat
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
           <Button
