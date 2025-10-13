@@ -42,7 +42,6 @@ export const usePayments = (userId?: number) => {
 
 /**
  * Hook para processamento de pagamentos
- * Usa padrão de mutação seguindo SRP
  */
 export function useProcessPayment() {
   const { data, loading, error, execute } = useApiMutation();

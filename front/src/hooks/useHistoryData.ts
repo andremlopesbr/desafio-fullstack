@@ -5,8 +5,8 @@ import { Payment } from '../types';
 
 
 export function useHistoryData(userId: number) {
-  const { contracts, contractsLoading, contractsError } = useContracts();
-  const { payments, paymentsLoading, paymentsError } = usePayments(userId);
+  const { contracts, contractsLoading, contractsError, refetch: refetchContracts } = useContracts();
+  const { payments, paymentsLoading, paymentsError, refetch: refetchPayments } = usePayments(userId);
 
   const loading = contractsLoading || paymentsLoading;
   const error = contractsError || paymentsError;
@@ -25,33 +25,53 @@ export function useHistoryData(userId: number) {
   }, [contracts]);
 
   // Combinar contratos com seus pagamentos de forma otimizada
-  const historyItems = useMemo(() => {
-    if (!sortedContracts.length || !payments.length) {
-      return [];
-    }
+   const historyItems = useMemo(() => {
+     console.log('🔍 DEBUG useHistoryData - Iniciando combinação de dados');
+     console.log('Contratos recebidos:', sortedContracts.length);
+     console.log('Pagamentos recebidos:', payments.length);
+
+     if (!sortedContracts.length || !payments.length) {
+       console.log('⚠️ DEBUG useHistoryData - Sem contratos ou pagamentos para combinar');
+       return [];
+     }
 
     // Criar mapa de pagamentos por contract_id para acesso O(1)
     const paymentsMap = new Map<number, Payment[]>();
+    console.log('🔍 DEBUG useHistoryData - Criando mapa de pagamentos');
     payments.forEach((payment: Payment) => {
       const contractId = payment.contract_id;
+      console.log(`Pagamento ID ${payment.id} -> Contract ID ${contractId}`);
       if (!paymentsMap.has(contractId)) {
         paymentsMap.set(contractId, []);
       }
       paymentsMap.get(contractId)!.push(payment);
     });
 
+    console.log('🔍 DEBUG useHistoryData - Mapa de pagamentos criado');
+    console.log('Total de contratos únicos com pagamentos:', paymentsMap.size);
+
     // Mapear contratos com seus pagamentos
-    return sortedContracts.map(contract => ({
-      contract,
-      payments: paymentsMap.get(contract.id) || []
-    }));
+    const result = sortedContracts.map(contract => {
+      const contractPayments = paymentsMap.get(contract.id) || [];
+      console.log(`🔍 DEBUG useHistoryData - Contrato ${contract.id} (${contract.plan.description}) -> ${contractPayments.length} pagamentos`);
+      return {
+        contract,
+        payments: contractPayments
+      };
+    });
+
+    console.log('✅ DEBUG useHistoryData - Combinação finalizada');
+    console.log(`Total de itens no histórico: ${result.length}`);
+    return result;
   }, [sortedContracts, payments]);
 
-  const refetch = useCallback(() => {
-    // Os hooks individuais já têm seus próprios métodos de refetch
-    // Podemos adicionar lógica específica se necessário
-    window.location.reload(); // Solução temporária
-  }, []);
+  const refetch = useCallback(async () => {
+    // Usa os métodos de refetch dos hooks individuais para uma atualização mais eficiente
+    await Promise.all([
+      refetchContracts(),
+      refetchPayments()
+    ]);
+  }, [refetchContracts, refetchPayments]);
 
   return {
     historyItems,

@@ -2,7 +2,6 @@ import { Plano } from '../../../types';
 
 /**
  * Hook personalizado para lógica de apresentação do PlanCard
- * Segue princípio SRP - responsabilidade única: gerenciar lógica de apresentação
  */
 export function usePlanCardLogic(plan: Plano, isCurrentPlan: boolean = false) {
   const getButtonText = (): string => {

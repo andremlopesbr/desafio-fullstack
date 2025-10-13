@@ -29,7 +29,6 @@ interface ChangePlanResult {
 
 /**
  * Hook para alteração de planos
- * Usa o padrão de mutação padronizado seguindo SRP
  */
 export function useChangePlan() {
   const { data, loading, error, execute } = useApiMutation<ChangePlanResult>();

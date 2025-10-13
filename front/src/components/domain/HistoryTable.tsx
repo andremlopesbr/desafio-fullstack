@@ -3,44 +3,7 @@ import { Table, TableBody, Pagination, Card } from "flowbite-react";
 import { HistoryTableControls } from "./HistoryTable/HistoryTableControls";
 import { HistoryTableHeader } from "./HistoryTable/HistoryTableHeader"; // Supondo que você criou este arquivo
 import { HistoryTableRow } from "./HistoryTable/HistoryTableRow"; // Supondo que você criou este arquivo
-
-interface Contract {
-  id: number;
-  user_id: number;
-  plan_id: number;
-  start_date: string | null;
-  end_date: string | null;
-  status: string | null;
-  created_at: string;
-  updated_at: string;
-  plan: {
-    id: number;
-    description: string;
-    numberOfClients: number;
-    gigabytesStorage: number;
-    price: number;
-    active: boolean;
-  };
-}
-
-interface Payment {
-  id: number;
-  contract_id: number;
-  amount: number;
-  payment_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  discount_applied?: number;
-  prorated_old?: number;
-  prorated_new?: number;
-  applied_credits?: number;
-}
-
-interface HistoryItem {
-  contract: Contract;
-  payments: Payment[];
-}
+import { HistoryItem } from "../../types";
 
 interface HistoryTableProps {
   historyItems: HistoryItem[];
@@ -48,7 +11,7 @@ interface HistoryTableProps {
   formatDate: (dateString: string) => string;
 }
 
-type SortField = "plan" | "price" | "discount" | "status" | "payments";
+type SortField = "order" | "invoice" | "plan" | "price" | "discount" | "status" | "payments";
 type SortDirection = "asc" | "desc";
 
 export const HistoryTable: React.FC<HistoryTableProps> = ({
@@ -56,6 +19,9 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
   formatCurrency,
   formatDate,
 }) => {
+  console.log('🚀 DEBUG HistoryTable - Componente renderizado');
+  console.log('Total de historyItems recebidos:', historyItems.length);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("plan");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -64,6 +30,10 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
   const pageSize = 10;
 
   const filteredAndSortedItems = useMemo(() => {
+    console.log('🔍 DEBUG HistoryTable - Iniciando filtragem');
+    console.log('Total de itens recebidos:', historyItems.length);
+    console.log('Filtros aplicados:', { searchTerm, statusFilter, sortField, sortDirection });
+
     const filtered = historyItems.filter((item) => {
       const matchesSearch =
         item.contract.plan.description
@@ -75,8 +45,15 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
         (statusFilter === "other"
           ? !["active", "cancelled"].includes(item.contract.status || "")
           : item.contract.status === statusFilter);
+
+      if (!matchesSearch || !matchesStatus) {
+        console.log(`🔍 DEBUG HistoryTable - Item filtrado: Contrato ${item.contract.id} (${item.contract.plan.description})`);
+      }
+
       return matchesSearch && matchesStatus;
     });
+
+    console.log('🔍 DEBUG HistoryTable - Após filtragem:', filtered.length, 'itens restantes');
 
     // Primeiro ordena por status ativo (ativos primeiro), depois aplica a ordenação selecionada
     filtered.sort((a, b) => {
@@ -88,30 +65,45 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
       if (!aIsActive && bIsActive) return 1;
 
       // Se ambos são ativos ou ambos não são, aplica ordenação normal
-      let aValue: string | number, bValue: string | number;
-      switch (sortField) {
-        case "plan":
-          aValue = a.contract.plan.description;
-          bValue = b.contract.plan.description;
-          break;
-        case "price":
-          aValue = a.contract.plan.price;
-          bValue = b.contract.plan.price;
-          break;
-        case "discount":
-          aValue = a.payments[a.payments.length - 1]?.discount_applied || 0;
-          bValue = b.payments[b.payments.length - 1]?.discount_applied || 0;
-          break;
-        case "status":
-          aValue = a.contract.status || "";
-          bValue = b.contract.status || "";
-          break;
-        case "payments":
-          aValue = a.payments.length;
-          bValue = b.payments.length;
-          break;
-        default:
-          return 0;
+      let aValue: string | number = 0, bValue: string | number = 0;
+
+      // Calcular valores para ordenação fora do switch para evitar problemas de escopo
+      if (sortField === "order") {
+        // Para ordenação por order, vamos usar o índice no array original
+        const originalIndexA = historyItems.findIndex(item => item.contract.id === a.contract.id);
+        const originalIndexB = historyItems.findIndex(item => item.contract.id === b.contract.id);
+        aValue = originalIndexA;
+        bValue = originalIndexB;
+      } else if (sortField === "invoice") {
+        // Ordenar por ID do contrato como proxy para invoice
+        aValue = a.contract.id;
+        bValue = b.contract.id;
+      } else {
+        // Outros campos de ordenação
+        switch (sortField) {
+          case "plan":
+            aValue = a.contract.plan.description;
+            bValue = b.contract.plan.description;
+            break;
+          case "price":
+            aValue = a.contract.plan.price;
+            bValue = b.contract.plan.price;
+            break;
+          case "discount":
+            aValue = a.payments[a.payments.length - 1]?.discount_applied || 0;
+            bValue = b.payments[b.payments.length - 1]?.discount_applied || 0;
+            break;
+          case "status":
+            aValue = a.contract.status || "";
+            bValue = b.contract.status || "";
+            break;
+          case "payments":
+            aValue = a.payments.length;
+            bValue = b.payments.length;
+            break;
+          default:
+            return 0;
+        }
       }
 
       if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
@@ -124,7 +116,13 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
 
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredAndSortedItems.slice(start, start + pageSize);
+    const end = start + pageSize;
+    console.log('🔍 DEBUG HistoryTable - Aplicando paginação');
+    console.log(`Página ${currentPage}, mostrando itens ${start + 1}-${Math.min(end, filteredAndSortedItems.length)} de ${filteredAndSortedItems.length}`);
+
+    const result = filteredAndSortedItems.slice(start, start + pageSize);
+    console.log('🔍 DEBUG HistoryTable - Itens na página atual:', result.length);
+    return result;
   }, [filteredAndSortedItems, currentPage]);
 
   const totalPages = Math.ceil(filteredAndSortedItems.length / pageSize);
@@ -138,10 +136,14 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
     }
   };
 
+  console.log('✅ DEBUG HistoryTable - Renderizando componente');
+  console.log(`Estado atual: página ${currentPage}, termo de busca: "${searchTerm}", filtro de status: "${statusFilter}"`);
+  console.log(`Itens paginados para exibir: ${paginatedItems.length}`);
+
   return (
     <Card>
       <div className="space-y-4">
-        {/* Search and Filter Controls - SRP: apenas controles */}
+        {/* Search and Filter Controls*/}
         <HistoryTableControls
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -150,15 +152,14 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
         />
 
         <div className="overflow-x-auto shadow-sm rounded-lg">
-          <Table striped hoverable className="border-collapse">
-            {/* Table Header - SRP: apenas cabeçalhos ordenáveis */}
+          <Table striped hoverable className="border-collapse bg-white">
             <HistoryTableHeader
               sortField={sortField}
               sortDirection={sortDirection}
               onSort={handleSort}
             />
             <TableBody>
-              {/* Table Rows - SRP: cada linha individual */}
+              {/* Table Rows */}
               {paginatedItems.map((item, index) => (
                 <HistoryTableRow
                   key={item.contract.id}

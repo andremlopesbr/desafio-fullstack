@@ -26,19 +26,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { setError, clearError } = useErrorHandler();
 
   useEffect(() => {
+    console.log('🔐 [AUTH] Verificando sessão do usuário no localStorage');
     const savedUser = localStorage.getItem('user');
+
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
+        console.log('✅ [AUTH] Usuário encontrado no localStorage:', userData);
         setUser(userData);
         setIsAuthenticated(true);
         clearError();
+        console.log('✅ [AUTH] Sessão do usuário restaurada com sucesso');
       } catch (error) {
         const errorObj = error instanceof Error ? error : new Error('Erro ao fazer parse do usuário');
-        console.error('Erro ao carregar usuário do localStorage:', error);
+        console.error('❌ [AUTH] Erro ao carregar usuário do localStorage:', error);
         setError(errorObj, 'Carregamento de sessão do usuário');
         localStorage.removeItem('user');
+        console.log('🗑️ [AUTH] Dados corrompidos removidos do localStorage');
       }
+    } else {
+      console.log('ℹ️ [AUTH] Nenhum usuário encontrado no localStorage');
     }
   }, [setError, clearError]);
 

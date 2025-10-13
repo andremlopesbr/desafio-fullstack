@@ -1,44 +1,6 @@
 import React from 'react';
 import { TableRow, TableCell } from "flowbite-react";
-
-interface Contract {
-  id: number;
-  user_id: number;
-  plan_id: number;
-  start_date: string | null;
-  end_date: string | null;
-  status: string | null;
-  created_at: string;
-  updated_at: string;
-  plan: {
-    id: number;
-    description: string;
-    numberOfClients: number;
-    gigabytesStorage: number;
-    price: number;
-    active: boolean;
-  };
-}
-
-interface Payment {
-  id: number;
-  contract_id: number;
-  amount: number;
-  payment_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  discount_applied?: number;
-  prorated_old?: number;
-  prorated_new?: number;
-  applied_credits?: number;
-  credits_generated?: number;
-}
-
-interface HistoryItem {
-  contract: Contract;
-  payments: Payment[];
-}
+import { HistoryItem } from "../../../types";
 
 interface HistoryTableRowProps {
   item: HistoryItem;
@@ -51,7 +13,6 @@ interface HistoryTableRowProps {
 
 /**
  * Componente responsável apenas pela renderização de uma linha da tabela
- * Segue princípio SRP - única responsabilidade: renderizar linha específica
  */
 export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
   item,
@@ -64,16 +25,16 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
   const { contract, payments } = item;
 
   return (
-    <TableRow>
+    <TableRow className="bg-white">
       {/* Order Exibição */}
-      <TableCell className="bg-white font-medium text-gray-500">
+      <TableCell className="bg-white font-medium text-gray-500 border-b border-gray-100">
         {(currentPage - 1) * pageSize + index + 1}
       </TableCell>
       {/* Coluna ID */}
-      <TableCell className="bg-white font-medium text-gray-500">
+      <TableCell className="bg-white font-medium text-gray-500 border-b border-gray-100">
         #{contract.id}
       </TableCell>
-      <TableCell className="bg-white">
+      <TableCell className="bg-white border-b border-gray-100">
         <div className="font-medium text-gray-900">
           {contract.plan.description}
         </div>
@@ -83,14 +44,14 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
         </div>
       </TableCell>
 
-      <TableCell className="bg-white">
+      <TableCell className="bg-white border-b border-gray-100">
         <div className="text-lg font-medium text-green-600">
           {formatCurrency(contract.plan.price)}
         </div>
         <div className="text-sm text-gray-500">por mês</div>
       </TableCell>
 
-      <TableCell className="bg-white">
+      <TableCell className="bg-white border-b border-gray-100">
         {(() => {
           const sortedPayments = [...payments].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           const latestPayment = sortedPayments.length > 0 ? sortedPayments[sortedPayments.length - 1] : null;
@@ -111,67 +72,151 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
             amount: latestPayment.amount
           });
 
-          // Validação: discount_applied deve ser ≤ prorated_old + applied_credits
-          const expectedMaxDiscount = prorated_old + applied_credits;
-          if (discount_applied > expectedMaxDiscount) {
-            console.warn('⚠️ POSSÍVEL INCONSISTÊNCIA:', {
-              discount_applied,
-              expectedMaxDiscount,
-              prorated_old,
-              applied_credits,
-              message: 'discount_applied > prorated_old + applied_credits'
-            });
+          // Validação adicional - comparar com exemplos da API
+          console.log('🔍 ANÁLISE COMPARATIVA:');
+          console.log('Exemplo 1 (upgrade): prorated_old=9.90, prorated_new=87.00, applied_credits=0.00, credits_generated=0.00, discount_applied=9.90');
+          console.log('Exemplo 2 (downgrade): prorated_old=87.00, prorated_new=9.90, applied_credits=0.00, credits_generated=77.10, discount_applied=9.90');
+          console.log('Dados atuais:', { prorated_old, prorated_new, discount_applied, credits_generated, applied_credits });
+
+          // Cenário Detection Logic (Based on API Data) - conforme DEBUG.md
+          let scenario = 'OTHER';
+          if (prorated_old === 0 && applied_credits === 0 && discount_applied === 0 && credits_generated === 0) {
+            scenario = 'INITIAL_CONTRACT';
+          } else if (prorated_new > prorated_old && credits_generated === 0 && prorated_old > 0) {
+            scenario = 'UPGRADE';
+          } else if (prorated_old > prorated_new && credits_generated > 0) {
+            scenario = 'DOWNGRADE';
+          } else if (applied_credits > 0 && prorated_old === 0) {
+            scenario = 'CREDITS_APPLIED';
           }
 
-          // Cenário Prático 1: Contratação Inicial
-          if (prorated_old === 0 && applied_credits === 0 && discount_applied === 0) {
+          console.log('🔍 CENÁRIO DETECTADO:', scenario);
+
+          // Display Formatting Rules - conforme DEBUG.md
+          console.log('📋 CONSTRUINDO EXIBIÇÃO baseada no cenário:', scenario);
+
+          // Cenário 1: Contratação Inicial
+          if (scenario === 'INITIAL_CONTRACT') {
             console.log('✅ Cenário 1: Contratação Inicial - sem descontos');
             return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
           }
 
-          // Cenário Prático 5: Upgrade com Créditos
-          if (applied_credits > 0) {
-            console.log('✅ Cenário 5: Upgrade com Créditos aplicados:', applied_credits);
-            discountLines.push(`Créditos: ${formatCurrency(applied_credits)} [de ${formatCurrency(applied_credits)}]`);
-          }
+          // Cenário 2: Upgrade - formato específico solicitado
+          if (scenario === 'UPGRADE') {
+            console.log('📈 Cenário Upgrade detectado');
 
-          // Cenário Prático 2/3/4: Pro-rata (Upgrade/Downgrade)
-          if (prorated_old > 0) {
-            if (discount_applied < prorated_old || discount_applied == prorated_old) {
-              // Cenário Prático 2/3: Upgrade - DEBUG.md Cenários 2 e 3
-              console.log('✅ Cenário 2/3: Upgrade - discount_applied <= prorated_old:', discount_applied, '<=', prorated_old);
-              discountLines.push(`Pro-rata: ${formatCurrency(discount_applied)} [de ${formatCurrency(prorated_old)}]`);
-            } else {
-              // Cenário quando discount_applied > prorated_old - mostra o valor utilizado do pro-rata
-              console.log('✅ Cenário Especial: discount_applied > prorated_old:', discount_applied, '>', prorated_old);
-              discountLines.push(`Pro-rata: ${formatCurrency(discount_applied)} [de ${formatCurrency(prorated_old)}]`);
+            // Créditos Aplicados (sempre mostrar quando houver)
+            if (applied_credits > 0) {
+              discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
+              console.log('✅ Adicionado créditos aplicados:', applied_credits);
+            }
+
+            // Pro-rata no formato específico: "Pro-rata: 9,90 [de R$ 9,90]"
+            if (prorated_old > 0) {
+              const proratedText = `Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`;
+              discountLines.push(proratedText);
+              console.log('✅ Adicionado pro-rata upgrade (formato específico):', proratedText);
             }
           }
 
-          // Mostrar crédito gerado (vem do banco - DEBUG.md linha 196)
-          if (credits_generated > 0) {
-            console.log('✅ Downgrade com crédito gerado:', credits_generated);
-            discountLines.push(`À creditar: ${formatCurrency(credits_generated)}`);
+          // Cenário 3: Downgrade - conforme DEBUG.md
+          if (scenario === 'DOWNGRADE') {
+            console.log('📉 Cenário Downgrade detectado');
+            if (prorated_old > 0) {
+              const proratedText = `Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`;
+              discountLines.push(proratedText);
+              console.log('✅ Adicionado pro-rata downgrade:', proratedText);
+            }
+            if (credits_generated > 0) {
+              discountLines.push(`Créditos Gerados: ${formatCurrency(credits_generated)}`);
+              console.log('✅ Adicionado créditos gerados:', credits_generated);
+            }
           }
 
-          // Total de Desconto - sempre mostrar quando há descontos
+          // Cenário 4: Créditos Aplicados - conforme DEBUG.md
+          if (scenario === 'CREDITS_APPLIED' && applied_credits > 0) {
+            console.log('💰 Cenário Créditos Aplicados detectado');
+            discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
+            console.log('✅ Adicionado créditos aplicados:', applied_credits);
+          }
+
+          // Cenário 5: Other/Mixed - mostrar todos os valores disponíveis
+          if (scenario === 'OTHER') {
+            console.log('🔄 Cenário Other detectado - mostrando todos os valores disponíveis');
+
+            // Mostrar pro-rata se houver (formato diferente para casos mistos)
+            if (prorated_old > 0) {
+              const proratedText = `Pro-rata: ${formatCurrency(prorated_old)}`;
+              discountLines.push(proratedText);
+              console.log('✅ Adicionado pro-rata misto:', proratedText);
+            }
+
+            // Créditos aplicados
+            if (applied_credits > 0) {
+              discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
+              console.log('✅ Adicionado créditos aplicados:', applied_credits);
+            }
+
+            // Créditos gerados
+            if (credits_generated > 0) {
+              discountLines.push(`Créditos Gerados: ${formatCurrency(credits_generated)}`);
+              console.log('✅ Adicionado créditos gerados:', credits_generated);
+            }
+          }
+
+          // Total de Desconto - sempre mostrar quando houver
           if (discount_applied > 0) {
+            console.log('💵 Adicionando desconto total aplicado:', discount_applied);
             discountLines.push(`Total de Desconto: ${formatCurrency(discount_applied)}`);
           }
 
-          console.log('✅ Exibição final - linhas de desconto:', discountLines);
+          console.log('✅ Linhas de desconto construídas:', discountLines.length);
+          discountLines.forEach((line, i) => {
+            console.log(`   ${i+1}. ${line}`);
+          });
+
+          // Log detalhado para validação
+           console.log('🔍 VALIDAÇÃO FINAL DOS DADOS:');
+          console.log('Dados de entrada:', {
+            prorated_old: `${formatCurrency(prorated_old)} (${prorated_old})`,
+            prorated_new: `${formatCurrency(prorated_new)} (${prorated_new})`,
+            applied_credits: `${formatCurrency(applied_credits)} (${applied_credits})`,
+            credits_generated: `${formatCurrency(credits_generated)} (${credits_generated})`,
+            discount_applied: `${formatCurrency(discount_applied)} (${discount_applied})`
+          });
+
+          // Handle zero amounts conforme DEBUG.md - "Pago: R$ 0,00 (total descontado)"
+          if (latestPayment.amount === 0) {
+            console.log('💰 Pagamento zerado detectado - exibindo conforme DEBUG.md');
+            discountLines.push(`Pago: ${formatCurrency(0)} (total descontado)`);
+          }
+
+          // Se não há linhas de desconto mesmo com dados, mostrar mensagem padrão
+          if (discountLines.length === 0) {
+            console.log('ℹ️ Nenhum dado de desconto encontrado - exibindo mensagem padrão');
+            return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
+          }
+
+          console.log('✅ RESUMO - Cenário:', scenario, '- Linhas:', discountLines.length);
+          discountLines.forEach((line, i) => {
+            console.log(`   ${i+1}. ${line}`);
+          });
 
           return (
             <div className="space-y-1 text-sm">
               {discountLines.map((line, index) => (
                 <div key={index} className={
-                  line.includes('Total de Desconto')
-                    ? 'font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1'
-                    : line.includes('Créditos')
-                      ? 'text-green-600'
-                      : line.includes('À creditar')
-                        ? 'text-purple-600'
-                        : 'text-blue-600'
+                  line.includes('Pago:') && line.includes('(total descontado)')
+                    ? 'font-semibold text-green-600'
+                    : line.includes('Total de Desconto')
+                      ? 'font-semibold text-gray-700 border-t border-gray-200 pt-1 mt-1'
+                      : line.includes('Créditos Aplicados')
+                        ? 'text-green-600 font-medium'
+                        : line.includes('Créditos Gerados')
+                          ? 'text-purple-600 font-medium'
+                          : line.includes('Pro-rata:')
+                            ? 'text-blue-600 font-medium'
+                            : 'text-gray-600'
                 }>
                   {line}
                 </div>
@@ -181,7 +226,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
         })()}
       </TableCell>
 
-      <TableCell className="bg-white">
+      <TableCell className="bg-white border-b border-gray-100">
         <span
           className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${contract.status === "active"
             ? "bg-green-100 text-green-800"
@@ -204,7 +249,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
         </div>
       </TableCell>
 
-      <TableCell className="bg-white">
+      <TableCell className="bg-white border-b border-gray-100">
         {(() => {
           const uniquePaymentsMap = new Map();
           const sortedPayments = [...payments].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -226,7 +271,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
                 return (
                   <div
                     key={payment.id}
-                    className="bg-gray-50 p-2 rounded text-sm"
+                    className="bg-gray-50 p-2 rounded text-sm border border-gray-200"
                   >
                     <div className="font-medium text-gray-900">
                       {formattedAmount}
@@ -242,7 +287,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
               })}
             </div>
           ) : (
-            <div className="bg-gray-50 p-2 rounded text-sm">
+            <div className="bg-gray-50 p-2 rounded text-sm border border-gray-200">
               <div className="font-medium text-gray-900">
                 R$ 0,00
               </div>

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useApiData } from "../../hooks/useApiData";
 import { useAuth } from "../../hooks/useAuth";
-import Header from "../../components/Header";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Notification, Footer, Card } from "../../components/ui";
-import { PlanChangeModal, PlanCard } from "../../components/domain";
+import { Notification, Card } from "../../components/ui";
+import { PlanCard } from "../../components/domain";
+import Layout from "../../components/Layout";
 import { Plano, Contract } from "../../types";
 import { formatCurrency } from "../../utils/formatters";
 
@@ -23,7 +23,6 @@ export const Home = () => {
   } = useApiData();
 
   const navigate = useNavigate();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [notification, setNotification] = useState<{
     type: "success" | "error";
@@ -34,13 +33,14 @@ export const Home = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const currentUserId = user?.id || 1;
         await Promise.all([
           refreshPlans(),
-          refreshContracts(user?.id || 1),
-          refreshBalance(user?.id || 1)
+          refreshContracts(currentUserId),
+          refreshBalance(currentUserId)
         ]);
       } catch (error) {
-        console.error('Erro ao carregar dados iniciais:', error);
+        console.error('Erro ao carregar dados iniciais');
       }
     };
 
@@ -74,14 +74,6 @@ export const Home = () => {
     (contract: Contract) => contract.status === "active"
   );
 
-
-  const availablePlans = plans.filter(
-    (plan: Plano) =>
-      !activeContract ||
-      !activeContract.plan ||
-      plan.id !== activeContract.plan.id
-  );
-
   // Removido: lógica para plano popular, pois no protótipo não há badges
 
   if (loading) {
@@ -101,72 +93,58 @@ export const Home = () => {
   }
 
   return (
-    <>
-      <Header user={user} />
-      <main className="bg-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-6xl mx-auto">
-        <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
-          Planos Disponíveis
-        </h1>
+    <Layout user={user}>
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)] p-4 sm:p-6 lg:p-8">
+        <div className="w-full">
+          <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
+            Planos Disponíveis
+          </h1>
 
-        {/* Notificações */}
-        {notification && (
-          <Notification
-            type={notification.type}
-            message={notification.message}
-            onClose={() => setNotification(null)}
-            autoHide={true}
-            className="mb-6"
-          />
-        )}
+          {/* Notificações */}
+          {notification && (
+            <Notification
+              type={notification.type}
+              message={notification.message}
+              onClose={() => setNotification(null)}
+              autoHide={true}
+              className="mb-6"
+            />
+          )}
 
-        {activeContract && activeContract.plan && (
-          <Card className="bg-green-100 border-green-400 text-green-700 mb-8">
-            <div className="flex justify-between items-center">
-              <span>
-                Plano atual: {activeContract.plan.description} -{" "}
-                {formatCurrency(activeContract.plan.price)}
+          {activeContract && activeContract.plan && (
+            <Card className="bg-green-100 border-green-400 text-green-700 mb-8">
+              <div className="flex justify-between items-center">
+                <span>
+                  Plano atual: {activeContract.plan.description} -{" "}
+                  {formatCurrency(activeContract.plan.price)}
                 </span>
                 {/* Add X para fechar card e não exibir ao entrar (local.storage) */}
-            </div>
-          </Card>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {plans.map((plan: Plano) => {
-            const isCurrentPlan =
-              activeContract && activeContract.plan?.id === plan.id;
+              </div>
+            </Card>
+          )}
 
-            return (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                isCurrentPlan={isCurrentPlan}
-                onSelect={(selectedPlan: Plano) => {
-                  if (!isCurrentPlan) {
-                    navigate(`/payment/${selectedPlan.id}`);
-                  }
-                  // Quando ativo, botão desabilitado
-                }}
-              />
-            );
-          })}
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {plans.map((plan: Plano) => {
+              const isCurrentPlan =
+                activeContract && activeContract.plan?.id === plan.id;
 
-        {activeContract && activeContract.plan && (
-          <PlanChangeModal
-            isOpen={isModalOpen}
-            currentPlan={activeContract.plan}
-            currentContract={activeContract}
-            availablePlans={availablePlans}
-            userId={user?.id || 1}
-            onClose={() => {
-              setIsModalOpen(false);
-            }}
-          />
-        )}
+              return (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  isCurrentPlan={isCurrentPlan}
+                  onSelect={(selectedPlan: Plano) => {
+                    if (!isCurrentPlan) {
+                      navigate(`/payment/${selectedPlan.id}`);
+                    }
+                    // Quando ativo, botão desabilitado
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </Layout>
   );
 };

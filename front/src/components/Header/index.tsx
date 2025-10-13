@@ -7,6 +7,24 @@ interface HeaderProps {
   user: User | null;
 }
 
+/**
+ * Header principal da aplicação com navegação e autenticação
+ *
+ * Responsabilidades:
+ * - Exibir logo e marca da aplicação
+ * - Gerenciar navegação entre páginas
+ * - Mostrar informações do usuário autenticado
+ * - Fornecer menu responsivo para dispositivos móveis
+ * - Integrar com contexto de autenticação para logout
+ *
+ * @example
+ * ```tsx
+ * <Header user={currentUser} />
+ * ```
+ *
+ * @param user - Dados do usuário autenticado ou null se não autenticado
+ * @returns JSX.Element com cabeçalho completo da aplicação
+ */
 const Header: React.FC<HeaderProps> = ({ user }) => {
   const location = useLocation();
   const { logout } = useAuth();

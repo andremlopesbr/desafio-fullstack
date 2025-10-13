@@ -1,6 +1,5 @@
 /**
  * Serviço para gerenciamento de filtros e ordenação de tabelas
- * Segue princípio SRP - responsabilidade única: gerenciar filtros e ordenação
  */
 export interface SortConfig {
   field: string;

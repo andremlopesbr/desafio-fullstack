@@ -29,7 +29,6 @@ interface Contract {
 
 /**
  * Hook para criação de contratos
- * Usa o padrão de mutação padronizado seguindo SRP
  */
 export function useCreateContract() {
   const { data, loading, error, execute } = useApiMutation<Contract>();

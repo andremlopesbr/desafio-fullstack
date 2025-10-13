@@ -3,7 +3,6 @@ import { useState } from 'react';
 /**
  * Hook base para operações de mutação (POST, PUT, PATCH, DELETE)
  * Implementa padrão Template Method para eliminar duplicação
- * Segue princípio SRP - responsabilidade única: gerenciar estado de mutação
  */
 export interface ApiMutationState<T> {
   data: T | null;

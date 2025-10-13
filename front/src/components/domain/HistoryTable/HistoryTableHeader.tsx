@@ -2,7 +2,7 @@ import React from 'react';
 import { TableHead, TableRow, TableHeadCell, Button } from "flowbite-react";
 import { HiChevronUp, HiChevronDown } from "react-icons/hi";
 
-type SortField = "plan" | "price" | "discount" | "status" | "payments";
+type SortField = "order" | "invoice" | "plan" | "price" | "discount" | "status" | "payments";
 type SortDirection = "asc" | "desc";
 
 interface HistoryTableHeaderProps {
@@ -13,7 +13,6 @@ interface HistoryTableHeaderProps {
 
 /**
  * Componente responsável apenas pelos cabeçalhos da tabela
- * Segue princípio SRP - única responsabilidade: cabeçalhos ordenáveis
  */
 export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
   sortField,
@@ -33,10 +32,24 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
     <TableHead className="bg-gray-50">
       <TableRow>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-          #
+          <Button
+            size="sm"
+            color="light"
+            onClick={() => onSort("order")}
+            className="p-0 hover:bg-transparent font-semibold text-gray-700"
+          >
+            # {renderSortIcon("order")}
+          </Button>
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
-          Fat
+          <Button
+            size="sm"
+            color="light"
+            onClick={() => onSort("invoice")}
+            className="p-0 hover:bg-transparent font-semibold text-gray-700"
+          >
+            Fatura
+          </Button>
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
           <Button

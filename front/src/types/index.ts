@@ -37,6 +37,12 @@ export interface Contract {
   };
 }
 
+// Tipo específico para itens do histórico (contrato + pagamentos)
+export interface HistoryItem {
+  contract: Contract;
+  payments: Payment[];
+}
+
 export interface Payment {
   id: number;
   contract_id: number;
@@ -45,6 +51,11 @@ export interface Payment {
   payment_date: string;
   created_at: string;
   updated_at: string;
+  discount_applied?: number;
+  prorated_old?: number;
+  prorated_new?: number;
+  applied_credits?: number;
+  credits_generated?: number;
 }
 
 export interface BalanceTransaction {

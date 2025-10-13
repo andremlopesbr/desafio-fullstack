@@ -1,5 +1,15 @@
 import React from 'react';
 
+/**
+ * Footer da aplicação com informações de copyright
+ *
+ * @example
+ * ```tsx
+ * <Footer />
+ * ```
+ *
+ * @returns JSX.Element com informações de copyright e ano atual
+ */
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
 

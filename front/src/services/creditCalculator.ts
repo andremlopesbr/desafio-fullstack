@@ -3,7 +3,6 @@ import { Contract } from "../types";
 
 /**
  * Serviço responsável por cálculos de crédito e desconto
- * Segue princípio SRP - responsabilidade única: calcular créditos
  */
 export interface CreditCalculationResult {
   databaseCredits: number;

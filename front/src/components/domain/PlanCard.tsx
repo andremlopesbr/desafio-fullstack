@@ -15,8 +15,7 @@ interface PlanCardProps {
 }
 
 /**
- * Componente PlanCard refatorado seguindo SRP
- * Responsabilidade única: renderizar apresentação do plano
+ * Componente PlanCard
  */
 export const PlanCard: React.FC<PlanCardProps> = ({
   plan,

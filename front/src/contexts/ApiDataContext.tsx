@@ -43,7 +43,7 @@ interface ApiDataContextType {
   contractsLoading: boolean;
   contractsError: string | null;
   refreshContracts: (userId: number) => Promise<void>;
-  createContract: (contractData: any) => Promise<Contract | null>;
+  createContract: (contractData: Record<string, unknown>) => Promise<Contract | null>;
   contractLoading: boolean;
   contractError: string | null;
 
@@ -52,7 +52,7 @@ interface ApiDataContextType {
   paymentsLoading: boolean;
   paymentsError: string | null;
   refreshPayments: (userId: number) => Promise<void>;
-  processPayment: (paymentData: any) => Promise<Payment | null>;
+  processPayment: (paymentData: Record<string, unknown>) => Promise<Payment | null>;
   paymentLoading: boolean;
   paymentError: string | null;
 
@@ -105,7 +105,7 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     setData: (data: T) => void,
     setLoading: (loading: boolean) => void,
     setError: (error: string | null) => void,
-    transform?: (data: any) => T
+    transform?: (data: unknown) => T
   ) => {
     setLoading(true);
     setError(null);
@@ -131,8 +131,11 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Contracts methods
   const refreshContracts = useCallback(async (userId: number) => {
+    console.log('📋 [API_DATA] Carregando contratos para usuário:', userId);
+    console.log('🌐 [API_DATA] URL da requisição:', `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`);
     await fetchData(`${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`, setContracts, setContractsLoading, setContractsError);
-  }, [fetchData]);
+    console.log('✅ [API_DATA] Contratos carregados, total:', contracts.length);
+  }, [fetchData, contracts.length]);
 
   // Payments methods
   const refreshPayments = useCallback(async (userId: number) => {
@@ -141,11 +144,14 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Balance methods
   const refreshBalance = useCallback(async (userId: number) => {
-    await fetchData(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`, setBalance, setBalanceLoading, setBalanceError, (data: { total_balance: number }) => data.total_balance || 0);
+    await fetchData(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`, setBalance, setBalanceLoading, setBalanceError, (data: unknown) => {
+      const balanceData = data as { total_balance: number };
+      return balanceData.total_balance || 0;
+    });
   }, [fetchData]);
 
   // Contract creation methods
-  const createContract = useCallback(async (contractData: any) => {
+  const createContract = useCallback(async (contractData: Record<string, unknown>) => {
     setContractLoading(true);
     setContractError(null);
     try {
@@ -173,7 +179,7 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
   }, []);
 
   // Payment processing methods
-  const processPayment = useCallback(async (paymentData: any) => {
+  const processPayment = useCallback(async (paymentData: Record<string, unknown>) => {
     setPaymentLoading(true);
     setPaymentError(null);
     try {

@@ -1,21 +1,32 @@
-import { useState, useEffect } from "react";
+/**
+ * Página de Pagamento - Implementa fluxo completo de pagamento com PIX
+ *
+ * Estados de Loading:
+ * - isCreditCalculationReady: Controla loading específico na área de descontos
+ *
+ * Loading Específico na Área de Descontos:
+ * - Exibe spinner apenas na seção de descontos durante cálculos
+ */
+
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApiData } from "../../hooks/useApiData";
 import { useAuth } from "../../hooks/useAuth";
 import { usePlanCredits } from "../../hooks/usePlanCredits";
-import Header from "../../components/Header";
 import Pix from "react-qrcode-pix";
-import { Footer, Modal, LoadingSpinner } from "../../components/ui";
+import { Modal, LoadingSpinner } from "../../components/ui";
 import { PlanChangeDetails } from "../../components/domain/PlanChangeDetails";
-import { formatCurrency } from "../../utils/formatters";
+import Layout from "../../components/Layout";
+import { formatCurrency, calculateContractEndDate, getAuthenticatedUserData } from "../../utils/formatters";
 import { Plano, Contract } from "../../types";
 
 export const Payment = () => {
-  const [pixPayload, setPixPayload] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [pixPayload, setPixPayload] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const {
     plans,
     plansLoading,
@@ -32,67 +43,68 @@ export const Payment = () => {
     refreshBalance
   } = useApiData();
 
-  console.log("💳 [PAYMENT PAGE] Inicializando página de pagamento:", {
-    planId,
-    plansLoading,
-  });
-
   const plan = plans.find((p: Plano) => p.id === Number(planId));
-
-  // Validação: verificar se planId é válido
-  if (!planId || isNaN(Number(planId))) {
-    console.error("❌ [PAYMENT PAGE] planId inválido:", planId);
-  }
-
-  console.log(
-    "📦 [PAYMENT PAGE] Plano encontrado:",
-    plan ? { id: plan.id, name: plan.description, price: plan.price } : "NENHUM"
-  );
 
   // Verificar se é troca de plano (usuário tem contrato ativo)
   const activeContract = contracts.find((c: Contract) => c.status === "active");
-  console.log(
-    "📋 [PAYMENT PAGE] Contratos carregados:",
-    contracts.length,
-    "contrato ativo:",
-    activeContract ? activeContract.id : "NENHUM"
-  );
-
-  const isPlanChange =
+  const isPlanChange = !!(
     activeContract &&
     activeContract.plan &&
-    activeContract.plan.id !== Number(planId);
-  console.log("🔄 [PAYMENT PAGE] É troca de plano?", isPlanChange);
-
-  // Calcular créditos sempre (para demonstrar descontos no checkout)
-  const userId = user?.id || 1; // Obter ID do usuário autenticado ou fallback para 1
-  const { creditInfo } = usePlanCredits(
-    activeContract,
-    plan || undefined,
-    userId
+    activeContract.plan.id !== Number(planId)
   );
-  console.log("💰 [PAYMENT PAGE] Créditos calculados:", creditInfo);
 
-  // Carregar dados iniciais usando o contexto centralizado
+  // Verificação segura de autenticação (não fazer return antes de hooks)
+  const userData = getAuthenticatedUserData(user);
+
+  // Calcular créditos para mudança de plano
+  const { creditInfo, isLoading: isCalculatingCredits } = usePlanCredits(
+    activeContract || undefined,
+    plan || undefined,
+    userData ? userData.id : (user?.id ?? 0)
+  );
+
+  // Carregar dados iniciais
   useEffect(() => {
     const loadPaymentData = async () => {
+      setIsLoadingDetails(true);
       try {
+        if (!userData) {
+          // nada a fazer se não houver userData
+          return;
+        }
+
         await Promise.all([
-          refreshContracts(user?.id || 1),
-          refreshBalance(user?.id || 1)
+          refreshContracts(userData.id),
+          refreshBalance(userData.id)
         ]);
       } catch (error) {
-        console.error('Erro ao carregar dados de pagamento:', error);
+        console.error('Erro ao carregar dados de pagamento');
+      } finally {
+        setIsLoadingDetails(false);
       }
     };
 
     if (user?.id) {
       loadPaymentData();
     }
-  }, [user?.id, refreshContracts, refreshBalance]);
+  }, [user?.id, refreshContracts, refreshBalance, userData]);
+
+  // Estado para verificar se dados básicos estão carregados (sem créditos)
+  const isBasicDataReady = useMemo(() => {
+    if (plansLoading) return false;
+    if (isLoadingDetails) return false;
+    if (!plan) return false;
+    return true;
+  }, [plansLoading, isLoadingDetails, plan]);
+
+  // Estado específico para verificar se cálculos de crédito estão prontos
+  const isCreditCalculationReady = useMemo(() => {
+    if (!isPlanChange) return true; // Não é mudança de plano
+    return !isCalculatingCredits; // Aguarda fim do cálculo de créditos
+  }, [isPlanChange, isCalculatingCredits]);
 
   // Usar saldo do contexto em vez de estado local
-  const currentBalance = 0; // TODO: obter do contexto quando disponível
+  const currentBalance = 0;
 
   // Usar saldo do contexto (temporariamente 0 até implementar)
 
@@ -105,6 +117,14 @@ export const Payment = () => {
 
     if (!planId || isNaN(Number(planId))) {
       console.error("❌ [PAYMENT] planId inválido:", planId);
+      return;
+    }
+
+    // Verificação de autenticação - APÓS todos os hooks serem chamados
+    if (!userData) {
+      console.error('❌ [PAYMENT] Usuário não autenticado');
+      // Não retornar JSX aqui (estamos dentro de um handler). Abortamos a operação.
+      setIsProcessing(false);
       return;
     }
 
@@ -123,8 +143,7 @@ export const Payment = () => {
         // Se já existe contrato ativo diferente do plano selecionado, fazer mudança de plano
         console.log("🔄 FAZENDO MUDANÇA DE PLANO");
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/contracts/${
-            activeContract.id
+          `${import.meta.env.VITE_API_URL}/contracts/${activeContract.id
           }/change-plan`,
           {
             method: "PATCH",
@@ -143,34 +162,24 @@ export const Payment = () => {
 
         const changeResult = await response.json();
         contract = changeResult.contract;
-
-        console.log("✅ MUDANÇA DE PLANO REALIZADA:", changeResult);
-        contract = changeResult.contract;
-
-        // Para mudança de plano, o backend já criou o pagamento correto
-        // Apenas atualizar os dados e redirecionar
-        console.log("🎉 PAGAMENTO JÁ PROCESSADO PELO BACKEND NA MUDANÇA DE PLANO");
       } else {
         // Se não há contrato ativo, criar novo contrato
         const today = new Date();
-        const endDate = new Date();
-        endDate.setDate(today.getDate() + 30);
+        const endDateISO = calculateContractEndDate(today); // Usa helper para calcular data do próximo mês
 
         const contractData = {
-          user_id: user?.id || 1, // Obter ID do usuário autenticado ou fallback
+          user_id: user?.id || 1, // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
           plan_id: plan.id,
           start_date: today.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
+          end_date: endDateISO.split("T")[0], // Data calculada com lógica de mês seguinte
         };
 
-        console.log("📝 CRIANDO NOVO CONTRATO:", contractData);
         contract = await createContract(contractData);
 
         if (!contract) {
           throw new Error("Erro ao criar contrato");
         }
 
-        console.log("✅ NOVO CONTRATO CRIADO:", contract.id);
 
         // Calcular valor final com descontos aplicados
         let finalAmount: number;
@@ -247,14 +256,13 @@ export const Payment = () => {
         }
       }
 
-      // Atualizar dados após contratação bem-sucedida (para ambos os casos)
-      console.log("🔄 ATUALIZANDO DADOS APÓS PAGAMENTO...");
+      // Atualizar dados após contratação bem-sucedida
+      const currentUserId = user?.id || 1; // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
       await Promise.all([
-        refreshContracts(user?.id || 1),
-        refreshPayments(user?.id || 1),
-        refreshBalance(user?.id || 1),
+        refreshContracts(currentUserId),
+        refreshPayments(currentUserId),
+        refreshBalance(currentUserId),
       ]);
-      console.log("✅ DADOS ATUALIZADOS COM SUCESSO");
 
       // Aguardar pelo menos 3 segundos antes de redirecionar para garantir a experiência do usuário
       const minimumProcessingTime = 3000;
@@ -296,13 +304,42 @@ export const Payment = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header user={{ id: user?.id || 1, name: user?.name || "Usuário Teste" }} />
+  // Loading inicial apenas se dados básicos não estiverem prontos
+  if (!isBasicDataReady) {
+    // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
+    const currentUserId = user?.id || 1;
+    const currentUserName = user?.name || "Usuário Teste";
 
+    return (
+      <Layout user={{ id: currentUserId, name: currentUserName }}>
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
+            {plansLoading
+              ? "Carregando Planos..."
+              : "Carregando Dados do Pagamento..."
+            }
+          </h1>
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <LoadingSpinner className="mx-auto mb-4 h-8 w-8" />
+              <p className="text-gray-600">
+                {plansLoading
+                  ? "Carregando informações dos planos disponíveis..."
+                  : "Carregando contratos e saldo do usuário..."
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout user={user ? { id: user.id, name: user.name } : { id: 1, name: "Usuário Teste" }}>
       <Modal
         isOpen={isProcessing}
-        onClose={() => {}}
+        onClose={() => { }}
         closeOnBackdropClick={false}
         size="sm"
       >
@@ -315,7 +352,7 @@ export const Payment = () => {
         </div>
       </Modal>
 
-      <div className="flex-grow container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
           Pagamento
         </h1>
@@ -326,6 +363,7 @@ export const Payment = () => {
               ? "Troca de Plano"
               : `Assinatura: ${plan.description}`}
           </h2>
+
 
           {isPlanChange && activeContract && activeContract.plan && (
             <div className="mb-4 p-3 bg-blue-50 rounded">
@@ -346,34 +384,49 @@ export const Payment = () => {
             </p>
           </div>
 
-          {/* Detalhes de descontos para mudança de plano */}
-          {creditInfo && isPlanChange && (
-            <PlanChangeDetails
-              creditInfo={creditInfo}
-              formatCurrency={formatCurrency}
-              showToCredit={true}
-            />
-          )}
+          {/* Área específica de descontos/créditos - conforme solicitado */}
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Descontos:</h3>
 
-          {/* Descontos para novos contratos com saldo */}
-          {!isPlanChange && currentBalance > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 rounded">
-              <h3 className="font-semibold text-blue-800">
-                Descontos Aplicados
-              </h3>
-              <p className="text-blue-700">
-                Saldo em Crédito: {formatCurrency(currentBalance)}
-              </p>
-              <p className="text-blue-700 font-bold">
-                Valor Final:{" "}
-                {formatCurrency(
-                  Math.max(0, plan.price - currentBalance)
-                )}
-              </p>
-            </div>
-          )}
+            {!isCreditCalculationReady ? (
+              /* Loading apenas nesta área específica */
+              <div className="p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                <div className="flex items-center justify-center text-gray-500">
+                  <LoadingSpinner className="mr-2 h-5 w-5" />
+                  <span>Calculando descontos...</span>
+                </div>
+              </div>
+            ) : creditInfo && isPlanChange ? (
+              /* Exibição completa quando cálculos prontos */
+              <PlanChangeDetails
+                creditInfo={creditInfo}
+                formatCurrency={formatCurrency}
+                showToCredit={true}
+              />
+            ) : isPlanChange ? (
+              /* Estado intermediário para mudança de plano */
+              <div className="p-3 bg-blue-50 rounded border border-blue-200 text-center text-blue-700 text-sm">
+                Aguardando cálculo de descontos proporcionais...
+              </div>
+            ) : currentBalance > 0 ? (
+              /* Desconto para novos contratos com saldo */
+              <div className="p-3 bg-green-50 rounded">
+                <p className="text-green-700">
+                  Saldo em Crédito: {formatCurrency(currentBalance)}
+                </p>
+                <p className="text-green-700 font-bold">
+                  Valor Final: {formatCurrency(Math.max(0, plan.price - currentBalance))}
+                </p>
+              </div>
+            ) : (
+              /* Sem descontos */
+              <div className="p-3 bg-gray-50 rounded text-center text-gray-500 text-sm">
+                Nenhum desconto aplicável
+              </div>
+            )}
+          </div>
 
-          {/* Preço sem descontos */}
+          {/* Preço sem descontos (apenas para novos contratos sem saldo) */}
           {!isPlanChange && currentBalance === 0 && (
             <p className="text-lg font-bold mb-4">
               Preço: {formatCurrency(plan.price)}
@@ -449,17 +502,30 @@ export const Payment = () => {
           })()}
           <button
             onClick={handleConfirmPayment}
-            disabled={contractLoading || paymentLoading}
-            className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
+            disabled={contractLoading || paymentLoading || isProcessing}
+            className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center"
           >
-            {contractLoading || paymentLoading
-              ? "Processando..."
-              : "Confirmar Pagamento"}
+            {isProcessing ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Processando Pagamento...
+              </>
+            ) : contractLoading ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Carregando Contrato...
+              </>
+            ) : paymentLoading ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Processando Pagamento...
+              </>
+            ) : (
+              "Confirmar Pagamento"
+            )}
           </button>
         </div>
       </div>
-      <Footer />
-    </div>
+    </Layout>
   );
 };
-

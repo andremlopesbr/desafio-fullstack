@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 
 /**
  * Hook personalizado para gerenciar estado de tabelas com filtros e paginação
- * Segue princípio SRP - responsabilidade única: gerenciar estado da tabela
  */
 export interface SortConfig {
   field: string;
