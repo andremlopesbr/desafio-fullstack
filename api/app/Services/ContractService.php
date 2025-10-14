@@ -61,13 +61,25 @@ class ContractService implements ContractServiceInterface
 
     public function changePlan(int $contractId, int $newPlanId): array
     {
-        Log::info("Iniciando troca de plano", ['contract_id' => $contractId, 'new_plan_id' => $newPlanId]);
+        Log::info("🔄 [CHANGE_PLAN] Iniciando troca de plano", ['contract_id' => $contractId, 'new_plan_id' => $newPlanId]);
 
         $contract = Contract::with('plan')->findOrFail($contractId);
         $newPlan = Plan::findOrFail($newPlanId);
         $oldPlan = $contract->plan;
         $userId = $contract->user_id;
         $now = Carbon::now();
+
+        Log::info("📋 [CHANGE_PLAN] Dados iniciais", [
+            'contract_id' => $contract->id,
+            'old_plan_id' => $oldPlan->id,
+            'old_plan_price' => $oldPlan->price,
+            'new_plan_id' => $newPlan->id,
+            'new_plan_price' => $newPlan->price,
+            'contract_start_date' => $contract->start_date,
+            'contract_end_date' => $contract->end_date,
+            'current_date' => $now->toDateString(),
+            'is_same_day' => $contract->start_date->isSameDay($now)
+        ]);
 
         if ($contract->status === 'cancelled') {
             // Retornar dados do último contrato ativo do usuário
@@ -102,10 +114,22 @@ class ContractService implements ContractServiceInterface
         $startDate = $contract->start_date;
         $isSameDayChange = $startDate->isSameDay($now);
 
+        Log::info("📅 [CHANGE_PLAN] Cálculo proporcional", [
+            'start_date' => $startDate->toDateString(),
+            'current_date' => $now->toDateString(),
+            'is_same_day' => $isSameDayChange,
+            'total_days_cycle' => $totalDaysInCycle
+        ]);
+
         if ($isSameDayChange) {
             $proratedOldCredit = $oldPlan->price; // 100% de crédito no mesmo dia
             $daysUsed = 0;
             $daysRemaining = $totalDaysInCycle;
+            Log::info("⚡ [CHANGE_PLAN] Cenário MESMO DIA - crédito 100%", [
+                'prorated_old_credit' => $proratedOldCredit,
+                'days_used' => $daysUsed,
+                'days_remaining' => $daysRemaining
+            ]);
         } else {
             $daysUsed = $startDate->diffInDays($now);
             if ($daysUsed > $totalDaysInCycle) {
@@ -113,6 +137,13 @@ class ContractService implements ContractServiceInterface
             }
             $daysRemaining = $totalDaysInCycle - $daysUsed;
             $proratedOldCredit = $oldPlan->price * ($daysRemaining / $totalDaysInCycle);
+
+            Log::info("📊 [CHANGE_PLAN] Cenário DIAS USADOS", [
+                'days_used' => $daysUsed,
+                'days_remaining' => $daysRemaining,
+                'prorated_old_credit' => $proratedOldCredit,
+                'calculation' => "{$oldPlan->price} * ({$daysRemaining} / {$totalDaysInCycle})"
+            ]);
         }
 
 
@@ -149,14 +180,24 @@ class ContractService implements ContractServiceInterface
             $discountApplied = $proratedOldCredit + $appliedCredits;
             $amount = $newPlan->price - $discountApplied;
 
-            Log::info("Cenário de Upgrade", [
+            Log::info("🔼 [CHANGE_PLAN] Cenário de Upgrade", [
                 'prorated_old_credit' => $proratedOldCredit,
                 'new_plan_price' => $newPlan->price,
                 'user_balance' => $userBalance,
+                'remaining_to_pay' => $remainingToPay,
                 'applied_credits' => $appliedCredits,
                 'discount_applied' => $discountApplied,
-                'amount' => $amount
+                'final_amount' => $amount
             ]);
+
+            // Debug adicional para cenários específicos
+            if ($amount > 0 && $userBalance > 0) {
+                Log::info("💰 [CHANGE_PLAN] Upgrade com saldo parcial", [
+                    'saldo_utilizado' => $appliedCredits,
+                    'valor_restante' => $amount,
+                    'saldo_remanescente' => $userBalance - $appliedCredits
+                ]);
+            }
         }
 
         // Desativar contrato antigo
