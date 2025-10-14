@@ -19,7 +19,8 @@ export const Home = () => {
     contractsError,
     refreshContracts,
     refreshPlans,
-    refreshBalance
+    refreshBalance,
+    forceRefreshAllData
   } = useApiData();
 
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ export const Home = () => {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasProcessedPayment, setHasProcessedPayment] = useState(false);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -52,21 +56,43 @@ export const Home = () => {
   // Verificar parâmetro de sucesso na URL
   useEffect(() => {
     const success = searchParams.get("success");
-    if (success === "payment") {
+    if (success === "payment" && !hasProcessedPayment) {
+      console.log("🏠 [HOME] Sucesso de pagamento detectado - iniciando refresh forçado");
+      setHasProcessedPayment(true);
+
       setNotification({
         type: "success",
         message:
           "✅ Pagamento confirmado! Seu plano foi contratado com sucesso.",
       });
+
+      // 🔥 EXECUTAR FORCE REFRESH IMEDIATO QUANDO HÁ SUCESSO DE PAGAMENTO
+      if (user?.id) {
+        console.log(`🚨 [HOME] Executando forceRefreshAllData para usuário ${user.id}`);
+        setIsRefreshing(true);
+
+        forceRefreshAllData(user.id)
+          .then(() => {
+            console.log("✅ [HOME] Force refresh concluído com sucesso");
+          })
+          .catch((error) => {
+            console.error("❌ [HOME] Erro durante force refresh:", error);
+          })
+          .finally(() => {
+            setIsRefreshing(false);
+          });
+      }
+
       // Remover parâmetro da URL
       searchParams.delete("success");
       setSearchParams(searchParams);
+
       // Esconder mensagem após 5 segundos
       setTimeout(() => setNotification(null), 5000);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, user?.id, forceRefreshAllData, hasProcessedPayment]);
 
-  const loading = plansLoading || contractsLoading;
+  const loading = plansLoading || contractsLoading || isRefreshing;
   const error = plansError || contractsError;
 
   // Verificar se há contrato ativo
@@ -108,6 +134,17 @@ export const Home = () => {
               onClose={() => setNotification(null)}
               autoHide={true}
               className="mb-6"
+            />
+          )}
+
+          {/* Indicador de refresh forçado */}
+          {isRefreshing && (
+            <Notification
+              type="success"
+              message="🔄 Atualizando dados... Aguarde um momento."
+              onClose={() => {}} // Não permite fechar durante refresh
+              autoHide={false}
+              className="mb-4 border-blue-400 bg-blue-50"
             />
           )}
 

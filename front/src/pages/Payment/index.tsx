@@ -1,11 +1,6 @@
 /**
  * Página de Pagamento - Implementa fluxo completo de pagamento com PIX
- *
- * Estados de Loading:
- * - isCreditCalculationReady: Controla loading específico na área de descontos
- *
- * Loading Específico na Área de Descontos:
- * - Exibe spinner apenas na seção de descontos durante cálculos
+ * 
  */
 
 import { useState, useEffect, useMemo } from "react";
@@ -38,9 +33,7 @@ export const Payment = () => {
     processPayment,
     paymentLoading,
     paymentError,
-    refreshContracts,
-    refreshPayments,
-    refreshBalance
+    forceRefreshAllData
   } = useApiData();
 
   const plan = plans.find((p: Plano) => p.id === Number(planId));
@@ -73,10 +66,8 @@ export const Payment = () => {
           return;
         }
 
-        await Promise.all([
-          refreshContracts(userData.id),
-          refreshBalance(userData.id)
-        ]);
+        // Dados básicos serão carregados automaticamente pelo contexto
+        console.log('🔄 [PAYMENT] Carregando dados básicos...');
       } catch (error) {
         console.error('Erro ao carregar dados de pagamento');
       } finally {
@@ -87,7 +78,7 @@ export const Payment = () => {
     if (user?.id) {
       loadPaymentData();
     }
-  }, [user?.id, refreshContracts, refreshBalance, userData]);
+  }, [user?.id, userData]);
 
   // Estado para verificar se dados básicos estão carregados (sem créditos)
   const isBasicDataReady = useMemo(() => {
@@ -168,7 +159,7 @@ export const Payment = () => {
         const endDateISO = calculateContractEndDate(today); // Usa helper para calcular data do próximo mês
 
         const contractData = {
-          user_id: user?.id || 1, // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
+          user_id: userData.id, // Dados seguros do usuário autenticado
           plan_id: plan.id,
           start_date: today.toISOString().split("T")[0],
           end_date: endDateISO.split("T")[0], // Data calculada com lógica de mês seguinte
@@ -242,7 +233,8 @@ export const Payment = () => {
             },
           });
 
-          const payment = await processPayment(paymentData);
+          // Passar o userData.id como segundo parâmetro para invalidação imediata de cache
+          const payment = await processPayment(paymentData, userData.id);
 
           if (payment) {
             console.log("🎉 PAGAMENTO CONFIRMADO VIA PIX SIMULADO:", {
@@ -250,19 +242,25 @@ export const Payment = () => {
               contractId: contract.id,
               valorPago: payment.amount, // payment.amount vem em reais do backend
             });
+
+            console.log("✅ [PAYMENT] Pagamento processado com invalidação automática de cache");
+
+            // 🔥 EXECUTAR FORCE REFRESH ADICIONAL COMO GARANTIA
+            console.log("🚨 [PAYMENT] Executando forceRefreshAllData como garantia adicional...");
+            if (userData.id) {
+              await forceRefreshAllData(userData.id);
+              console.log("✅ [PAYMENT] Force refresh concluído com sucesso");
+            }
           } else {
             throw new Error("Falha no processamento do pagamento");
           }
         }
       }
 
-      // Atualizar dados após contratação bem-sucedida
-      const currentUserId = user?.id || 1; // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
-      await Promise.all([
-        refreshContracts(currentUserId),
-        refreshPayments(currentUserId),
-        refreshBalance(currentUserId),
-      ]);
+      // Dados já foram atualizados automaticamente durante o processPayment
+      // Não é necessário refresh manual adicional
+
+      console.log("✅ [PAYMENT] Dados atualizados automaticamente - redirecionando...");
 
       // Aguardar pelo menos 3 segundos antes de redirecionar para garantir a experiência do usuário
       const minimumProcessingTime = 3000;
@@ -306,12 +304,8 @@ export const Payment = () => {
 
   // Loading inicial apenas se dados básicos não estiverem prontos
   if (!isBasicDataReady) {
-    // TODO evite isso, podendo usar getAuthenticatedUserData ou para desenvolvimento o getFallbackUserData
-    const currentUserId = user?.id || 1;
-    const currentUserName = user?.name || "Usuário Teste";
-
     return (
-      <Layout user={{ id: currentUserId, name: currentUserName }}>
+      <Layout user={userData}>
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">
             {plansLoading
@@ -389,12 +383,14 @@ export const Payment = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Descontos:</h3>
 
             {!isCreditCalculationReady ? (
-              /* Loading apenas nesta área específica */
+              /* Loading melhorado com spinner consistente */
               <div className="p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
-                <div className="flex items-center justify-center text-gray-500">
-                  <LoadingSpinner className="mr-2 h-5 w-5" />
-                  <span>Calculando descontos...</span>
-                </div>
+                <LoadingSpinner
+                  size="sm"
+                  message="Calculando descontos proporcionais..."
+                  className="text-gray-600"
+                  centered={true}
+                />
               </div>
             ) : creditInfo && isPlanChange ? (
               /* Exibição completa quando cálculos prontos */
@@ -469,16 +465,13 @@ export const Payment = () => {
                   {(() => {
                     // Calcular valor final considerando descontos (sempre positivo)
                     const pixAmount = finalAmount;
-                    console.log(
-                      "🔍 [PIX DEBUG] Tentando renderizar Pix com props:",
-                      {
-                        pixkey: "33208898000147",
-                        merchant: "Inmediam",
-                        city: "SAO PAULO",
-                        amount: pixAmount,
-                        size: 192,
-                      }
-                    );
+                    // Log apenas em desenvolvimento para debug
+                    if (import.meta.env.DEV) {
+                      console.log(
+                        "🔍 [PIX DEBUG] Renderizando Pix:",
+                        { amount: pixAmount, size: 192 }
+                      );
+                    }
                     return (
                       <Pix
                         pixkey={"33208898000147"} // Chave de email válida para teste

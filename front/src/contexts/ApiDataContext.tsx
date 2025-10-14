@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useState, useCallback, useRef, useMemo, useEffect, ReactNode } from 'react';
 
 interface Plano {
   id: number;
@@ -52,7 +52,7 @@ interface ApiDataContextType {
   paymentsLoading: boolean;
   paymentsError: string | null;
   refreshPayments: (userId: number) => Promise<void>;
-  processPayment: (paymentData: Record<string, unknown>) => Promise<Payment | null>;
+  processPayment: (paymentData: Record<string, unknown>, currentUserId?: number) => Promise<Payment | null>;
   paymentLoading: boolean;
   paymentError: string | null;
 
@@ -61,6 +61,10 @@ interface ApiDataContextType {
   balanceLoading: boolean;
   balanceError: string | null;
   refreshBalance: (userId: number) => Promise<void>;
+
+  // Cache management
+  invalidateUserCache: (userId: number) => void;
+  forceRefreshAllData: (userId: number) => Promise<void>;
 }
 
 export const ApiDataContext = createContext<ApiDataContextType | undefined>(undefined);
@@ -99,7 +103,82 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Generic fetcher
+  // Cache para evitar múltiplas requisições desnecessárias
+  const requestCache = useRef<Map<string, { data: unknown; timestamp: number }>>(new Map());
+
+  // Limpeza automática de cache antigo (chamada periodicamente)
+  const cleanupCache = useCallback(() => {
+    const now = Date.now();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+    const entriesToDelete: string[] = [];
+
+    requestCache.current.forEach((value, key) => {
+      if ((now - value.timestamp) >= CACHE_DURATION) {
+        entriesToDelete.push(key);
+      }
+    });
+
+    entriesToDelete.forEach(key => requestCache.current.delete(key));
+
+    if (entriesToDelete.length > 0 && import.meta.env.DEV) {
+      console.log(`🧹 [API_DATA] Cache limpo: ${entriesToDelete.length} entradas removidas`);
+    }
+  }, []);
+
+  // Limpeza automática de cache a cada 10 minutos
+  useEffect(() => {
+    const cleanupInterval = setInterval(cleanupCache, 10 * 60 * 1000); // 10 minutos
+
+    return () => clearInterval(cleanupInterval);
+  }, [cleanupCache]);
+
+  // Função para invalidação manual de cache do usuário
+  const invalidateUserCache = useCallback((userId: number) => {
+    const userCacheKeys = [
+      `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
+      `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
+      `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
+    ];
+
+    console.log(`🔄 [CACHE_INVALIDATE] Iniciando invalidação para usuário ${userId}`);
+    console.log(`📋 [CACHE_INVALIDATE] Chaves que serão verificadas:`, userCacheKeys);
+
+    let invalidatedCount = 0;
+    userCacheKeys.forEach(key => {
+      if (requestCache.current.has(key)) {
+        requestCache.current.delete(key);
+        invalidatedCount++;
+        console.log(`✅ [CACHE_INVALIDATE] Removida: ${key}`);
+      } else {
+        console.log(`❌ [CACHE_INVALIDATE] Não encontrada: ${key}`);
+      }
+    });
+
+    // Limpeza adicional - verificar chaves similares
+    const allKeys = Array.from(requestCache.current.keys());
+    const relatedKeys = allKeys.filter(key =>
+      key.includes(`user_id=${userId}`) ||
+      key.includes(`/users/${userId}`) ||
+      key.includes(`/contracts`) ||
+      key.includes(`/payments`)
+    );
+
+    relatedKeys.forEach(key => {
+      requestCache.current.delete(key);
+      invalidatedCount++;
+      console.log(`🧹 [CACHE_INVALIDATE] Limpeza adicional: ${key}`);
+    });
+
+    console.log(`✅ [CACHE_INVALIDATE] Total de ${invalidatedCount} entradas removidas para usuário ${userId}`);
+
+    // Forçar limpeza da memória
+    if (typeof global !== 'undefined' && global.gc && invalidatedCount > 0) {
+      global.gc();
+      console.log(`🗑️ [CACHE_INVALIDATE] Garbage collection forçado`);
+    }
+  }, []);
+
+  // Generic fetcher with caching
   const fetchData = useCallback(async <T,>(
     url: string,
     setData: (data: T) => void,
@@ -107,22 +186,55 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     setError: (error: string | null) => void,
     transform?: (data: unknown) => T
   ) => {
+    // Verificar cache (5 minutos de duração)
+    const now = Date.now();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+    const cached = requestCache.current.get(url);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      setData(cached.data as T);
+      if (import.meta.env.DEV) {
+        console.log(`📋 [API_DATA] Dados carregados do cache: ${url}`);
+      }
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
+      if (import.meta.env.DEV) {
+        console.log(`🔄 [API_DATA] Buscando dados: ${url}`);
+      }
+
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to fetch from ${url}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
       const data = await response.json();
       const transformedData = transform ? transform(data) : data;
+
+      // Atualizar cache
+      requestCache.current.set(url, { data: transformedData, timestamp: now });
+
       setData(transformedData);
+
+      if (import.meta.env.DEV) {
+        console.log(`✅ [API_DATA] Dados carregados com sucesso: ${url}`);
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
       setError(message);
-      console.error(`Error fetching from ${url}:`, message);
+
+      // Log detalhado apenas em desenvolvimento
+      if (import.meta.env.DEV) {
+        console.error(`❌ [API_DATA] Erro em ${url}:`, {
+          message,
+          error: error,
+          timestamp: new Date().toISOString()
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Removido cleanupCache - não é usado dentro de fetchData
 
   // Plans methods
   const refreshPlans = useCallback(async () => {
@@ -131,11 +243,8 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
 
   // Contracts methods
   const refreshContracts = useCallback(async (userId: number) => {
-    console.log('📋 [API_DATA] Carregando contratos para usuário:', userId);
-    console.log('🌐 [API_DATA] URL da requisição:', `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`);
     await fetchData(`${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`, setContracts, setContractsLoading, setContractsError);
-    console.log('✅ [API_DATA] Contratos carregados, total:', contracts.length);
-  }, [fetchData, contracts.length]);
+  }, [fetchData]);
 
   // Payments methods
   const refreshPayments = useCallback(async (userId: number) => {
@@ -150,7 +259,41 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     });
   }, [fetchData]);
 
-  // Contract creation methods
+  // Função de emergência para forçar refresh completo
+  const forceRefreshAllData = useCallback(async (userId: number) => {
+    console.log(`🚨 [FORCE_REFRESH] ========== FORÇANDO REFRESH DE EMERGÊNCIA ==========`);
+
+    // Limpeza completa do cache
+    invalidateUserCache(userId);
+
+    // Aguardar limpeza
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Refresh forçado múltiplas vezes para garantir
+    console.log(`🔄 [FORCE_REFRESH] Executando refresh forçado...`);
+    try {
+      await Promise.all([
+        refreshContracts(userId),
+        refreshPayments(userId),
+        refreshBalance(userId)
+      ]);
+
+      // Segunda rodada para garantir
+      await Promise.all([
+        refreshContracts(userId),
+        refreshPayments(userId),
+        refreshBalance(userId)
+      ]);
+
+      console.log(`✅ [FORCE_REFRESH] Refresh de emergência concluído para usuário ${userId}`);
+    } catch (error) {
+      console.error(`❌ [FORCE_REFRESH] Erro durante refresh de emergência:`, error);
+    }
+
+    console.log(`🚨 [FORCE_REFRESH] ========== EMERGÊNCIA CONCLUÍDA ==========`);
+  }, [invalidateUserCache, refreshContracts, refreshPayments, refreshBalance]);
+
+  // Contract creation methods with cache invalidation
   const createContract = useCallback(async (contractData: Record<string, unknown>) => {
     setContractLoading(true);
     setContractError(null);
@@ -168,6 +311,21 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       }
 
       const contract = await response.json();
+
+      // 🔥 Limpeza imediata do cache após criação bem-sucedida
+      const userId = contractData.user_id as number;
+      if (userId) {
+        invalidateUserCache(userId);
+
+        // Forçar refresh imediato dos dados críticos
+        setTimeout(() => {
+          refreshContracts(userId);
+          refreshBalance(userId);
+        }, 100);
+
+        console.log(`🔄 [API_DATA] Cache invalidado e dados atualizados após criação de contrato para usuário ${userId}`);
+      }
+
       return contract;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -178,10 +336,15 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     }
   }, []);
 
-  // Payment processing methods
-  const processPayment = useCallback(async (paymentData: Record<string, unknown>) => {
+  // Payment processing methods with FORCED cache invalidation
+  const processPayment = useCallback(async (paymentData: Record<string, unknown>, currentUserId?: number) => {
     setPaymentLoading(true);
     setPaymentError(null);
+
+    console.log('🚨 [PAYMENT_FORCE] ========== FORCED CACHE INVALIDATION MODE ==========');
+    console.log('💳 [PAYMENT_FORCE] Dados do pagamento:', paymentData);
+    console.log('👤 [PAYMENT_FORCE] User ID fornecido:', currentUserId);
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
         method: 'POST',
@@ -192,21 +355,69 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao processar pagamento');
+        throw new Error(`Erro ao processar pagamento: HTTP ${response.status}`);
       }
 
       const payment = await response.json();
+      console.log('✅ [PAYMENT_FORCE] Pagamento processado com sucesso:', payment);
+
+      // 🔥 FORCED INVALIDATION - MAIS AGRESSIVA E IMEDIATA
+      const contractId = paymentData.contract_id as number;
+      let userId = currentUserId;
+
+      console.log('🔥 [PAYMENT_FORCE] ========== EXECUTANDO INVALIDAÇÃO FORÇADA ==========');
+
+      if (!userId && contractId) {
+        try {
+          const contractResponse = await fetch(`${import.meta.env.VITE_API_URL}/contracts/${contractId}`);
+          if (contractResponse.ok) {
+            const contract = await contractResponse.json();
+            userId = contract.user_id;
+          }
+        } catch (e) {
+          console.error('Erro ao buscar contrato:', e);
+        }
+      }
+
+      if (userId) {
+        console.log(`⚡ [PAYMENT_FORCE] INVALIDAÇÃO FORÇADA PARA USER ${userId}`);
+
+        // LIMPEZA IMEDIATA ANTES DE QUALQUER COISA
+        invalidateUserCache(userId);
+
+        // AGUARDAR LIMPEZA SER PROCESSADA
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // REFRESH FORÇADO SEM setTimeout
+        await Promise.all([
+          refreshContracts(userId),
+          refreshPayments(userId),
+          refreshBalance(userId)
+        ]);
+
+        // LIMPEZA ADICIONAL APÓS REFRESH
+        invalidateUserCache(userId);
+
+        console.log(`✅ [PAYMENT_FORCE] CACHE FORÇADO INVALIDADO PARA USER ${userId}`);
+      } else {
+        console.error('❌ [PAYMENT_FORCE] USER ID NÃO ENCONTRADO');
+      }
+
+      console.log('🎉 [PAYMENT_FORCE] ========== PROCESSO CONCLUÍDO ==========');
       return payment;
+
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('❌ [PAYMENT_FORCE] ERRO:', message);
       setPaymentError(message);
       return null;
     } finally {
       setPaymentLoading(false);
+      console.log('🏁 [PAYMENT_FORCE] ========== FINALIZADO ==========');
     }
-  }, []);
+  }, [invalidateUserCache, refreshContracts, refreshPayments, refreshBalance]);
 
-  const value: ApiDataContextType = {
+  const value: ApiDataContextType = useMemo(() => ({
     // Plans
     plans,
     plansLoading,
@@ -236,7 +447,45 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     balanceLoading,
     balanceError,
     refreshBalance,
-  };
+
+    // Cache management
+    invalidateUserCache,
+    forceRefreshAllData,
+  }), [
+    // Plans
+    plans,
+    plansLoading,
+    plansError,
+    refreshPlans,
+
+    // Contracts
+    contracts,
+    contractsLoading,
+    contractsError,
+    refreshContracts,
+    createContract,
+    contractLoading,
+    contractError,
+
+    // Payments
+    payments,
+    paymentsLoading,
+    paymentsError,
+    refreshPayments,
+    processPayment,
+    paymentLoading,
+    paymentError,
+
+    // Balance
+    balance,
+    balanceLoading,
+    balanceError,
+    refreshBalance,
+
+    // Cache management
+    invalidateUserCache,
+    forceRefreshAllData,
+  ]);
 
   return (
     <ApiDataContext.Provider value={value}>
@@ -244,3 +493,4 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
     </ApiDataContext.Provider>
   );
 }
+

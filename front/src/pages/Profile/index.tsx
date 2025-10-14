@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useApiData } from '../../hooks/useApiData';
-import { useUserBalance } from '../../hooks/useUserBalance';
 import { Breadcrumbs } from '../../components/ui';
 import Layout from '../../components/Layout';
 import { formatCurrency } from '../../utils/formatters';
 import { Contract } from '../../types';
+import { UserBalance } from '../../components/ui';
 
 /**
  * Página de Perfil do Usuário
@@ -19,7 +19,6 @@ const Profile = () => {
   const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { contracts, contractsLoading, refreshContracts } = useApiData();
-  const { balance } = useUserBalance(authUser?.id);
 
   // Estado composto para verificar se dados estão prontos
   const isDataReady = useMemo(() => {
@@ -106,15 +105,7 @@ const Profile = () => {
       <Breadcrumbs items={[{ name: 'Perfil', href: '/profile' }]} />
 
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6">
-          <Link to="/" className="text-blue-500 hover:underline mb-2 sm:mb-0">&larr; Voltar aos Planos</Link>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 sm:px-4 py-2">
-            <span className="text-sm font-medium text-blue-800">Saldo: </span>
-            <span className="text-base sm:text-lg font-bold text-blue-900">
-              {formatCurrency(typeof balance === 'number' ? balance : 0)}
-            </span>
-          </div>
-        </div>
+        <UserBalance showRefreshButton={true} />
 
         <h1 className="text-orange-400 text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">
           Meu Perfil
