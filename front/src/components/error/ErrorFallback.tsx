@@ -1,21 +1,21 @@
-import React from 'react';
-import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
+import React from 'react'
+import { useErrorHandler } from '../../hooks/useErrorHandler'
+import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
 
 interface ErrorFallbackProps {
   /** Título do erro */
-  title?: string;
+  title?: string
   /** Mensagem personalizada */
-  message?: string;
+  message?: string
   /** Se deve mostrar o botão de retry */
-  showRetry?: boolean;
+  showRetry?: boolean
   /** Classes CSS adicionais */
-  className?: string;
+  className?: string
   /** Função personalizada de retry */
-  onRetry?: () => void;
+  onRetry?: () => void
   /** Se deve mostrar detalhes técnicos do erro */
-  showDetails?: boolean;
+  showDetails?: boolean
 }
 
 /**
@@ -30,22 +30,22 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   onRetry,
   showDetails = false
 }) => {
-  const { error, errorInfo, retry, isRetrying } = useErrorHandler();
+  const { error, errorInfo, retry, isRetrying } = useErrorHandler()
 
   const handleRetry = () => {
     if (onRetry) {
-      onRetry();
+      onRetry()
     } else if (retry) {
-      retry();
+      retry()
     }
-  };
+  }
 
   const getErrorMessage = () => {
     if (message !== 'Ocorreu um erro inesperado. Tente novamente em alguns instantes.') {
-      return message;
+      return message
     }
-    return error?.message || message;
-  };
+    return error?.message || message
+  }
 
   return (
     <Card className={`border-red-200 bg-red-50 ${className}`}>
@@ -69,13 +69,9 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
           </div>
         </div>
 
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          {title}
-        </h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
 
-        <p className="text-sm text-gray-600 mb-6">
-          {getErrorMessage()}
-        </p>
+        <p className="text-sm text-gray-600 mb-6">{getErrorMessage()}</p>
 
         {showDetails && errorInfo && (
           <details className="mb-6 text-left">
@@ -83,9 +79,15 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
               Detalhes técnicos
             </summary>
             <div className="mt-2 p-3 bg-gray-100 rounded-md text-xs text-gray-800">
-              <div><strong>Contexto:</strong> {errorInfo.context || 'Não disponível'}</div>
-              <div><strong>URL:</strong> {errorInfo.url || 'Não disponível'}</div>
-              <div><strong>Timestamp:</strong> {errorInfo.timestamp.toLocaleString()}</div>
+              <div>
+                <strong>Contexto:</strong> {errorInfo.context || 'Não disponível'}
+              </div>
+              <div>
+                <strong>URL:</strong> {errorInfo.url || 'Não disponível'}
+              </div>
+              <div>
+                <strong>Timestamp:</strong> {errorInfo.timestamp.toLocaleString()}
+              </div>
               {errorInfo.stackTrace && (
                 <div className="mt-2">
                   <strong>Stack Trace:</strong>
@@ -109,15 +111,12 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
               {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
             </Button>
 
-            <Button
-              onClick={() => window.location.reload()}
-              variant="secondary"
-            >
+            <Button onClick={() => window.location.reload()} variant="secondary">
               Recarregar página
             </Button>
           </div>
         )}
       </div>
     </Card>
-  );
-};
+  )
+}

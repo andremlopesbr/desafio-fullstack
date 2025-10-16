@@ -21,7 +21,7 @@
  * ```
  */
 
-export { ErrorBoundary } from './ErrorBoundary';
-export { ApiErrorBoundary } from './ApiErrorBoundary';
-export { ErrorPage } from './ErrorPage';
-export { ErrorFallback } from './ErrorFallback';
+export { ErrorBoundary } from './ErrorBoundary'
+export { ApiErrorBoundary } from './ApiErrorBoundary'
+export { ErrorPage } from './ErrorPage'
+export { ErrorFallback } from './ErrorFallback'

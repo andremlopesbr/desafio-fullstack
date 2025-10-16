@@ -1,12 +1,12 @@
-import { ReactNode } from 'react';
-import { ApiDataProvider } from './ApiDataContext';
-import { PlansProvider } from './PlansContext';
-import { ContractsProvider } from './ContractsContext';
-import { PaymentsProvider } from './PaymentsContext';
-import { BalanceProvider } from './BalanceContext';
+import { ReactNode } from 'react'
+import { ApiDataProvider } from './ApiDataContext'
+import { PlansProvider } from './PlansContext'
+import { ContractsProvider } from './ContractsContext'
+import { PaymentsProvider } from './PaymentsContext'
+import { BalanceProvider } from './BalanceContext'
 
 interface AppDataProviderProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
 export function AppDataProvider({ children }: AppDataProviderProps) {
@@ -15,12 +15,10 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       <PlansProvider>
         <ContractsProvider>
           <PaymentsProvider>
-            <BalanceProvider>
-              {children}
-            </BalanceProvider>
+            <BalanceProvider>{children}</BalanceProvider>
           </PaymentsProvider>
         </ContractsProvider>
       </PlansProvider>
     </ApiDataProvider>
-  );
+  )
 }

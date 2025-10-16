@@ -1,22 +1,19 @@
-import { useCreditTransactionHistory } from '../../hooks/useCreditTransactionHistory';
-import { formatCurrency } from '../../utils/formatters';
+import { useCreditTransactionHistory } from '../../hooks/useCreditTransactionHistory'
+import { formatCurrency } from '../../utils/formatters'
 
 interface CreditTransactionHistoryProps {
-  userId: number;
+  userId: number
 }
 
-
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('pt-BR');
-};
+  return new Date(dateString).toLocaleDateString('pt-BR')
+}
 
 export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryProps) => {
-  const { transactions, loading, error } = useCreditTransactionHistory(userId);
-
-  // Ordenar por data (mais recente primeiro)
+  const { transactions, loading, error } = useCreditTransactionHistory(userId)
   const sortedTransactions = transactions.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  )
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md mt-6">
@@ -24,14 +21,10 @@ export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryPro
 
       {loading && <p>Carregando histórico de transações de crédito...</p>}
 
-      {error && (
-        <p className="text-red-600">Erro ao carregar histórico: {error}</p>
-      )}
+      {error && <p className="text-red-600">Erro ao carregar histórico: {error}</p>}
 
       {!loading && !error && sortedTransactions.length === 0 && (
-        <p className="text-gray-500 text-center py-8">
-          Nenhum histórico de transações encontrado.
-        </p>
+        <p className="text-gray-500 text-center py-8">Nenhum histórico de transações encontrado.</p>
       )}
 
       {!loading && !error && sortedTransactions.length > 0 && (
@@ -55,7 +48,7 @@ export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryPro
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {sortedTransactions.map((transaction) => (
+                {sortedTransactions.map(transaction => (
                   <tr key={transaction.id}>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(transaction.created_at)}
@@ -64,18 +57,20 @@ export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryPro
                       {transaction.description}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        transaction.type === 'credit'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                          transaction.type === 'credit'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {transaction.type === 'credit' ? 'Crédito' : 'Débito'}
                       </span>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
-                      <span className={`${
-                        transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <span
+                        className={`${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}
+                      >
                         {transaction.type === 'credit' ? '+' : '-'}
                         {formatCurrency(transaction.amount)}
                       </span>
@@ -88,7 +83,7 @@ export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryPro
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CreditTransactionHistory;
+export default CreditTransactionHistory

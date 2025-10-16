@@ -1,14 +1,14 @@
-import React from 'react';
+import React from 'react'
 
 interface DateInputProps {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  disabled?: boolean;
-  className?: string;
-  error?: string;
+  label?: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
+  className?: string
+  error?: string
 }
 
 export const DateInput: React.FC<DateInputProps> = ({
@@ -19,7 +19,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   required = false,
   disabled = false,
   className = '',
-  error,
+  error
 }) => {
   return (
     <div className={`space-y-1 ${className}`}>
@@ -32,7 +32,7 @@ export const DateInput: React.FC<DateInputProps> = ({
       <input
         type="date"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
@@ -43,9 +43,7 @@ export const DateInput: React.FC<DateInputProps> = ({
           ${error ? 'border-red-500' : 'border-gray-300'}
         `}
       />
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
-  );
-};
+  )
+}

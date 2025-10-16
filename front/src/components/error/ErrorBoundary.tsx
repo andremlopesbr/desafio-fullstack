@@ -1,25 +1,25 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react'
 
 interface ErrorBoundaryProps {
   /** Componentes filhos que serão monitorados por erros */
-  children: ReactNode;
+  children: ReactNode
   /** UI personalizada para exibir quando ocorrer um erro */
-  fallback?: ReactNode;
+  fallback?: ReactNode
   /** Callback executado quando um erro é capturado */
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void
   /** Se true, reinicia automaticamente quando as props mudarem */
-  resetOnPropsChange?: boolean;
+  resetOnPropsChange?: boolean
   /** Chaves para detectar mudanças nas props e reiniciar o boundary */
-  resetKeys?: Array<string | number>;
+  resetKeys?: Array<string | number>
 }
 
 interface ErrorBoundaryState {
   /** Indica se há um erro capturado */
-  hasError: boolean;
+  hasError: boolean
   /** Erro capturado */
-  error?: Error;
+  error?: Error
   /** Informações adicionais do erro */
-  errorInfo?: ErrorInfo;
+  errorInfo?: ErrorInfo
 }
 
 /**
@@ -37,11 +37,11 @@ interface ErrorBoundaryState {
  * ```
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  private resetTimeoutId: number | null = null;
+  private resetTimeoutId: number | null = null
 
   constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
+    super(props)
+    this.state = { hasError: false }
   }
 
   /**
@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * @returns Novo estado indicando que há um erro
    */
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+    return { hasError: true, error }
   }
 
   /**
@@ -61,23 +61,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({
       error,
-      errorInfo,
-    });
+      errorInfo
+    })
 
-    this.props.onError?.(error, errorInfo);
+    this.props.onError?.(error, errorInfo)
   }
 
   /**
    * Verifica se as props mudaram e reinicia o boundary se necessário.
    */
   componentDidUpdate(prevProps: ErrorBoundaryProps) {
-    const { resetOnPropsChange, resetKeys } = this.props;
-    const { hasError } = this.state;
+    const { resetOnPropsChange, resetKeys } = this.props
+    const { hasError } = this.state
 
     if (hasError && resetOnPropsChange && prevProps.resetKeys !== resetKeys) {
-      const keysChanged = resetKeys?.some((key, idx) => prevProps.resetKeys?.[idx] !== key);
+      const keysChanged = resetKeys?.some((key, idx) => prevProps.resetKeys?.[idx] !== key)
       if (keysChanged) {
-        this.resetErrorBoundary();
+        this.resetErrorBoundary()
       }
     }
   }
@@ -86,40 +86,28 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * Reinicia o Error Boundary após um pequeno delay.
    */
   resetErrorBoundary = () => {
-    console.log('🔄 ErrorBoundary: resetErrorBoundary() chamado');
-
     if (this.resetTimeoutId) {
-      window.clearTimeout(this.resetTimeoutId);
-      console.log('🔄 ErrorBoundary: Timeout anterior cancelado');
+      window.clearTimeout(this.resetTimeoutId)
     }
 
     this.resetTimeoutId = window.setTimeout(() => {
-      console.log('🔄 ErrorBoundary: Executando reset completo do estado');
-
-      // Reset completo de todos os estados internos
       this.setState({
         hasError: false,
         error: undefined,
         errorInfo: undefined
-      });
-
-      // Limpeza adicional: forçar limpeza do timeout e atualização forçada
-      this.resetTimeoutId = null;
-
-      // Forçar re-renderização para garantir que o estado seja completamente limpo
-      this.forceUpdate();
-
-      console.log('🔄 ErrorBoundary: Estado completamente resetado e componente forçado a re-renderizar');
-    }, 100);
-  };
+      })
+      this.resetTimeoutId = null
+      this.forceUpdate()
+    }, 100)
+  }
 
   render() {
-    const { hasError } = this.state;
-    const { children, fallback } = this.props;
+    const { hasError } = this.state
+    const { children, fallback } = this.props
 
     if (hasError) {
       if (fallback) {
-        return fallback;
+        return fallback
       }
 
       return (
@@ -127,15 +115,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="max-w-md w-full mx-auto p-6">
             <div className="bg-white rounded-lg shadow-lg p-6 text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <svg
+                  className="w-8 h-8 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Algo deu errado
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Algo deu errado</h3>
               <p className="text-gray-600 mb-4">
-                Ocorreu um erro inesperado. Nossa equipe foi notificada e estamos trabalhando para resolver o problema.
+                Ocorreu um erro inesperado. Nossa equipe foi notificada e estamos trabalhando para
+                resolver o problema.
               </p>
               <button
                 onClick={this.resetErrorBoundary}
@@ -146,9 +143,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
           </div>
         </div>
-      );
+      )
     }
 
-    return children;
+    return children
   }
 }

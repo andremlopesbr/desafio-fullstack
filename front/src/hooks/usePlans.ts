@@ -1,17 +1,17 @@
-import { useContext } from 'react';
-import { PlansContext } from '../contexts/PlansContext';
-import { AuthContext } from '../contexts/AuthContext';
+import { useContext } from 'react'
+import { PlansContext } from '../contexts/PlansContext'
+import { AuthContext } from '../contexts/AuthContext'
 
 export const usePlans = () => {
-  const plansContext = useContext(PlansContext);
-  const authContext = useContext(AuthContext);
+  const plansContext = useContext(PlansContext)
+  const authContext = useContext(AuthContext)
 
   if (!plansContext) {
-    throw new Error('usePlans deve ser usado dentro de um PlansProvider');
+    throw new Error('usePlans deve ser usado dentro de um PlansProvider')
   }
 
   if (!authContext) {
-    throw new Error('usePlans deve ser usado dentro de um AuthProvider');
+    throw new Error('usePlans deve ser usado dentro de um AuthProvider')
   }
 
   if (!authContext.user) {
@@ -21,13 +21,11 @@ export const usePlans = () => {
       plansError: null,
       refreshPlans: () => {},
       refetch: () => {}
-    };
+    }
   }
-
-  // Refresh plans if needed (plans context doesn't depend on userId)
   const refreshPlans = async () => {
-    await plansContext.refreshPlans();
-  };
+    await plansContext.refreshPlans()
+  }
 
   return {
     plans: plansContext.plans,
@@ -35,5 +33,5 @@ export const usePlans = () => {
     plansError: plansContext.error,
     refreshPlans,
     refetch: refreshPlans
-  };
-};
+  }
+}

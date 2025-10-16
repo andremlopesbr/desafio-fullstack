@@ -1,21 +1,21 @@
-import React from 'react';
-import { LoadingSpinner } from './LoadingSpinner';
+import React from 'react'
+import { LoadingSpinner } from './LoadingSpinner'
 
 interface LoadingStateProps {
   /** Tamanho do spinner */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg'
   /** Mensagem de loading */
-  message?: string;
+  message?: string
   /** Classes CSS adicionais */
-  className?: string;
+  className?: string
   /** Se deve centralizar o conteúdo */
-  centered?: boolean;
+  centered?: boolean
   /** Se deve ser um overlay sobre outros elementos */
-  overlay?: boolean;
+  overlay?: boolean
   /** Tipo de estado de loading */
-  type?: 'spinner' | 'skeleton' | 'pulse';
+  type?: 'spinner' | 'skeleton' | 'pulse'
   /** Número de linhas do skeleton (quando type='skeleton') */
-  skeletonLines?: number;
+  skeletonLines?: number
 }
 
 /**
@@ -33,7 +33,9 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
 }) => {
   if (type === 'skeleton') {
     return (
-      <div className={`${centered ? 'flex flex-col items-center justify-center p-4' : ''} ${className}`}>
+      <div
+        className={`${centered ? 'flex flex-col items-center justify-center p-4' : ''} ${className}`}
+      >
         {Array.from({ length: skeletonLines }, (_, index) => (
           <div
             key={index}
@@ -46,11 +48,9 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
             }}
           />
         ))}
-        {message && (
-          <p className="text-gray-500 text-sm mt-2">{message}</p>
-        )}
+        {message && <p className="text-gray-500 text-sm mt-2">{message}</p>}
       </div>
-    );
+    )
   }
 
   if (type === 'pulse') {
@@ -61,11 +61,9 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
           <div className="rounded-full bg-orange-400 h-2 w-2"></div>
           <div className="rounded-full bg-orange-400 h-2 w-2"></div>
         </div>
-        {message && (
-          <p className="text-gray-500 text-sm ml-2">{message}</p>
-        )}
+        {message && <p className="text-gray-500 text-sm ml-2">{message}</p>}
       </div>
-    );
+    )
   }
 
   return (
@@ -76,5 +74,5 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       centered={centered}
       overlay={overlay}
     />
-  );
-};
+  )
+}

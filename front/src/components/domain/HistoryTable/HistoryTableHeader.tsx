@@ -1,14 +1,14 @@
-import React from 'react';
-import { TableHead, TableRow, TableHeadCell, Button } from "flowbite-react";
-import { HiChevronUp, HiChevronDown } from "react-icons/hi";
+import React from 'react'
+import { TableHead, TableRow, TableHeadCell, Button } from 'flowbite-react'
+import { HiChevronUp, HiChevronDown } from 'react-icons/hi'
 
-type SortField = "order" | "invoice" | "status";
-type SortDirection = "asc" | "desc";
+type SortField = 'order' | 'invoice' | 'status'
+type SortDirection = 'asc' | 'desc'
 
 interface HistoryTableHeaderProps {
-  sortField: SortField;
-  sortDirection: SortDirection;
-  onSort: (field: SortField) => void;
+  sortField: SortField
+  sortDirection: SortDirection
+  onSort: (field: SortField) => void
 }
 
 /**
@@ -20,21 +20,20 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
   onSort
 }) => {
   const renderSortIcon = (field: SortField) => {
-    if (field === "invoice") {
-      return sortDirection === "asc" ? (
+    if (field === 'invoice') {
+      return sortDirection === 'asc' ? (
         <HiChevronUp className="inline ml-1" />
       ) : (
         <HiChevronDown className="inline ml-1" />
-      );
+      )
     }
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
+    if (sortField !== field) return null
+    return sortDirection === 'asc' ? (
       <HiChevronUp className="inline ml-1" />
     ) : (
       <HiChevronDown className="inline ml-1" />
-    );
-  };
-
+    )
+  }
 
   return (
     <TableHead className="bg-gray-50">
@@ -43,20 +42,20 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
           <Button
             size="sm"
             color="light"
-            onClick={() => onSort("order")}
+            onClick={() => onSort('order')}
             className="p-0 hover:bg-transparent font-semibold text-gray-700"
           >
-            # {renderSortIcon("order")}
+            # {renderSortIcon('order')}
           </Button>
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
           <Button
             size="sm"
             color="light"
-            onClick={() => onSort("invoice")}
+            onClick={() => onSort('invoice')}
             className="p-0 hover:bg-transparent font-semibold text-gray-700"
           >
-            Fatura {renderSortIcon("invoice")}
+            Fatura {renderSortIcon('invoice')}
           </Button>
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
@@ -90,10 +89,10 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
           <Button
             size="sm"
             color="light"
-            onClick={() => onSort("status")}
+            onClick={() => onSort('status')}
             className="p-0 hover:bg-transparent font-semibold text-gray-700"
           >
-            Status {renderSortIcon("status")}
+            Status {renderSortIcon('status')}
           </Button>
         </TableHeadCell>
         <TableHeadCell className="font-semibold text-gray-700 border-b-2 border-gray-200">
@@ -107,5 +106,5 @@ export const HistoryTableHeader: React.FC<HistoryTableHeaderProps> = ({
         </TableHeadCell>
       </TableRow>
     </TableHead>
-  );
-};
+  )
+}

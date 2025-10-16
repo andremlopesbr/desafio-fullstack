@@ -1,41 +1,41 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react'
 
 export interface ErrorInfo {
   /** Objeto de erro capturado */
-  error: Error;
+  error: Error
   /** Timestamp quando o erro ocorreu */
-  timestamp: Date;
+  timestamp: Date
   /** Contexto adicional sobre onde o erro ocorreu */
-  context?: string;
+  context?: string
   /** ID do usuário autenticado (se disponível) */
-  userId?: string;
+  userId?: string
   /** URL onde o erro ocorreu */
-  url?: string;
+  url?: string
   /** User agent do navegador */
-  userAgent?: string;
+  userAgent?: string
   /** Stack trace do erro */
-  stackTrace?: string;
+  stackTrace?: string
 }
 
 export interface UseErrorHandlerReturn {
   /** Erro atual capturado */
-  error: Error | null;
+  error: Error | null
   /** Informações detalhadas do erro */
-  errorInfo: ErrorInfo | null;
+  errorInfo: ErrorInfo | null
   /** Função para definir um erro */
-  setError: (error: Error | string, context?: string) => void;
+  setError: (error: Error | string, context?: string) => void
   /** Função para limpar o erro */
-  clearError: () => void;
+  clearError: () => void
   /** Função para registrar erro (apenas log, sem alterar estado) */
-  logError: (error: Error | string, context?: string) => ErrorInfo;
+  logError: (error: Error | string, context?: string) => ErrorInfo
   /** Função de retry configurada */
-  retry: (() => void) | null;
+  retry: (() => void) | null
   /** Função para configurar função de retry */
-  setRetry: (retryFn: (() => void) | null) => void;
+  setRetry: (retryFn: (() => void) | null) => void
   /** Estado de retry em andamento */
-  isRetrying: boolean;
+  isRetrying: boolean
   /** Função para definir estado de retry */
-  setRetrying: (retrying: boolean) => void;
+  setRetrying: (retrying: boolean) => void
 }
 
 /**
@@ -75,11 +75,10 @@ export interface UseErrorHandlerReturn {
  * ```
  */
 export function useErrorHandler(): UseErrorHandlerReturn {
-
-  const [error, setErrorState] = useState<Error | null>(null);
-  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
-  const [retry, setRetryState] = useState<(() => void) | null>(null);
-  const [isRetrying, setRetryingState] = useState(false);
+  const [error, setErrorState] = useState<Error | null>(null)
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
+  const [retry, setRetryState] = useState<(() => void) | null>(null)
+  const [isRetrying, setRetryingState] = useState(false)
 
   /**
    * Define um erro e registra suas informações detalhadas.
@@ -87,9 +86,9 @@ export function useErrorHandler(): UseErrorHandlerReturn {
    * @param context - Contexto adicional sobre onde o erro ocorreu
    */
   const setError = useCallback((error: Error | string, context?: string) => {
-    const errorObj = typeof error === 'string' ? new Error(error) : error;
+    const errorObj = typeof error === 'string' ? new Error(error) : error
 
-    setErrorState(errorObj);
+    setErrorState(errorObj)
 
     const info: ErrorInfo = {
       error: errorObj,
@@ -97,25 +96,21 @@ export function useErrorHandler(): UseErrorHandlerReturn {
       context,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      stackTrace: errorObj.stack,
-    };
+      stackTrace: errorObj.stack
+    }
 
-    setErrorInfo(info);
-
-    // Registro de erro para monitoramento
-    // Pode ser integrado com serviços externos como Sentry, LogRocket, etc.
-    // Exemplo: Sentry.captureException(errorObj, { contexts: { errorInfo: info } });
-  }, []);
+    setErrorInfo(info)
+  }, [])
 
   /**
    * Limpa o estado de erro e informações associadas.
    */
   const clearError = useCallback(() => {
-    setErrorState(null);
-    setErrorInfo(null);
-    setRetryState(null);
-    setRetryingState(false);
-  }, []);
+    setErrorState(null)
+    setErrorInfo(null)
+    setRetryState(null)
+    setRetryingState(false)
+  }, [])
 
   /**
    * Registra um erro apenas para logging, sem alterar o estado.
@@ -124,7 +119,7 @@ export function useErrorHandler(): UseErrorHandlerReturn {
    * @returns Informações detalhadas do erro registrado
    */
   const logError = useCallback((error: Error | string, context?: string): ErrorInfo => {
-    const errorObj = typeof error === 'string' ? new Error(error) : error;
+    const errorObj = typeof error === 'string' ? new Error(error) : error
 
     const info: ErrorInfo = {
       error: errorObj,
@@ -132,29 +127,26 @@ export function useErrorHandler(): UseErrorHandlerReturn {
       context,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      stackTrace: errorObj.stack,
-    };
-
-    // Registro de erro para monitoramento
-    // Pode ser integrado com serviços externos
-    return info;
-  }, []);
+      stackTrace: errorObj.stack
+    }
+    return info
+  }, [])
 
   /**
    * Configura uma função de retry para o erro atual.
    * @param retryFn - Função a ser executada no retry
    */
   const setRetry = useCallback((retryFn: (() => void) | null) => {
-    setRetryState(retryFn);
-  }, []);
+    setRetryState(retryFn)
+  }, [])
 
   /**
    * Define o estado de retry em andamento.
    * @param retrying - Se está executando retry
    */
   const setRetrying = useCallback((retrying: boolean) => {
-    setRetryingState(retrying);
-  }, []);
+    setRetryingState(retrying)
+  }, [])
 
   return {
     error,
@@ -165,6 +157,6 @@ export function useErrorHandler(): UseErrorHandlerReturn {
     retry,
     setRetry,
     isRetrying,
-    setRetrying,
-  };
+    setRetrying
+  }
 }

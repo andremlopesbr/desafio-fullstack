@@ -10,19 +10,19 @@
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
+    currency: 'BRL'
+  }).format(value)
+}
 
 export const formatDate = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('pt-BR');
-};
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleDateString('pt-BR')
+}
 
 export const formatDateTime = (date: string | Date): string => {
-   const dateObj = typeof date === 'string' ? new Date(date) : date;
-   return dateObj.toLocaleString('pt-BR');
- };
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleString('pt-BR')
+}
 
 /**
  * Converte valor de reais para centavos para envio à API
@@ -33,10 +33,9 @@ export const formatDateTime = (date: string | Date): string => {
  * Exemplo: 9.90 → 990, 87.00 → 8700
  */
 export const convertToCents = (valueInReais: number): number => {
-  // Primeiro converter para número caso seja string
-  const numericValue = typeof valueInReais === 'string' ? parseFloat(valueInReais) : valueInReais;
-  return Math.round(numericValue * 100);
-};
+  const numericValue = typeof valueInReais === 'string' ? parseFloat(valueInReais) : valueInReais
+  return Math.round(numericValue * 100)
+}
 
 /**
  * Converte valor de centavos para reais
@@ -47,8 +46,8 @@ export const convertToCents = (valueInReais: number): number => {
  * Exemplo: 990 → 9.90
  */
 export const convertToReais = (valueInCents: number): number => {
-  return valueInCents / 100;
-};
+  return valueInCents / 100
+}
 
 /**
  * Calcula data de fim de contrato baseado em ciclo mensal
@@ -68,27 +67,22 @@ export const convertToReais = (valueInCents: number): number => {
  * ```
  */
 export const calculateContractEndDate = (startDate: Date | string): string => {
-  const start = startDate instanceof Date ? startDate : new Date(startDate);
+  const start = startDate instanceof Date ? startDate : new Date(startDate)
 
   if (isNaN(start.getTime())) {
-    throw new Error("Data de início inválida");
+    throw new Error('Data de início inválida')
   }
 
-  const currentDay = start.getDate();
-  const currentMonth = start.getMonth();
-  const currentYear = start.getFullYear();
-
-  // Calcular data do próximo mês com o mesmo dia
-  let endDate = new Date(currentYear, currentMonth + 1, currentDay);
-
-  // Verificar se o mês avançou devido a dia inválido (ex.: 31 em mês com 30 dias)
-  if (endDate.getMonth() !== ((currentMonth + 1) % 12)) {
-    // Se houve overflow, definir para o último dia do mês seguinte
-    endDate = new Date(currentYear, currentMonth + 1, 0);
+  const currentDay = start.getDate()
+  const currentMonth = start.getMonth()
+  const currentYear = start.getFullYear()
+  let endDate = new Date(currentYear, currentMonth + 1, currentDay)
+  if (endDate.getMonth() !== (currentMonth + 1) % 12) {
+    endDate = new Date(currentYear, currentMonth + 1, 0)
   }
 
-  return endDate.toISOString();
-};
+  return endDate.toISOString()
+}
 
 /**
  * Calcula duração em dias entre duas datas
@@ -96,17 +90,20 @@ export const calculateContractEndDate = (startDate: Date | string): string => {
  * @param endDate - Data de fim
  * @returns Número de dias entre as datas
  */
-export const calculateDaysDifference = (startDate: Date | string, endDate: Date | string): number => {
-  const start = startDate instanceof Date ? startDate : new Date(startDate);
-  const end = endDate instanceof Date ? endDate : new Date(endDate);
+export const calculateDaysDifference = (
+  startDate: Date | string,
+  endDate: Date | string
+): number => {
+  const start = startDate instanceof Date ? startDate : new Date(startDate)
+  const end = endDate instanceof Date ? endDate : new Date(endDate)
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    throw new Error("Datas inválidas para cálculo de diferença");
+    throw new Error('Datas inválidas para cálculo de diferença')
   }
 
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
+  const diffTime = Math.abs(end.getTime() - start.getTime())
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
 
 /**
  * Helper para tratamento seguro de dados do usuário autenticado
@@ -128,17 +125,19 @@ export const calculateDaysDifference = (startDate: Date | string, endDate: Date 
  * // Usar dados seguros: userData.id, userData.name, userData.email
  * ```
  */
-export const getAuthenticatedUserData = (user: { id: number; name: string; email?: string } | null) => {
+export const getAuthenticatedUserData = (
+  user: { id: number; name: string; email?: string } | null
+) => {
   if (!user || !user.id || !user.name) {
-    return null;
+    return null
   }
 
   return {
     id: user.id,
     name: user.name,
-    email: user.email || ""
-  };
-};
+    email: user.email || ''
+  }
+}
 
 /**
  * Helper para criar dados de usuário fallback seguros para desenvolvimento
@@ -147,7 +146,7 @@ export const getAuthenticatedUserData = (user: { id: number; name: string; email
 export const getFallbackUserData = () => {
   return {
     id: 1,
-    name: "Usuário Teste",
-    email: "teste@inmediam.com"
-  };
-};
+    name: 'Usuário Teste',
+    email: 'teste@inmediam.com'
+  }
+}

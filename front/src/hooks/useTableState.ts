@@ -1,19 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react'
 
 /**
  * Hook personalizado para gerenciar estado de tabelas com filtros e paginação
  */
 export interface SortConfig {
-  field: string;
-  direction: 'asc' | 'desc';
+  field: string
+  direction: 'asc' | 'desc'
 }
 
 export interface FilterConfig {
-  search: string;
-  status: string;
+  search: string
+  status: string
 }
 
-export function useTableState<T extends Record<string, any>>(
+export function useTableState<T extends Record<string, unknown>>(
   items: T[],
   initialSortField: string,
   searchFields: string[],
@@ -22,100 +22,87 @@ export function useTableState<T extends Record<string, any>>(
 ) {
   const [filters, setFilters] = useState<FilterConfig>({
     search: '',
-    status: 'all',
-  });
+    status: 'all'
+  })
 
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     field: initialSortField,
-    direction: 'asc',
-  });
+    direction: 'asc'
+  })
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1)
 
   const filteredAndSortedItems = useMemo(() => {
-    let filtered = items;
-
-    // Aplicar filtro de busca
+    let filtered = items
     if (filters.search) {
       filtered = filtered.filter(item =>
         searchFields.some(field =>
           String(item[field]).toLowerCase().includes(filters.search.toLowerCase())
         )
-      );
+      )
     }
-
-    // Aplicar filtro de status
     if (filters.status && filters.status !== 'all' && statusFilter) {
-      filtered = filtered.filter(item => statusFilter(item, filters.status));
+      filtered = filtered.filter(item => statusFilter(item, filters.status))
     }
-
-    // Aplicar ordenação
     return [...filtered].sort((a, b) => {
-      const aValue = a[sortConfig.field];
-      const bValue = b[sortConfig.field];
+      const aValue = a[sortConfig.field] as string | number
+      const bValue = b[sortConfig.field] as string | number
 
-      let comparison = 0;
-      if (aValue < bValue) comparison = -1;
-      if (aValue > bValue) comparison = 1;
+      let comparison = 0
+      if (aValue < bValue) comparison = -1
+      if (aValue > bValue) comparison = 1
 
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  }, [items, filters, sortConfig, searchFields, statusFilter]);
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+  }, [items, filters, sortConfig, searchFields, statusFilter])
 
   const paginationInfo = useMemo(() => {
-    const totalItems = filteredAndSortedItems.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalItems);
-    const paginatedItems = filteredAndSortedItems.slice(startIndex, endIndex);
+    const totalItems = filteredAndSortedItems.length
+    const totalPages = Math.ceil(totalItems / pageSize)
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = Math.min(startIndex + pageSize, totalItems)
+    const paginatedItems = filteredAndSortedItems.slice(startIndex, endIndex)
 
     return {
       paginatedItems,
       totalPages,
       startIndex,
-      endIndex,
-    };
-  }, [filteredAndSortedItems, currentPage, pageSize]);
+      endIndex
+    }
+  }, [filteredAndSortedItems, currentPage, pageSize])
 
   const handleSort = (field: string) => {
     setSortConfig(prev => ({
       field,
-      direction: prev.field === field
-        ? (prev.direction === 'asc' ? 'desc' : 'asc')
-        : 'asc',
-    }));
-    setCurrentPage(1); // Reset para primeira página quando ordenar
-  };
+      direction: prev.field === field ? (prev.direction === 'asc' ? 'desc' : 'asc') : 'asc'
+    }))
+    setCurrentPage(1) // Reset para primeira página quando ordenar
+  }
 
   const handleSearchChange = (search: string) => {
-    setFilters(prev => ({ ...prev, search }));
-    setCurrentPage(1); // Reset para primeira página quando filtrar
-  };
+    setFilters(prev => ({ ...prev, search }))
+    setCurrentPage(1) // Reset para primeira página quando filtrar
+  }
 
   const handleStatusFilterChange = (status: string) => {
-    setFilters(prev => ({ ...prev, status }));
-    setCurrentPage(1); // Reset para primeira página quando filtrar
-  };
+    setFilters(prev => ({ ...prev, status }))
+    setCurrentPage(1) // Reset para primeira página quando filtrar
+  }
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+    setCurrentPage(page)
+  }
 
   return {
-    // Estado
     filters,
     sortConfig,
     currentPage,
     filteredAndSortedItems,
     ...paginationInfo,
-
-    // Ações
     handleSort,
     handleSearchChange,
     handleStatusFilterChange,
     handlePageChange,
-
-    // Computed
-    hasActiveFilters: filters.search !== '' || filters.status !== 'all',
-  };
+    hasActiveFilters: filters.search !== '' || filters.status !== 'all'
+  }
 }

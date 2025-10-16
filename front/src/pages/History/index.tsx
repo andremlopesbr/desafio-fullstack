@@ -1,17 +1,16 @@
-import { useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useApiData } from '../../hooks/useApiData';
-import { useAuth } from '../../hooks/useAuth';
-import { Breadcrumbs } from '../../components/ui';
-import { HistoryTable } from '../../components/domain';
-import Layout from '../../components/Layout';
-import { formatCurrency } from '../../utils/formatters';
-import { Payment } from '../../types';
-
+import { useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
+import { useApiData } from '../../hooks/useApiData'
+import { useAuth } from '../../hooks/useAuth'
+import { Breadcrumbs } from '../../components/ui'
+import { HistoryTable } from '../../components/domain'
+import Layout from '../../components/Layout'
+import { formatCurrency } from '../../utils/formatters'
+import { Payment } from '../../types'
 
 export const History = () => {
-  const { user } = useAuth();
-  const userId = user?.id || 0;
+  const { user } = useAuth()
+  const userId = user?.id || 0
   const {
     contracts,
     contractsLoading,
@@ -21,70 +20,53 @@ export const History = () => {
     refreshContracts,
     refreshPayments,
     refreshBalance
-  } = useApiData();
+  } = useApiData()
 
-  // Estabilizar função com useCallback para evitar múltiplas requisições
   const loadHistoryData = useCallback(async () => {
     try {
-      await Promise.all([
-        refreshContracts(userId),
-        refreshPayments(userId),
-        refreshBalance(userId)
-      ]);
+      await Promise.all([refreshContracts(userId), refreshPayments(userId), refreshBalance(userId)])
     } catch (error) {
-      console.error('Erro ao carregar dados do histórico:', error);
+      console.error('Erro ao carregar dados do histórico:', error)
     }
-  }, [userId, refreshContracts, refreshPayments, refreshBalance]);
+  }, [userId, refreshContracts, refreshPayments, refreshBalance])
 
-  // Carregar dados iniciais
   useEffect(() => {
     if (userId) {
-      loadHistoryData();
+      loadHistoryData()
     }
-  }, [userId, loadHistoryData]);
+  }, [userId, loadHistoryData])
 
-  const loading = contractsLoading || paymentsLoading;
-
-  console.log('📊 [HISTORY PAGE] Dados carregados:', {
-    userId,
-    contracts: contracts.length,
-    payments: payments.length,
-    contractsLoading,
-    paymentsLoading: loading
-  })
+  const loading = contractsLoading || paymentsLoading
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
 
-  // Ordenar contratos: plano ativo primeiro, depois por data de criação descendente
   const sortedContracts = [...contracts].sort((a, b) => {
-    // Priorizar plano ativo
-    if (a.status === 'active' && b.status !== 'active') return -1;
-    if (a.status !== 'active' && b.status === 'active') return 1;
-    // Para contratos não ativos ou ambos ativos, ordenar por data descendente
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+    if (a.status === 'active' && b.status !== 'active') return -1
+    if (a.status !== 'active' && b.status === 'active') return 1
 
-  // Itens de histórico combinando contratos e seus pagamentos
-  const historyItems = sortedContracts.map((contract) => {
-    const contractPayments = payments.filter((p: Payment) => p.contract_id === contract.id);
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const historyItems = sortedContracts.map(contract => {
+    const contractPayments = payments.filter((p: Payment) => p.contract_id === contract.id)
 
     return {
       contract,
-      payments: contractPayments,
-    };
-  });
-
-  console.log('📈 [HISTORY PAGE] Itens de histórico processados:', historyItems.length)
+      payments: contractPayments
+    }
+  })
 
   return (
-    <Layout user={{ id: userId, name: user?.name || "Usuário da Silva" }}>
+    <Layout user={{ id: userId, name: user?.name || 'Usuário da Silva' }}>
       <Breadcrumbs items={[{ name: 'Histórico', href: '/history' }]} />
 
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6">
-          <Link to="/" className="text-blue-500 hover:underline mb-2 sm:mb-0">&larr; Voltar aos Planos</Link>
+          <Link to="/" className="text-blue-500 hover:underline mb-2 sm:mb-0">
+            &larr; Voltar aos Planos
+          </Link>
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 sm:px-4 py-2">
             <span className="text-sm font-medium text-blue-800">Saldo: </span>
             <span className="text-base sm:text-lg font-bold text-blue-900">
@@ -109,14 +91,12 @@ export const History = () => {
           />
 
           {!loading && historyItems.length === 0 && (
-            <p className="text-gray-500 text-center py-8">
-              Nenhum plano contratado ainda.
-            </p>
+            <p className="text-gray-500 text-center py-8">Nenhum plano contratado ainda.</p>
           )}
         </div>
       </div>
     </Layout>
-  );
-};
+  )
+}
 
-export default History;
+export default History

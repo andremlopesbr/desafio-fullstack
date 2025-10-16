@@ -1,33 +1,28 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
 
 const Login = () => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate()
+  const { login } = useAuth()
+  const [loading, setLoading] = useState(false)
 
   const handleLogin = () => {
-    setLoading(true);
-
-    // Simulação de login - cria usuário demo e salva no contexto
-    // Sistema de autenticação implementado: dados propagados automaticamente pelo AuthContext
+    setLoading(true)
     const demoUser = {
       id: 1,
       name: 'Usuário da Silva',
       email: 'usuario@silva.com'
-    };
+    }
 
-    login(demoUser);
-
-    // Navegação imediata após login
-    navigate('/');
-  };
+    login(demoUser)
+    navigate('/')
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleLogin();
-  };
+    e.preventDefault()
+    handleLogin()
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -66,14 +61,22 @@ const Login = () => {
 
         <div className="mt-6 text-center text-sm text-gray-600 bg-blue-50 p-4 rounded">
           <h3 className="font-semibold mb-2 text-blue-800">Ambiente de Demonstração</h3>
-          <p className="mb-1"><strong>Nome:</strong> Usuário da Silva</p>
-          <p className="mb-1"><strong>Email:</strong> usuario@silva.com</p>
-          <p className="mb-1"><strong>Senha:</strong> password123</p>
-          <p className="text-xs mt-2 text-blue-600">Clique em "Entrar" para acessar o sistema e testar todas as funcionalidades.</p>
+          <p className="mb-1">
+            <strong>Nome:</strong> Usuário da Silva
+          </p>
+          <p className="mb-1">
+            <strong>Email:</strong> usuario@silva.com
+          </p>
+          <p className="mb-1">
+            <strong>Senha:</strong> password123
+          </p>
+          <p className="text-xs mt-2 text-blue-600">
+            Clique em &ldquo;Entrar&rdquo; para acessar o sistema e testar todas as funcionalidades.
+          </p>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Login;
+export default Login

@@ -1,52 +1,50 @@
-import { useApiMutation } from './useApiMutation';
+import { useApiMutation } from './useApiMutation'
 
 interface Contract {
-  id: number;
-  user_id: number;
-  plan_id: number;
-  start_date: string | null;
-  end_date: string | null;
-  status: string | null;
-  created_at: string;
-  updated_at: string;
+  id: number
+  user_id: number
+  plan_id: number
+  start_date: string | null
+  end_date: string | null
+  status: string | null
+  created_at: string
+  updated_at: string
   plan: {
-    id: number;
-    description: string;
-    numberOfClients: number;
-    gigabytesStorage: number;
-    price: number;
-    active: boolean;
-  };
+    id: number
+    description: string
+    numberOfClients: number
+    gigabytesStorage: number
+    price: number
+    active: boolean
+  }
 }
 
 interface ChangePlanResult {
-  contract: Contract;
-  credits_available: number;
-  discount_applied: number;
-  final_amount: number;
-  remaining_credit: number;
+  contract: Contract
+  credits_available: number
+  discount_applied: number
+  final_amount: number
+  remaining_credit: number
 }
 
 /**
  * Hook para alteração de planos
  */
 export function useChangePlan() {
-  const { data, loading, error, execute } = useApiMutation<ChangePlanResult>();
+  const { data, loading, error, execute } = useApiMutation<ChangePlanResult>()
 
-  const changePlan = async (contractId: number, newPlanId: number): Promise<ChangePlanResult | null> => {
-    console.log('🔄 [USE_CHANGE_PLAN] Iniciando troca de plano', { contractId, newPlanId });
+  const changePlan = async (
+    contractId: number,
+    newPlanId: number
+  ): Promise<ChangePlanResult | null> => {
     const result = await execute(
       `/contracts/${contractId}/change-plan`,
       { method: 'PATCH' },
       { new_plan_id: newPlanId }
-    );
+    )
 
-    if (result) {
-      console.log('✅ [USE_CHANGE_PLAN] Troca de plano bem-sucedida', result);
-    }
+    return result
+  }
 
-    return result;
-  };
-
-  return { changePlan, data, loading, error };
+  return { changePlan, data, loading, error }
 }

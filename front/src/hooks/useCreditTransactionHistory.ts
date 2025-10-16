@@ -1,50 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react'
 
 interface CreditTransaction {
-  id: number;
-  user_id: number;
-  amount: number;
-  type: 'credit' | 'debit';
-  description: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  id: number
+  user_id: number
+  amount: number
+  type: 'credit' | 'debit'
+  description: string
+  metadata?: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
 export function useCreditTransactionHistory(userId: number) {
-  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchTransactions = useCallback(async () => {
-    console.log('🔄 [HOOK useCreditTransactionHistory] Iniciando busca de transações de crédito para userId:', userId);
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     try {
-      const apiUrl = `${import.meta.env.VITE_API_URL}/users/${userId}/balance-history`;
-      console.log('🌐 [HOOK useCreditTransactionHistory] Fazendo requisição para:', apiUrl);
+      const apiUrl = `${import.meta.env.VITE_API_URL}/users/${userId}/balance-history`
+      const response = await fetch(apiUrl)
+      if (!response.ok) throw new Error('Failed to fetch balance history')
 
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error('Failed to fetch balance history');
-
-      const data = await response.json();
-      console.log('✅ [HOOK useCreditTransactionHistory] Transações recebidas:', data.length, 'registros');
-      setTransactions(data);
+      const data = await response.json()
+      setTransactions(data)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('❌ [HOOK useCreditTransactionHistory] Erro ao buscar transações:', errorMsg);
-      setError(errorMsg);
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('❌ [HOOK useCreditTransactionHistory] Erro ao buscar transações:', errorMsg)
+      setError(errorMsg)
     } finally {
-      setLoading(false);
-      console.log('🏁 [HOOK useCreditTransactionHistory] Busca finalizada');
+      setLoading(false)
     }
-  }, [userId]);
+  }, [userId])
 
   useEffect(() => {
     if (userId) {
-      fetchTransactions();
+      fetchTransactions()
     }
-  }, [userId, fetchTransactions]);
+  }, [userId, fetchTransactions])
 
-  return { transactions, loading, error, refetch: fetchTransactions };
+  return { transactions, loading, error, refetch: fetchTransactions }
 }

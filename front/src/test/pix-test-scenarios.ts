@@ -7,44 +7,44 @@
  */
 
 export interface PixTestScenario {
-  id: string;
-  nome: string;
-  descricao: string;
-  planoAtual: PlanoTeste;
-  planoDestino: PlanoTeste;
-  dataCenario: Date;
-  dadosUsuario: DadosUsuario;
-  resultadoEsperado: ResultadoEsperado;
-  passosValidacao: PassoValidacao[];
+  id: string
+  nome: string
+  descricao: string
+  planoAtual: PlanoTeste
+  planoDestino: PlanoTeste
+  dataCenario: Date
+  dadosUsuario: DadosUsuario
+  resultadoEsperado: ResultadoEsperado
+  passosValidacao: PassoValidacao[]
 }
 
 export interface PlanoTeste {
-  id: number;
-  nome: string;
-  preco: number;
-  clientes: number;
-  armazenamento: number;
+  id: number
+  nome: string
+  preco: number
+  clientes: number
+  armazenamento: number
 }
 
 export interface DadosUsuario {
-  saldoAtual: number;
-  contratosAtivos: number;
-  historicoPagamentos: number;
+  saldoAtual: number
+  contratosAtivos: number
+  historicoPagamentos: number
 }
 
 export interface ResultadoEsperado {
-  valorAPagar: number;
-  creditosAplicados: number;
-  creditosGerados: number;
-  saldoRestante: number;
-  valorProporcional: number;
+  valorAPagar: number
+  creditosAplicados: number
+  creditosGerados: number
+  saldoRestante: number
+  valorProporcional: number
 }
 
 export interface PassoValidacao {
-  descricao: string;
-  elemento: string;
-  valorEsperado: string | number | boolean;
-  tipo: 'visual' | 'calculo' | 'estado' | 'mensagem';
+  descricao: string
+  elemento: string
+  valorEsperado: string | number | boolean
+  tipo: 'visual' | 'calculo' | 'estado' | 'mensagem'
 }
 
 /**
@@ -58,14 +58,14 @@ export const cenario1: PixTestScenario = {
   planoAtual: {
     id: 1,
     nome: 'Individual',
-    preco: 9.90,
+    preco: 9.9,
     clientes: 1,
     armazenamento: 1
   },
   planoDestino: {
     id: 2,
     nome: 'Até 10 vistorias',
-    preco: 87.00,
+    preco: 87.0,
     clientes: 10,
     armazenamento: 10
   },
@@ -76,11 +76,11 @@ export const cenario1: PixTestScenario = {
     historicoPagamentos: 5
   },
   resultadoEsperado: {
-    valorAPagar: 77.10, // 87.00 - 9.90
-    creditosAplicados: 9.90,
+    valorAPagar: 77.1, // 87.00 - 9.90
+    creditosAplicados: 9.9,
     creditosGerados: 0,
     saldoRestante: 0,
-    valorProporcional: 9.90
+    valorProporcional: 9.9
   },
   passosValidacao: [
     {
@@ -114,7 +114,7 @@ export const cenario1: PixTestScenario = {
       tipo: 'estado'
     }
   ]
-};
+}
 
 /**
  * CENÁRIO 2: Upgrade com utilização de créditos
@@ -127,29 +127,29 @@ export const cenario2: PixTestScenario = {
   planoAtual: {
     id: 1,
     nome: 'Individual',
-    preco: 9.90,
+    preco: 9.9,
     clientes: 1,
     armazenamento: 1
   },
   planoDestino: {
     id: 2,
     nome: 'Até 10 vistorias',
-    preco: 87.00,
+    preco: 87.0,
     clientes: 10,
     armazenamento: 10
   },
   dataCenario: new Date(),
   dadosUsuario: {
-    saldoAtual: 50.00,
+    saldoAtual: 50.0,
     contratosAtivos: 1,
     historicoPagamentos: 3
   },
   resultadoEsperado: {
-    valorAPagar: 37.10, // 87.00 - 9.90 - 40.00 (créditos utilizados)
-    creditosAplicados: 40.00,
+    valorAPagar: 37.1, // 87.00 - 9.90 - 40.00 (créditos utilizados)
+    creditosAplicados: 40.0,
     creditosGerados: 0,
-    saldoRestante: 10.00,
-    valorProporcional: 9.90
+    saldoRestante: 10.0,
+    valorProporcional: 9.9
   },
   passosValidacao: [
     {
@@ -177,7 +177,7 @@ export const cenario2: PixTestScenario = {
       tipo: 'calculo'
     }
   ]
-};
+}
 
 /**
  * CENÁRIO 3: Downgrade sem geração de créditos
@@ -190,20 +190,20 @@ export const cenario3: PixTestScenario = {
   planoAtual: {
     id: 2,
     nome: 'Até 10 vistorias',
-    preco: 87.00,
+    preco: 87.0,
     clientes: 10,
     armazenamento: 10
   },
   planoDestino: {
     id: 1,
     nome: 'Individual',
-    preco: 9.90,
+    preco: 9.9,
     clientes: 1,
     armazenamento: 1
   },
   dataCenario: new Date(),
   dadosUsuario: {
-    saldoAtual: 25.00,
+    saldoAtual: 25.0,
     contratosAtivos: 1,
     historicoPagamentos: 8
   },
@@ -211,8 +211,8 @@ export const cenario3: PixTestScenario = {
     valorAPagar: 0,
     creditosAplicados: 0,
     creditosGerados: 0,
-    saldoRestante: 25.00,
-    valorProporcional: 87.00
+    saldoRestante: 25.0,
+    valorProporcional: 87.0
   },
   passosValidacao: [
     {
@@ -240,7 +240,7 @@ export const cenario3: PixTestScenario = {
       tipo: 'visual'
     }
   ]
-};
+}
 
 /**
  * CENÁRIO 4: Downgrade com geração de créditos
@@ -253,14 +253,14 @@ export const cenario4: PixTestScenario = {
   planoAtual: {
     id: 3,
     nome: 'Até 25 vistorias',
-    preco: 197.00,
+    preco: 197.0,
     clientes: 25,
     armazenamento: 25
   },
   planoDestino: {
     id: 2,
     nome: 'Até 10 vistorias',
-    preco: 87.00,
+    preco: 87.0,
     clientes: 10,
     armazenamento: 10
   },
@@ -272,10 +272,10 @@ export const cenario4: PixTestScenario = {
   },
   resultadoEsperado: {
     valorAPagar: 0,
-    creditosAplicados: 87.00,
-    creditosGerados: 110.00, // 197.00 - 87.00
-    saldoRestante: 110.00,
-    valorProporcional: 197.00
+    creditosAplicados: 87.0,
+    creditosGerados: 110.0, // 197.00 - 87.00
+    saldoRestante: 110.0,
+    valorProporcional: 197.0
   },
   passosValidacao: [
     {
@@ -303,7 +303,7 @@ export const cenario4: PixTestScenario = {
       tipo: 'mensagem'
     }
   ]
-};
+}
 
 /**
  * CENÁRIO 5: Mudança no mesmo dia
@@ -316,14 +316,14 @@ export const cenario5: PixTestScenario = {
   planoAtual: {
     id: 2,
     nome: 'Até 10 vistorias',
-    preco: 87.00,
+    preco: 87.0,
     clientes: 10,
     armazenamento: 10
   },
   planoDestino: {
     id: 3,
     nome: 'Até 25 vistorias',
-    preco: 197.00,
+    preco: 197.0,
     clientes: 25,
     armazenamento: 25
   },
@@ -334,11 +334,11 @@ export const cenario5: PixTestScenario = {
     historicoPagamentos: 2
   },
   resultadoEsperado: {
-    valorAPagar: 110.00, // 197.00 - 87.00 (100% do crédito proporcional)
-    creditosAplicados: 87.00,
+    valorAPagar: 110.0, // 197.00 - 87.00 (100% do crédito proporcional)
+    creditosAplicados: 87.0,
     creditosGerados: 0,
     saldoRestante: 0,
-    valorProporcional: 87.00
+    valorProporcional: 87.0
   },
   passosValidacao: [
     {
@@ -366,7 +366,7 @@ export const cenario5: PixTestScenario = {
       tipo: 'mensagem'
     }
   ]
-};
+}
 
 /**
  * Array com todos os cenários PIX para execução sistemática
@@ -377,7 +377,7 @@ export const cenariosPixTeste: PixTestScenario[] = [
   cenario3,
   cenario4,
   cenario5
-];
+]
 
 /**
  * Cenários organizados por tipo para facilitar execução específica
@@ -388,18 +388,18 @@ export const cenariosPorTipo = {
   mesmoDia: [cenario5],
   comCreditos: [cenario2, cenario4],
   semCreditos: [cenario1, cenario3]
-};
+}
 
 /**
  * Utilitário para executar validações de cenário
  */
 export class ValidadorCenarioPix {
   static async executarCenario(cenario: PixTestScenario): Promise<ResultadoValidacao> {
-    const resultados: ResultadoPasso[] = [];
+    const resultados: ResultadoPasso[] = []
 
     for (const passo of cenario.passosValidacao) {
-      const resultado = await this.validarPasso(passo);
-      resultados.push(resultado);
+      const resultado = await this.validarPasso(passo)
+      resultados.push(resultado)
     }
 
     return {
@@ -408,14 +408,12 @@ export class ValidadorCenarioPix {
       totalPassos: resultados.length,
       passosSucesso: resultados.filter(r => r.sucesso).length,
       resultados
-    };
+    }
   }
 
   private static async validarPasso(passo: PassoValidacao): Promise<ResultadoPasso> {
-    // Simulação de validação - em ambiente real seria implementado
-    // com ferramentas como Cypress, Playwright, etc.
-    const elementoEncontrado = true; // Simulado
-    const valorCorreto = true; // Simulado
+    const elementoEncontrado = true // Simulado
+    const valorCorreto = true // Simulado
 
     return {
       passo: passo.descricao,
@@ -424,23 +422,23 @@ export class ValidadorCenarioPix {
       valorEncontrado: 'valor_simulado',
       valorEsperado: passo.valorEsperado,
       tipo: passo.tipo
-    };
+    }
   }
 }
 
 export interface ResultadoValidacao {
-  cenario: string;
-  sucesso: boolean;
-  totalPassos: number;
-  passosSucesso: number;
-  resultados: ResultadoPasso[];
+  cenario: string
+  sucesso: boolean
+  totalPassos: number
+  passosSucesso: number
+  resultados: ResultadoPasso[]
 }
 
 export interface ResultadoPasso {
-  passo: string;
-  elemento: string;
-  sucesso: boolean;
-  valorEncontrado: string;
-  valorEsperado: string | number | boolean;
-  tipo: string;
+  passo: string
+  elemento: string
+  sucesso: boolean
+  valorEncontrado: string
+  valorEsperado: string | number | boolean
+  tipo: string
 }

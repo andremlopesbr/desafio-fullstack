@@ -1,13 +1,13 @@
-import React from 'react';
-import { usePlans } from './hooks/usePlans';
-import { useAuth } from './hooks/useAuth';
-import { useHomePage } from './hooks/useHomePage';
-import Header from './components/Header';
-import { PlanCard } from './components/domain';
-import { Plano } from './types';
-import { ErrorBoundary, ApiErrorBoundary } from './components/error';
-import { ErrorMessage } from './components/ui/ErrorMessage';
-import { useErrorHandler } from './hooks/useErrorHandler';
+import React from 'react'
+import { usePlans } from './hooks/usePlans'
+import { useAuth } from './hooks/useAuth'
+import { useHomePage } from './hooks/useHomePage'
+import Header from './components/Header'
+import { PlanCard } from './components/domain'
+import { Plano } from './types'
+import { ErrorBoundary, ApiErrorBoundary } from './components/error'
+import { ErrorMessage } from './components/ui/ErrorMessage'
+import { useErrorHandler } from './hooks/useErrorHandler'
 
 /**
  * Componente principal da aplicação com tratamento robusto de erros.
@@ -17,18 +17,17 @@ import { useErrorHandler } from './hooks/useErrorHandler';
  * problemas inesperados.
  */
 export function App() {
-  const { user } = useAuth();
-  const { error, retry, setRetry } = useErrorHandler();
+  const { user } = useAuth()
+  const { error, retry, setRetry } = useErrorHandler()
 
-  const { plans, plansLoading, plansError, refreshPlans } = usePlans();
-  const { contracts, contractsLoading, handleSelecionarPlano, isCurrentPlan } = useHomePage();
+  const { plans, plansLoading, plansError, refreshPlans } = usePlans()
+  const { contracts, contractsLoading, handleSelecionarPlano, isCurrentPlan } = useHomePage()
 
-  // Configurar função de retry para dados da API
   React.useEffect(() => {
     if (plansError && refreshPlans) {
-      setRetry(() => refreshPlans);
+      setRetry(() => refreshPlans)
     }
-  }, [plansError, refreshPlans, setRetry]);
+  }, [plansError, refreshPlans, setRetry])
 
   if (plansLoading || contractsLoading) {
     return (
@@ -38,13 +37,13 @@ export function App() {
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        console.error('Erro crítico na aplicação:', error, errorInfo);
+        console.error('Erro crítico na aplicação:', error, errorInfo)
       }}
       resetOnPropsChange
       resetKeys={user?.id ? [user.id] : []}
@@ -59,11 +58,7 @@ export function App() {
         <main className="p-4 sm:p-6 lg:p-8">
           <div className="w-full max-w-6xl mx-auto">
             {error && (
-              <ErrorMessage
-                error={error.message}
-                retry={retry || undefined}
-                className="mb-6"
-              />
+              <ErrorMessage error={error.message} retry={retry || undefined} className="mb-6" />
             )}
 
             <ApiErrorBoundary context="Dados do contrato atual">
@@ -71,7 +66,8 @@ export function App() {
                 <div className="bg-white p-6 rounded-xl shadow-md mb-8">
                   <h2 className="text-2xl font-bold text-gray-800">Seu Plano Atual</h2>
                   <p className="text-gray-600 mt-2">
-                    Você está atualmente no <span className="font-bold">{contracts[0].plan.description}</span>.
+                    Você está atualmente no{' '}
+                    <span className="font-bold">{contracts[0].plan.description}</span>.
                   </p>
                 </div>
               )}
@@ -93,5 +89,5 @@ export function App() {
         </main>
       </div>
     </ErrorBoundary>
-  );
+  )
 }

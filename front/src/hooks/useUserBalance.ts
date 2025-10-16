@@ -1,20 +1,20 @@
-import { useContext } from 'react';
-import { BalanceContext } from '../contexts/BalanceContext';
-import { AuthContext } from '../contexts/AuthContext';
+import { useContext } from 'react'
+import { BalanceContext } from '../contexts/BalanceContext'
+import { AuthContext } from '../contexts/AuthContext'
 
 export const useUserBalance = (userId?: number) => {
-  const balanceContext = useContext(BalanceContext);
-  const authContext = useContext(AuthContext);
+  const balanceContext = useContext(BalanceContext)
+  const authContext = useContext(AuthContext)
 
   if (!balanceContext) {
-    throw new Error('useUserBalance deve ser usado dentro de um BalanceProvider');
+    throw new Error('useUserBalance deve ser usado dentro de um BalanceProvider')
   }
 
   if (!authContext) {
-    throw new Error('useUserBalance deve ser usado dentro de um AuthProvider');
+    throw new Error('useUserBalance deve ser usado dentro de um AuthProvider')
   }
 
-  const targetUserId = userId || authContext.user?.id;
+  const targetUserId = userId || authContext.user?.id
 
   if (!targetUserId) {
     return {
@@ -23,12 +23,12 @@ export const useUserBalance = (userId?: number) => {
       balanceError: null,
       refreshBalance: () => {},
       refetch: () => {}
-    };
+    }
   }
 
   const refreshBalance = async () => {
-    await balanceContext.refreshBalance(targetUserId);
-  };
+    await balanceContext.refreshBalance(targetUserId)
+  }
 
   return {
     balance: balanceContext.balance,
@@ -36,5 +36,5 @@ export const useUserBalance = (userId?: number) => {
     balanceError: balanceContext.error,
     refreshBalance,
     refetch: refreshBalance
-  };
-};
+  }
+}

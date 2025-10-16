@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { useApiData } from '../../hooks/useApiData';
-import { Breadcrumbs } from '../../components/ui';
-import Layout from '../../components/Layout';
-import { formatCurrency } from '../../utils/formatters';
-import { Contract } from '../../types';
-import { UserBalance } from '../../components/ui';
+import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import { useApiData } from '../../hooks/useApiData'
+import { Breadcrumbs } from '../../components/ui'
+import Layout from '../../components/Layout'
+import { formatCurrency } from '../../utils/formatters'
+import { Contract } from '../../types'
+import { UserBalance } from '../../components/ui'
 
 /**
  * Página de Perfil do Usuário
@@ -15,90 +15,68 @@ import { UserBalance } from '../../components/ui';
  * Implementa loading simplificado e tratamento de erros robusto.
  */
 const Profile = () => {
-  const { user: authUser } = useAuth();
-  const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { contracts, contractsLoading, refreshContracts } = useApiData();
-
-  // Estado composto para verificar se dados estão prontos
+  const { user: authUser } = useAuth()
+  const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { contracts, contractsLoading, refreshContracts } = useApiData()
   const isDataReady = useMemo(() => {
-    if (contractsLoading) return false;
-    if (isLoading) return false;
-    return true;
-  }, [contractsLoading, isLoading]);
-
-  // Carregar dados do usuário e contratos
+    if (contractsLoading) return false
+    if (isLoading) return false
+    return true
+  }, [contractsLoading, isLoading])
   useEffect(() => {
-    console.log('🔄 [PROFILE] Iniciando carregamento de dados do perfil');
-    console.log('👤 [PROFILE] Usuário autenticado:', authUser);
-
     const loadProfileData = async () => {
-      setIsLoading(true);
+      setIsLoading(true)
       try {
-        // Usar dados do auth se disponível, caso contrário buscar da API
         if (authUser) {
-          console.log('✅ [PROFILE] Usando dados do usuário autenticado');
-          setUser(authUser);
+          setUser(authUser)
         } else {
-          console.log('🔍 [PROFILE] Buscando dados do usuário da API');
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/user`);
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/user`)
           if (response.ok) {
-            const userData = await response.json();
-            console.log('✅ [PROFILE] Dados do usuário obtidos da API:', userData);
-            setUser(userData);
+            const userData = await response.json()
+            setUser(userData)
           } else {
-            console.error('❌ [PROFILE] Erro ao buscar usuário:', response.status);
+            console.error('❌ [PROFILE] Erro ao buscar usuário:', response.status)
           }
         }
-
-        // Carregar contratos se usuário estiver disponível
         if (authUser?.id) {
-          console.log('📋 [PROFILE] Carregando contratos para usuário:', authUser.id);
-          await refreshContracts(authUser.id);
+          await refreshContracts(authUser.id)
         } else {
-          console.warn('⚠️ [PROFILE] Nenhum ID de usuário disponível para carregar contratos');
+          console.warn('⚠️ [PROFILE] Nenhum ID de usuário disponível para carregar contratos')
         }
       } catch (error) {
-        console.error('❌ [PROFILE] Erro ao carregar dados do perfil:', error);
+        console.error('❌ [PROFILE] Erro ao carregar dados do perfil:', error)
       } finally {
-        console.log('✅ [PROFILE] Carregamento de dados concluído');
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    loadProfileData();
-  }, [authUser, refreshContracts]);
-
-  // Loading state
+    loadProfileData()
+  }, [authUser, refreshContracts])
   if (!isDataReady) {
     return (
-      <Layout user={{ id: authUser?.id || 1, name: authUser?.name || "Carregando..." }}>
+      <Layout user={{ id: authUser?.id || 1, name: authUser?.name || 'Carregando...' }}>
         <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
           <div className="text-center">
             <div className="text-lg mb-2">Carregando perfil...</div>
             <div className="text-sm text-gray-500">
-              {contractsLoading ? "Carregando contratos..." : "Carregando dados do usuário..."}
+              {contractsLoading ? 'Carregando contratos...' : 'Carregando dados do usuário...'}
             </div>
           </div>
         </div>
       </Layout>
-    );
+    )
   }
-
-  // Error state
   if (!user) {
     return (
-      <Layout user={{ id: authUser?.id || 1, name: authUser?.name || "Erro" }}>
+      <Layout user={{ id: authUser?.id || 1, name: authUser?.name || 'Erro' }}>
         <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
           <div className="text-red-500 text-lg">Erro ao carregar perfil do usuário</div>
         </div>
       </Layout>
-    );
+    )
   }
-
-  // Encontrar contrato ativo
-  const activeContract = contracts.find((contract: Contract) => contract.status === 'active');
-
+  const activeContract = contracts.find((contract: Contract) => contract.status === 'active')
 
   return (
     <Layout user={{ id: user.id, name: user.name }}>
@@ -143,9 +121,15 @@ const Profile = () => {
                   </div>
                   <div className="space-y-1">
                     <p className="text-gray-900 font-medium">{activeContract.plan.description}</p>
-                    <p className="text-gray-700">Preço: {formatCurrency(activeContract.plan.price)}/mês</p>
-                    <p className="text-gray-700">Vistorias: {activeContract.plan.numberOfClients}</p>
-                    <p className="text-gray-700">Armazenamento: {activeContract.plan.gigabytesStorage} GB</p>
+                    <p className="text-gray-700">
+                      Preço: {formatCurrency(activeContract.plan.price)}/mês
+                    </p>
+                    <p className="text-gray-700">
+                      Vistorias: {activeContract.plan.numberOfClients}
+                    </p>
+                    <p className="text-gray-700">
+                      Armazenamento: {activeContract.plan.gigabytesStorage} GB
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -154,7 +138,9 @@ const Profile = () => {
                     <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
                     <span className="text-gray-600 font-medium">Nenhum Plano Ativo</span>
                   </div>
-                  <p className="text-gray-500 text-sm">Você ainda não possui um plano contratado.</p>
+                  <p className="text-gray-500 text-sm">
+                    Você ainda não possui um plano contratado.
+                  </p>
                 </div>
               )}
             </div>
@@ -171,7 +157,7 @@ const Profile = () => {
         </div>
       </div>
     </Layout>
-  );
-};
+  )
+}
 
-export default Profile;
+export default Profile

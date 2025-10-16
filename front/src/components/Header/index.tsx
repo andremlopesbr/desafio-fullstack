@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { User } from '../../types';
-import { useAuth } from '../../hooks/useAuth';
+import React, { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { User } from '../../types'
+import { useAuth } from '../../hooks/useAuth'
 
 interface HeaderProps {
-  user: User | null;
+  user: User | null
 }
 
 /**
@@ -26,23 +26,23 @@ interface HeaderProps {
  * @returns JSX.Element com cabeçalho completo da aplicação
  */
 const Header: React.FC<HeaderProps> = ({ user }) => {
-  const location = useLocation();
-  const { logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation()
+  const { logout } = useAuth()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navigation = [
-    { name: "Planos", href: "/", current: location.pathname === "/" },
+    { name: 'Planos', href: '/', current: location.pathname === '/' },
     {
-      name: "Histórico",
-      href: "/history",
-      current: location.pathname === "/history",
+      name: 'Histórico',
+      href: '/history',
+      current: location.pathname === '/history'
     },
     {
-      name: "Perfil",
-      href: "/profile",
-      current: location.pathname === "/profile",
-    },
-  ];
+      name: 'Perfil',
+      href: '/profile',
+      current: location.pathname === '/profile'
+    }
+  ]
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-20">
@@ -53,14 +53,14 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
               <Link to="/">Planos Corp</Link>
             </div>
             <nav className="hidden md:flex space-x-4">
-              {navigation.map((item) => (
+              {navigation.map(item => (
                 <Link
                   key={item.name}
                   to={item.href}
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
                     item.current
-                      ? "bg-orange-100 text-orange-700"
-                      : "text-gray-700 hover:text-orange-600 hover:bg-orange-50"
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:text-orange-600 hover:bg-orange-50'
                   }`}
                 >
                   {item.name}
@@ -82,9 +82,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             </button>
             {user && (
               <>
-                <span className="text-gray-700 hidden md:block">
-                  Olá, {user.name}
-                </span>
+                <span className="text-gray-700 hidden md:block">Olá, {user.name}</span>
                 <button
                   onClick={logout}
                   className="hidden md:block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -95,9 +93,11 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             )}
           </div>
         </div>
-        <div className={`md:hidden bg-white shadow-lg border-t border-gray-200 transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+        <div
+          className={`md:hidden bg-white shadow-lg border-t border-gray-200 transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}
+        >
           <nav className="px-4 py-4 space-y-2">
-            {navigation.map((item) => (
+            {navigation.map(item => (
               <Link
                 key={item.name}
                 to={item.href}
@@ -115,13 +115,11 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
           {user && (
             <div className="px-4 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
-                <span className="text-gray-700 text-base font-medium">
-                  Olá, {user.name}
-                </span>
+                <span className="text-gray-700 text-base font-medium">Olá, {user.name}</span>
                 <button
                   onClick={() => {
-                    logout();
-                    setIsMenuOpen(false);
+                    logout()
+                    setIsMenuOpen(false)
                   }}
                   className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
@@ -133,7 +131,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         </div>
       </div>
     </header>
-  );
-};
+  )
+}
 
-export default Header;
+export default Header
