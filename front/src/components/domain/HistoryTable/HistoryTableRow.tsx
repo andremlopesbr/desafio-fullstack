@@ -5,32 +5,23 @@ import { HistoryItem } from "../../../types";
 interface HistoryTableRowProps {
   item: HistoryItem;
   index: number;
-  currentPage: number;
-  pageSize: number;
   formatCurrency: (value: number) => string;
   formatDate: (dateString: string) => string;
 }
 
-/**
- * Componente responsável apenas pela renderização de uma linha da tabela
- */
 export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
   item,
   index,
-  currentPage,
-  pageSize,
   formatCurrency,
   formatDate
 }) => {
   const { contract, payments } = item;
 
   return (
-    <TableRow className="bg-white">
-      {/* Order Exibição */}
+    <TableRow className="bg-white" key={item.contract.id}>
       <TableCell className="bg-white font-medium text-gray-500 border-b border-gray-100">
-        {(currentPage - 1) * pageSize + index + 1}
+        {index + 1}
       </TableCell>
-      {/* Coluna ID */}
       <TableCell className="bg-white font-medium text-gray-500 border-b border-gray-100">
         #{contract.id}
       </TableCell>
@@ -61,24 +52,7 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
           const { prorated_old = 0, prorated_new = 0, applied_credits = 0, discount_applied = 0, credits_generated = 0 } = latestPayment;
           const discountLines = [];
 
-          // DIAGNOSTIC LOGS - validar lógica de negócio conforme DEBUG.md
-          console.log('=== DIAGNÓSTICO HistoryTableRow ===');
-          console.log('Dados recebidos:', {
-            prorated_old,
-            prorated_new,
-            applied_credits,
-            discount_applied,
-            credits_generated,
-            amount: latestPayment.amount
-          });
-
-          // Validação adicional - comparar com exemplos da API
-          console.log('🔍 ANÁLISE COMPARATIVA:');
-          console.log('Exemplo 1 (upgrade): prorated_old=9.90, prorated_new=87.00, applied_credits=0.00, credits_generated=0.00, discount_applied=9.90');
-          console.log('Exemplo 2 (downgrade): prorated_old=87.00, prorated_new=9.90, applied_credits=0.00, credits_generated=77.10, discount_applied=9.90');
-          console.log('Dados atuais:', { prorated_old, prorated_new, discount_applied, credits_generated, applied_credits });
-
-          // Cenário Detection Logic (Based on API Data) - conforme DEBUG.md
+          // Cenário Detection Logic (Based on API Data)
           let scenario = 'OTHER';
           if (prorated_old === 0 && applied_credits === 0 && discount_applied === 0 && credits_generated === 0) {
             scenario = 'INITIAL_CONTRACT';
@@ -90,117 +64,63 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
             scenario = 'CREDITS_APPLIED';
           }
 
-          console.log('🔍 CENÁRIO DETECTADO:', scenario);
-
-          // Display Formatting Rules - conforme DEBUG.md
-          console.log('📋 CONSTRUINDO EXIBIÇÃO baseada no cenário:', scenario);
 
           // Cenário 1: Contratação Inicial
           if (scenario === 'INITIAL_CONTRACT') {
-            console.log('✅ Cenário 1: Contratação Inicial - sem descontos');
             return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
           }
 
-          // Cenário 2: Upgrade - formato específico solicitado
           if (scenario === 'UPGRADE') {
-            console.log('📈 Cenário Upgrade detectado');
-
-            // Créditos Aplicados (sempre mostrar quando houver)
             if (applied_credits > 0) {
               discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
-              console.log('✅ Adicionado créditos aplicados:', applied_credits);
             }
 
-            // Pro-rata no formato específico: "Pro-rata: 9,90 [de R$ 9,90]"
             if (prorated_old > 0) {
               const proratedText = `Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`;
               discountLines.push(proratedText);
-              console.log('✅ Adicionado pro-rata upgrade (formato específico):', proratedText);
             }
           }
 
-          // Cenário 3: Downgrade - conforme DEBUG.md
           if (scenario === 'DOWNGRADE') {
-            console.log('📉 Cenário Downgrade detectado');
             if (prorated_old > 0) {
               const proratedText = `Pro-rata: ${formatCurrency(prorated_old)} [de ${formatCurrency(prorated_old)}]`;
               discountLines.push(proratedText);
-              console.log('✅ Adicionado pro-rata downgrade:', proratedText);
             }
             if (credits_generated > 0) {
               discountLines.push(`Créditos Gerados: ${formatCurrency(credits_generated)}`);
-              console.log('✅ Adicionado créditos gerados:', credits_generated);
             }
           }
 
-          // Cenário 4: Créditos Aplicados - conforme DEBUG.md
           if (scenario === 'CREDITS_APPLIED' && applied_credits > 0) {
-            console.log('💰 Cenário Créditos Aplicados detectado');
             discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
-            console.log('✅ Adicionado créditos aplicados:', applied_credits);
           }
 
-          // Cenário 5: Other/Mixed - mostrar todos os valores disponíveis
           if (scenario === 'OTHER') {
-            console.log('🔄 Cenário Other detectado - mostrando todos os valores disponíveis');
-
-            // Mostrar pro-rata se houver (formato diferente para casos mistos)
             if (prorated_old > 0) {
               const proratedText = `Pro-rata: ${formatCurrency(prorated_old)}`;
               discountLines.push(proratedText);
-              console.log('✅ Adicionado pro-rata misto:', proratedText);
             }
 
-            // Créditos aplicados
             if (applied_credits > 0) {
               discountLines.push(`Créditos Aplicados: ${formatCurrency(applied_credits)}`);
-              console.log('✅ Adicionado créditos aplicados:', applied_credits);
             }
 
-            // Créditos gerados
             if (credits_generated > 0) {
               discountLines.push(`Créditos Gerados: ${formatCurrency(credits_generated)}`);
-              console.log('✅ Adicionado créditos gerados:', credits_generated);
             }
           }
 
-          // Total de Desconto - sempre mostrar quando houver
           if (discount_applied > 0) {
-            console.log('💵 Adicionando desconto total aplicado:', discount_applied);
             discountLines.push(`Total de Desconto: ${formatCurrency(discount_applied)}`);
           }
 
-          console.log('✅ Linhas de desconto construídas:', discountLines.length);
-          discountLines.forEach((line, i) => {
-            console.log(`   ${i+1}. ${line}`);
-          });
-
-          // Log detalhado para validação
-           console.log('🔍 VALIDAÇÃO FINAL DOS DADOS:');
-          console.log('Dados de entrada:', {
-            prorated_old: `${formatCurrency(prorated_old)} (${prorated_old})`,
-            prorated_new: `${formatCurrency(prorated_new)} (${prorated_new})`,
-            applied_credits: `${formatCurrency(applied_credits)} (${applied_credits})`,
-            credits_generated: `${formatCurrency(credits_generated)} (${credits_generated})`,
-            discount_applied: `${formatCurrency(discount_applied)} (${discount_applied})`
-          });
-
-          // Handle zero amounts conforme DEBUG.md - "Pago: R$ 0,00 (total descontado)"
           if (latestPayment.amount === 0) {
-            console.log('💰 Pagamento zerado detectado - exibindo conforme DEBUG.md');
             discountLines.push(`Pago: ${formatCurrency(0)} (total descontado)`);
           }
 
-          // Se não há linhas de desconto mesmo com dados, mostrar mensagem padrão
           if (discountLines.length === 0) {
-            console.log('ℹ️ Nenhum dado de desconto encontrado - exibindo mensagem padrão');
             return <span className="text-gray-400 text-sm">Nenhum desconto</span>;
           }
-
-          console.log('✅ RESUMO - Cenário:', scenario, '- Linhas:', discountLines.length);
-          discountLines.forEach((line, i) => {
-            console.log(`   ${i+1}. ${line}`);
-          });
 
           return (
             <div className="space-y-1 text-sm">

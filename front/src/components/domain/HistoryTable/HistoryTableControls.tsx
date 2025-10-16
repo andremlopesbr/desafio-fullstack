@@ -18,7 +18,7 @@ export const HistoryTableControls: React.FC<HistoryTableControlsProps> = ({
     <div className="flex flex-col sm:flex-row gap-4 items-center">
       <div className="flex-1">
         <TextInput
-          placeholder="Buscar por plano ou status..."
+          placeholder="Buscar por plano"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
