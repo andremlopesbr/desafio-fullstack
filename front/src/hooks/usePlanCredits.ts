@@ -83,7 +83,6 @@ export function usePlanCredits(
           setCreditInfo(result)
         } catch (error) {
           if (error instanceof Error && error.name !== 'AbortError') {
-            console.error('Erro ao calcular créditos:', error)
             setCreditInfo(null)
           }
         } finally {

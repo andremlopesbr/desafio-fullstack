@@ -44,8 +44,6 @@ export function useGenericData<T>(fetcher: (userId: number) => Promise<T>, userI
         const errorObj = new Error(errorMessage)
         setError(errorObj, `Erro ao buscar dados do usuário ${userId}`)
         setRetry(() => fetchData(true))
-
-        console.error('Erro ao buscar dados:', errorMessage)
       } finally {
         setLoading(false)
       }

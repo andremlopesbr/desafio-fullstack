@@ -28,7 +28,6 @@ export function useCreditTransactionHistory(userId: number) {
       setTransactions(data)
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-      console.error('❌ [HOOK useCreditTransactionHistory] Erro ao buscar transações:', errorMsg)
       setError(errorMsg)
     } finally {
       setLoading(false)

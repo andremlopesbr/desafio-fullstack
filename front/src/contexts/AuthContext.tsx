@@ -39,10 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           error instanceof Error ? error : new Error('Erro ao fazer parse do usuário')
         setError(errorObj, 'Carregamento de sessão do usuário')
         localStorage.removeItem('user')
-        console.error('❌ [AUTH] Erro ao carregar usuário do localStorage:', error)
       }
-    } else {
-      console.log('ℹ️ [AUTH] Nenhum usuário encontrado no localStorage')
     }
   }, [setError, clearError])
 

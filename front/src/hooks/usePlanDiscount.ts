@@ -71,7 +71,6 @@ export function usePlanDiscount(
         })
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
-        console.error('Erro ao calcular desconto:', errorMsg)
         setError(errorMsg)
         setDiscountData(null)
       } finally {
