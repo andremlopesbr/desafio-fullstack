@@ -52,7 +52,7 @@ export function App() {
       <div className="bg-gray-100 min-h-screen">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap'); body { font-family: 'Inter', sans-serif; }`}</style>
 
-        <ApiErrorBoundary context="Cabeçalho da aplicação">
+        <ApiErrorBoundary>
           <Header user={user} />
         </ApiErrorBoundary>
 
@@ -62,7 +62,7 @@ export function App() {
               <ErrorMessage error={error.message} retry={retry || undefined} className="mb-6" />
             )}
 
-            <ApiErrorBoundary context="Dados do contrato atual">
+            <ApiErrorBoundary>
               {contracts.length > 0 && contracts[0]?.plan && (
                 <div className="bg-white p-6 rounded-xl shadow-md mb-8">
                   <h2 className="text-2xl font-bold text-gray-800">Seu Plano Atual</h2>
@@ -74,7 +74,7 @@ export function App() {
               )}
             </ApiErrorBoundary>
 
-            <ApiErrorBoundary context="Lista de planos disponíveis">
+            <ApiErrorBoundary>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {plans.map((plano: Plano) => (
                   <PlanCard

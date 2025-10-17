@@ -22,6 +22,7 @@ const UserBalance: React.FC<UserBalanceProps> = ({
   const { user: authUser } = useAuth()
   const { balance, balanceLoading, balanceError, refreshBalance } = useUserBalance(authUser?.id)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
   React.useEffect(() => {
     if (!autoRefresh) return
 
@@ -34,8 +35,15 @@ const UserBalance: React.FC<UserBalanceProps> = ({
   }, [autoRefresh, refreshInterval, refreshBalance])
 
   const handleRefresh = async () => {
-    await refreshBalance()
-    setLastRefresh(new Date())
+    setIsRefreshing(true)
+    try {
+      await refreshBalance()
+      setLastRefresh(new Date())
+    } catch (error) {
+      // Tratamento de erro silencioso - o erro já é tratado pelo hook useUserBalance
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const formattedBalance = formatCurrency(typeof balance === 'number' ? balance : 0)
@@ -97,18 +105,21 @@ const UserBalance: React.FC<UserBalanceProps> = ({
         {showRefreshButton && (
           <button
             onClick={handleRefresh}
-            disabled={balanceLoading}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            disabled={balanceLoading || isRefreshing}
+            className={`p-2 rounded-lg transition-all duration-200 ${
+              isRefreshing
+                ? 'text-blue-600 bg-blue-100'
+                : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
+            } disabled:opacity-50`}
             title="Atualizar saldo"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
+            {isRefreshing ? (
+              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
           </button>
         )}
       </div>
