@@ -24,10 +24,10 @@ export function useCreditTransactionHistory(userId: number) {
       const apiUrl = `${import.meta.env.VITE_API_URL}/users/${userId}/balance-history`
       const data = await fetchDataDirect<CreditTransaction[]>(
         apiUrl,
-        (data) => data as CreditTransaction[], // Dados já vêm como array
+        data => data as CreditTransaction[], // Dados já vêm como array
         {
           timeout: 10000, // 10 segundos para histórico
-          retries: 2,     // 2 tentativas extras
+          retries: 2, // 2 tentativas extras
           retryDelay: 1000 // 1 segundo entre tentativas
         }
       )

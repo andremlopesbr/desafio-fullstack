@@ -9,7 +9,7 @@ interface QueryProviderProps {
 
 /**
  * Provider do TanStack Query.
- * 
+ *
  */
 export function QueryProvider({ children }: QueryProviderProps) {
   return (

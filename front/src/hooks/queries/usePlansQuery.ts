@@ -13,7 +13,7 @@ export const usePlansQuery = () => {
       const url = `${import.meta.env.VITE_API_URL}/plans`
       return fetchDataDirect<Plan[]>(
         url,
-        (data) => {
+        data => {
           // Transforma dados usando a função utilitária existente
           const extractArrayFromData = <T>(): ((data: unknown) => T[]) => {
             return (data: unknown) => {
@@ -31,7 +31,7 @@ export const usePlansQuery = () => {
         },
         {
           timeout: 8000, // 8 segundos (dados estáticos, pode ser mais rápido)
-          retries: 2,    // 2 tentativas extras em caso de erro
+          retries: 2, // 2 tentativas extras em caso de erro
           retryDelay: 1000 // 1 segundo entre tentativas
         }
       )

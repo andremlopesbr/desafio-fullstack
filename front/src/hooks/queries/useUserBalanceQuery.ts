@@ -16,7 +16,7 @@ export const useUserBalanceQuery = (userId?: number) => {
       const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
       return fetchDataDirect<number>(
         url,
-        (data) => {
+        data => {
           // Transforma dados usando a função utilitária existente
           const extractBalanceFromData = (): ((data: unknown) => number) => {
             return (data: unknown) => {
@@ -31,7 +31,7 @@ export const useUserBalanceQuery = (userId?: number) => {
         },
         {
           timeout: 8000, // 8 segundos (dados dinâmicos, mas geralmente rápidos)
-          retries: 2,    // 2 tentativas extras em caso de erro
+          retries: 2, // 2 tentativas extras em caso de erro
           retryDelay: 1000 // 1 segundo entre tentativas
         }
       )

@@ -44,10 +44,10 @@ export function usePlanDiscount(
         const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
         const data = await fetchDataDirect<{ total_balance: number }>(
           url,
-          (data) => data as { total_balance: number }, // Cast apropriado para o tipo esperado
+          data => data as { total_balance: number }, // Cast apropriado para o tipo esperado
           {
             timeout: 8000, // 8 segundos para dados de saldo
-            retries: 2,    // 2 tentativas extras
+            retries: 2, // 2 tentativas extras
             retryDelay: 1000 // 1 segundo entre tentativas
           }
         )
@@ -100,7 +100,7 @@ export function usePlanDiscount(
             const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
             const data = await fetchDataDirect<{ total_balance: number }>(
               url,
-              (data) => data as { total_balance: number },
+              data => data as { total_balance: number },
               {
                 timeout: 8000,
                 retries: 2,
