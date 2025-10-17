@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { usePlans } from '../../hooks/usePlans'
 import { useContracts } from '../../hooks/useContracts'
-import { useCreateContract } from '../../hooks/useCreateContract'
+import { useCreateContract, useCreateContractWithPayment } from '../../hooks/useCreateContract'
 import { useUserBalance } from '../../hooks/useUserBalance'
 import { usePlanCredits } from '../../hooks/usePlanCredits'
 import Pix from 'react-qrcode-pix'
@@ -32,6 +32,7 @@ export const Payment = () => {
   const { plans, plansLoading, plansError, refreshPlans } = usePlans()
   const { contracts } = useContracts()
   const { createContract, loading: contractLoading, error: contractError } = useCreateContract()
+  const { createContractWithPayment, loading: paymentLoading } = useCreateContractWithPayment()
   const { refreshBalance } = useUserBalance()
 
   const plan = plans.find((p: Plano) => p.id === Number(planId))
@@ -122,18 +123,6 @@ export const Payment = () => {
         const today = new Date()
         const endDateISO = calculateContractEndDate(today) // Usa helper para calcular data do próximo mês
 
-        const contractData = {
-          user_id: userData.id, // Dados seguros do usuário autenticado
-          plan_id: plan.id,
-          start_date: today.toISOString().split('T')[0],
-          end_date: endDateISO.split('T')[0] // Data calculada com lógica de mês seguinte
-        }
-
-        contract = await createContract(contractData)
-
-        if (!contract) {
-          throw new Error('Erro ao criar contrato')
-        }
         let finalAmount: number
         let discountApplied: number = 0
         let proratedOld: number = 0
@@ -151,43 +140,41 @@ export const Payment = () => {
           appliedCredits = currentBalance
           discountApplied = appliedCredits
         }
+
         if (finalAmount <= 0) {
           finalAmount = 0
         }
         finalAmount = Math.round(finalAmount * 100) / 100
-        if (finalAmount > 0) {
-          const paymentData = {
-            contract_id: contract.id,
-            amount: finalAmount,
-            payment_date: new Date().toISOString().split('T')[0],
-            status: 'paid',
-            discount_applied: discountApplied,
-            prorated_old: proratedOld,
-            prorated_new: proratedNew,
-            applied_credits: appliedCredits
-          }
-          // Criar pagamento diretamente via API
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(paymentData)
-          })
 
-          if (!response.ok) {
-            throw new Error('Erro ao criar pagamento')
-          }
+        // Usar endpoint unificado para primeira compra (contrato + pagamento)
+        const contractWithPaymentData = {
+          user_id: userData.id, // Dados seguros do usuário autenticado
+          plan_id: plan.id,
+          start_date: today.toISOString().split('T')[0],
+          end_date: endDateISO.split('T')[0], // Data calculada com lógica de mês seguinte
+          amount: finalAmount,
+          payment_date: new Date().toISOString().split('T')[0],
+          status: 'paid',
+          discount_applied: discountApplied,
+          prorated_old: proratedOld,
+          prorated_new: proratedNew,
+          applied_credits: appliedCredits
+        }
 
-          const payment = await response.json()
+        const result = await createContractWithPayment(contractWithPaymentData)
 
-          if (payment) {
-            if (userData.id) {
-              await Promise.all([refreshPlans(), refreshBalance()])
-            }
-          } else {
-            throw new Error('Falha no processamento do pagamento')
+        if (!result) {
+          throw new Error('Erro ao criar contrato com pagamento')
+        }
+
+        contract = result.contract
+
+        if (result.payment) {
+          if (userData.id) {
+            await Promise.all([refreshPlans(), refreshBalance()])
           }
+        } else if (finalAmount > 0) {
+          throw new Error('Falha no processamento do pagamento')
         }
       }
       const minimumProcessingTime = 3000
@@ -383,7 +370,7 @@ export const Payment = () => {
           })()}
           <button
             onClick={handleConfirmPayment}
-            disabled={contractLoading || isProcessing}
+            disabled={contractLoading || paymentLoading || isProcessing}
             className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center"
           >
             {isProcessing ? (
@@ -391,10 +378,10 @@ export const Payment = () => {
                 <LoadingSpinner className="mr-2 h-4 w-4" />
                 Processando Pagamento...
               </>
-            ) : contractLoading ? (
+            ) : contractLoading || paymentLoading ? (
               <>
                 <LoadingSpinner className="mr-2 h-4 w-4" />
-                Carregando Contrato...
+                Criando Contrato...
               </>
             ) : (
               'Confirmar Pagamento'

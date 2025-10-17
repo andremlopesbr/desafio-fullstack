@@ -4,7 +4,7 @@ import { Payment } from '../../types/api'
 
 /**
  * Hook personalizado para buscar pagamentos do usuário usando TanStack Query
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export const usePaymentsQuery = (userId?: number) => {
   return useQuery({

@@ -6,7 +6,6 @@ interface UserBalanceResponse {
 
 /**
  * Hook para obter créditos do usuário
- * Usa padrão Factory seguindo princípio DRY e OCP
  */
 export const useUserCredits = createApiHook<UserBalanceResponse>(
   `users/${window.location.pathname.split('/')[2]}/balance`,

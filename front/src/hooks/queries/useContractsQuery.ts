@@ -4,7 +4,7 @@ import { Contract } from '../../types/api'
 
 /**
  * Hook personalizado para buscar contratos do usuário usando TanStack Query
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export const useContractsQuery = (userId?: number) => {
   return useQuery({

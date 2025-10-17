@@ -3,7 +3,7 @@ import { fetchDataDirect } from '../../utils/apiUtils'
 
 /**
  * Hook personalizado para buscar saldo do usuário usando TanStack Query
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export const useUserBalanceQuery = (userId?: number) => {
   return useQuery({

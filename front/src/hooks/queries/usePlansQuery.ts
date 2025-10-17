@@ -4,7 +4,7 @@ import { Plan } from '../../types/api'
 
 /**
  * Hook personalizado para buscar planos usando TanStack Query
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export const usePlansQuery = () => {
   return useQuery({

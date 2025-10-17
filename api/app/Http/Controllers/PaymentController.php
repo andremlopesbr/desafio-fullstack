@@ -35,11 +35,21 @@ class PaymentController extends Controller
 
             $status = $validated['status'] ?? null;
 
+            // Garantir que pagamentos com status "pending" sejam tratados adequadamente
+            // PIX simulado sempre resulta em sucesso conforme especificação
+            $paymentStatus = $status ? PaymentStatus::from($status) : PaymentStatus::PAID;
+
+            Log::info('🔄 [DEBUG] PaymentController - Status do pagamento definido', [
+                'original_status' => $status,
+                'processed_status' => $paymentStatus->value,
+                'reason' => 'PIX simulado sempre resulta em sucesso'
+            ]);
+
             $dto = new PaymentDTO(
                 contract_id: (int) $validated['contract_id'],
                 amount: new Money($validated['amount']),
                 payment_date: Carbon::parse($validated['payment_date']),
-                status: $status ? PaymentStatus::from($status) : PaymentStatus::PENDING,
+                status: $paymentStatus,
                 discount_applied: isset($validated['discount_applied']) ? (float) $validated['discount_applied'] : null,
                 prorated_old: isset($validated['prorated_old']) ? (float) $validated['prorated_old'] : null,
                 prorated_new: isset($validated['prorated_new']) ? (float) $validated['prorated_new'] : null,

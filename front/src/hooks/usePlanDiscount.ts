@@ -5,7 +5,7 @@ import moment from 'moment-timezone'
 
 /**
  * Hook para calcular desconto de troca de plano seguindo a lógica da API
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export function usePlanDiscount(
   activeContract: Contract | undefined,

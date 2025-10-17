@@ -2,7 +2,6 @@ import { useGenericData } from './useGenericData'
 
 /**
  * Factory para criar hooks de API padronizados
- * Implementa padrão Factory para eliminar duplicação e seguir princípio DRY
  */
 export function createApiHook<T>(
   endpoint: string,

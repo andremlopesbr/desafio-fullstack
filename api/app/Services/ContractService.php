@@ -277,13 +277,37 @@ class ContractService implements ContractServiceInterface
      */
     public function applyBalanceToPayment(int $userId, float $paymentAmount): array
     {
+        Log::info('💰 [DEBUG] applyBalanceToPayment - INICIANDO APLICAÇÃO DE SALDO', [
+            'user_id' => $userId,
+            'payment_amount' => $paymentAmount
+        ]);
+
         $availableBalance = $this->getUserBalance($userId);
         $appliedBalance = min($availableBalance, $paymentAmount);
         $remainingAmount = $paymentAmount - $appliedBalance;
 
+        Log::info('💰 [DEBUG] applyBalanceToPayment - SALDO CALCULADO', [
+            'user_id' => $userId,
+            'available_balance' => $availableBalance,
+            'payment_amount' => $paymentAmount,
+            'applied_balance' => $appliedBalance,
+            'remaining_amount' => $remainingAmount
+        ]);
+
         // Consumir saldo utilizado
         if ($appliedBalance > 0) {
+            Log::info('💸 [DEBUG] applyBalanceToPayment - CONSUMINDO SALDO', [
+                'user_id' => $userId,
+                'amount_to_consume' => $appliedBalance,
+                'balance_before_consume' => $this->getUserBalance($userId)
+            ]);
+
             $this->consumeBalance($userId, $appliedBalance);
+
+            Log::info('💸 [DEBUG] applyBalanceToPayment - SALDO CONSUMIDO', [
+                'user_id' => $userId,
+                'balance_after_consume' => $this->getUserBalance($userId)
+            ]);
         }
 
         return [

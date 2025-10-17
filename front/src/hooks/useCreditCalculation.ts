@@ -4,7 +4,7 @@ import { CreditCalculationResult } from '../types/api'
 
 /**
  * Hook personalizado para buscar cálculo de crédito usando TanStack Query
- * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
+ * Usa fetchData
  */
 export const useCreditCalculation = (contractId?: number, planId?: number) => {
   return useQuery({

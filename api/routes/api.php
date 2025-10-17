@@ -34,6 +34,7 @@ Route::get('users/{user}/balance-history', [UserController::class, 'balanceHisto
 Route::get('users/{user}/balance', [UserController::class, 'balance']);
 
 Route::post('contracts', [ContractController::class, 'create']);
+Route::post('contracts/create-with-payment', [ContractController::class, 'createWithPayment']);
 Route::patch('contracts/{contract}/change-plan', [ContractController::class, 'changePlan']);
 Route::get('contracts', [ContractController::class, 'listForUser']);
 Route::get('contracts/{contract}/credit-calculation', [ContractController::class, 'creditCalculation']);
