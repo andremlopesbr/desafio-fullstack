@@ -29,7 +29,16 @@ class ContractControllerTest extends TestCase
         $response = $this->postJson('/api/contracts', $data);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure(['id', 'user_id', 'plan_id', 'start_date', 'end_date', 'status']);
+                 ->assertJsonStructure([
+                     'id',
+                     'user_id',
+                     'plan_id',
+                     'start_date',
+                     'end_date',
+                     'status',
+                     'created_at',
+                     'updated_at'
+                 ]);
     }
 
     public function test_create_contract_error_missing_fields()
@@ -52,8 +61,23 @@ class ContractControllerTest extends TestCase
 
         $response->assertStatus(200)
                  ->assertJsonStructure([
-                     'new_contract' => ['id', 'user_id', 'plan_id', 'status'],
-                     'payment' => ['id', 'amount', 'discount_applied'],
+                     'new_contract' => [
+                         'id',
+                         'user_id',
+                         'plan_id',
+                         'status',
+                         'created_at',
+                         'updated_at'
+                     ],
+                     'payment' => [
+                         'id',
+                         'contract_id',
+                         'amount',
+                         'payment_date',
+                         'status',
+                         'created_at',
+                         'updated_at'
+                     ],
                      'balance_info' => ['previous_balance', 'credits_generated', 'new_balance']
                  ])
                  ->assertJson(['new_contract' => ['plan_id' => $newPlan->id]]);

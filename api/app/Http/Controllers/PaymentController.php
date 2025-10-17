@@ -8,9 +8,9 @@ use App\DTOs\PaymentDTO;
 use App\Domain\Enums\PaymentStatus;
 use App\Domain\ValueObjects\Money;
 use App\Contracts\PaymentServiceInterface;
-use App\Exceptions\Handler;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\StorePaymentRequest;
+use App\Http\Requests\ListPaymentsRequest;
+use App\Http\Resources\PaymentResource;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
@@ -22,7 +22,7 @@ class PaymentController extends Controller
         private PaymentServiceInterface $paymentService
     ) {}
 
-    public function process(Request $request): JsonResponse
+    public function process(StorePaymentRequest $request)
     {
         try {
             Log::info('PaymentController::process chamado', [
@@ -31,16 +31,7 @@ class PaymentController extends Controller
                 'data' => $request->all(),
             ]);
 
-            $validated = $request->validate([
-                'contract_id' => 'required|integer|exists:contracts,id',
-                'amount' => 'required|numeric|min:0',
-                'payment_date' => 'required|date',
-                'status' => 'nullable|string',
-                'discount_applied' => 'nullable|numeric|min:0',
-                'prorated_old' => 'nullable|numeric|min:0',
-                'prorated_new' => 'nullable|numeric|min:0',
-                'applied_credits' => 'nullable|numeric|min:0',
-            ]);
+            $validated = $request->validated();
 
             $status = $validated['status'] ?? null;
 
@@ -64,7 +55,7 @@ class PaymentController extends Controller
                 'status' => $payment->status
             ]);
 
-            return response()->json($payment, 201);
+            return new PaymentResource($payment);
 
         } catch (ValidationException $e) {
             Log::warning('Erro de validação no processamento de pagamento', [
@@ -92,12 +83,10 @@ class PaymentController extends Controller
         }
     }
 
-    public function listForUser(Request $request): JsonResponse
+    public function listForUser(ListPaymentsRequest $request)
     {
         try {
-            $validated = $request->validate([
-                'user_id' => 'required|integer',
-            ]);
+            $validated = $request->validated();
 
             $userId = (int) $validated['user_id'];
 
@@ -108,7 +97,7 @@ class PaymentController extends Controller
 
             $payments = $this->paymentService->listPaymentsForUser($userId);
 
-            return response()->json($payments);
+            return PaymentResource::collection($payments);
 
         } catch (ValidationException $e) {
             Log::warning('Erro de validação na listagem de pagamentos', [

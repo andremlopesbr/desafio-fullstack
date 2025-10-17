@@ -1,36 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Contracts\ContractServiceInterface;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use App\Http\Requests\StoreBalanceRequest;
 
 class BalanceController extends Controller
 {
-    protected $contractService;
-
-    public function __construct(ContractServiceInterface $contractService)
-    {
-        $this->contractService = $contractService;
-    }
+    public function __construct(
+        private ContractServiceInterface $contractService
+    ) {}
 
     /**
      * Add balance to a user's account.
      */
-    public function store(Request $request)
+    public function store(StoreBalanceRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'user_id' => 'required|integer|exists:users,id',
-            'amount' => 'required|numeric|min:0.01',
-            'description' => 'required|string|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $this->contractService->addBalance(
             $validated['user_id'],

@@ -29,7 +29,15 @@ class PaymentControllerTest extends TestCase
         $response = $this->postJson('/api/payments/process', $data);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure(['id', 'contract_id', 'amount', 'payment_date', 'status']);
+                 ->assertJsonStructure([
+                     'id',
+                     'contract_id',
+                     'amount',
+                     'payment_date',
+                     'status',
+                     'created_at',
+                     'updated_at'
+                 ]);
     }
 
     public function test_process_payment_error_invalid_contract()
@@ -106,7 +114,20 @@ class PaymentControllerTest extends TestCase
         $response = $this->postJson('/api/payments/process', $data);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure(['id', 'contract_id', 'amount', 'payment_date', 'status', 'discount_applied', 'prorated_old', 'prorated_new', 'applied_credits']);
+                 ->assertJsonStructure([
+                     'id',
+                     'contract_id',
+                     'amount',
+                     'payment_date',
+                     'status',
+                     'discount_applied',
+                     'prorated_old',
+                     'prorated_new',
+                     'applied_credits',
+                     'credits_generated',
+                     'created_at',
+                     'updated_at'
+                 ]);
 
         $responseData = $response->json();
 
@@ -226,7 +247,15 @@ class PaymentControllerTest extends TestCase
         $response = $this->postJson('/api/payments/process', $data);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure(['id', 'contract_id', 'amount', 'payment_date', 'status']);
+                 ->assertJsonStructure([
+                     'id',
+                     'contract_id',
+                     'amount',
+                     'payment_date',
+                     'status',
+                     'created_at',
+                     'updated_at'
+                 ]);
 
         // Verificar que um novo contrato foi criado automaticamente
         $this->assertDatabaseHas('contracts', [

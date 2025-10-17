@@ -6,6 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Contracts\ContractServiceInterface;
 use App\DTOs\ContractCreateDTO;
+use App\Http\Requests\StoreContractRequest;
+use App\Http\Requests\ChangePlanContractRequest;
+use App\Http\Requests\ListContractsRequest;
+use App\Http\Resources\ContractResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -16,15 +20,9 @@ class ContractController extends Controller
         private ContractServiceInterface $contractService
     ) {}
 
-    public function create(Request $request): JsonResponse
+    public function create(StoreContractRequest $request)
     {
-        $validated = $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
-            'plan_id' => 'required|integer|exists:plans,id',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
-            'status' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $dto = new ContractCreateDTO(
             user_id: (int) $validated['user_id'],
@@ -36,14 +34,12 @@ class ContractController extends Controller
 
         $contract = $this->contractService->createContract($dto);
 
-        return response()->json($contract, 201);
+        return new ContractResource($contract);
     }
 
-    public function changePlan(Request $request, int $contractId): JsonResponse
+    public function changePlan(ChangePlanContractRequest $request, int $contractId): JsonResponse
     {
-        $validated = $request->validate([
-            'new_plan_id' => 'required|integer|exists:plans,id',
-        ]);
+        $validated = $request->validated();
 
         $newPlanId = $validated['new_plan_id'];
 
@@ -60,19 +56,16 @@ class ContractController extends Controller
         return response()->json($result);
     }
 
-    public function listForUser(Request $request): JsonResponse
+    public function listForUser(ListContractsRequest $request)
     {
-        $validated = $request->validate([
-            'user_id' => 'required|integer',
-            'status' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $userId = (int) $validated['user_id'];
         $status = $validated['status'] ?? null;
 
         $contracts = $this->contractService->listContractsForUser($userId, $status);
 
-        return response()->json($contracts);
+        return ContractResource::collection($contracts);
     }
 
     /**

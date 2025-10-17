@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Contracts\PlanServiceInterface;
+use App\Http\Resources\PlanResource;
 
 class PlanController extends Controller
 {
@@ -11,12 +14,12 @@ class PlanController extends Controller
     ) {}
 
     /**
-      * Display a listing of the plans.
-      *
-      * @return \Illuminate\Http\Response
-      */
+     * Display a listing of the plans.
+     */
     public function index()
     {
-        return $this->planService->listPlans();
+        $plans = $this->planService->listPlans();
+
+        return PlanResource::collection($plans);
     }
 }

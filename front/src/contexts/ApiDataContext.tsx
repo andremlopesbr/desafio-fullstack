@@ -182,7 +182,19 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       `${import.meta.env.VITE_API_URL}/plans`,
       setPlans,
       setPlansLoading,
-      setPlansError
+      setPlansError,
+      // Transformador para extrair o array do objeto {data: [...]}
+      (data: unknown) => {
+        if (data && typeof data === 'object' && 'data' in data) {
+          const apiResponse = data as { data: Plano[] }
+          return Array.isArray(apiResponse.data) ? apiResponse.data : []
+        }
+        // Fallback: se já for um array, retorna como está
+        if (Array.isArray(data)) {
+          return data
+        }
+        return []
+      }
     )
   }, [fetchData])
   const refreshContracts = useCallback(
@@ -191,7 +203,19 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
         `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
         setContracts,
         setContractsLoading,
-        setContractsError
+        setContractsError,
+        // Transformador para extrair o array do objeto {data: [...]}
+        (data: unknown) => {
+          if (data && typeof data === 'object' && 'data' in data) {
+            const apiResponse = data as { data: Contract[] }
+            return Array.isArray(apiResponse.data) ? apiResponse.data : []
+          }
+          // Fallback: se já for um array, retorna como está
+          if (Array.isArray(data)) {
+            return data
+          }
+          return []
+        }
       )
     },
     [fetchData]
@@ -202,7 +226,19 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
         `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
         setPayments,
         setPaymentsLoading,
-        setPaymentsError
+        setPaymentsError,
+        // Transformador para extrair o array do objeto {data: [...]}
+        (data: unknown) => {
+          if (data && typeof data === 'object' && 'data' in data) {
+            const apiResponse = data as { data: Payment[] }
+            return Array.isArray(apiResponse.data) ? apiResponse.data : []
+          }
+          // Fallback: se já for um array, retorna como está
+          if (Array.isArray(data)) {
+            return data
+          }
+          return []
+        }
       )
     },
     [fetchData]

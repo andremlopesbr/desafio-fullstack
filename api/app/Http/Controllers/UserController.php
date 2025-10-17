@@ -1,9 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Contracts\UserServiceInterface;
-use Illuminate\Http\Request;
+use App\Http\Resources\UserResource;
+use App\Http\Resources\BalanceTransactionResource;
+use App\Models\User;
 
 class UserController extends Controller
 {
@@ -13,32 +17,29 @@ class UserController extends Controller
 
     /**
      * Display the resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function show()
     {
         // Usuário Demo
-        return $this->userService->getUserById(1);
+        $user = $this->userService->getUserById(1);
+
+        return new UserResource($user);
     }
 
     /**
      * Get user balance transaction history
-     *
-     * @param \App\Models\User $user
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function balanceHistory(\App\Models\User $user): \Illuminate\Http\JsonResponse
+    public function balanceHistory(User $user)
     {
         $transactions = $this->userService->getUserBalanceHistory($user->id);
 
-        return response()->json($transactions);
+        return BalanceTransactionResource::collection($transactions);
     }
 
     /**
      * Get user balance
      */
-    public function balance(\App\Models\User $user): \Illuminate\Http\JsonResponse
+    public function balance(User $user)
     {
         $totalBalance = $this->userService->getUserBalance($user->id);
 
