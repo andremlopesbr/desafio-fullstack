@@ -20,12 +20,14 @@ export const useCreditCalculation = (contractId?: number, planId?: number) => {
 
       try {
         // Construir URL com parâmetros obrigatórios
-        const url = new URL(`${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`)
+        const url = new URL(
+          `${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`
+        )
         url.searchParams.set('plan_id', planId.toString())
 
         const data = await fetchDataDirect<CreditCalculationResult>(
           url.toString(),
-          (data) => {
+          data => {
             // Validação básica dos dados retornados
             if (!data || typeof data !== 'object') {
               throw new Error('Dados de resposta inválidos')
@@ -34,7 +36,7 @@ export const useCreditCalculation = (contractId?: number, planId?: number) => {
           },
           {
             timeout: 15000, // 15 segundos para cálculos mais complexos
-            retries: 3,     // 3 tentativas extras para cálculos críticos
+            retries: 3, // 3 tentativas extras para cálculos críticos
             retryDelay: 1000 // 1 segundo entre tentativas
           }
         )

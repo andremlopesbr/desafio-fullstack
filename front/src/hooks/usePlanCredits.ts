@@ -12,10 +12,11 @@ export function usePlanCredits(
   _userId?: number
 ) {
   // Usa o hook de cálculo de crédito da API com plan_id obrigatório
-  const { data: creditCalculation, isLoading, error } = useCreditCalculation(
-    activeContract?.id,
-    selectedPlan?.id
-  )
+  const {
+    data: creditCalculation,
+    isLoading,
+    error
+  } = useCreditCalculation(activeContract?.id, selectedPlan?.id)
 
   // Para manter compatibilidade com a interface existente,
   // retornamos diretamente os dados da API no formato esperado

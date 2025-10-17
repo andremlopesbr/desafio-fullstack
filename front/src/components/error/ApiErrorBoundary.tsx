@@ -42,10 +42,10 @@ export function ApiErrorBoundary({
   const { error, setError, clearError, retry, isRetrying } = useErrorHandler()
 
   /**
-    * Callback executado quando um erro é capturado pelo ErrorBoundary.
-    * @param error - Erro capturado
-    * @param errorInfo - Informações do componente que lançou o erro
-    */
+   * Callback executado quando um erro é capturado pelo ErrorBoundary.
+   * @param error - Erro capturado
+   * @param errorInfo - Informações do componente que lançou o erro
+   */
   const handleError = React.useCallback(
     (error: Error) => {
       setError(error)

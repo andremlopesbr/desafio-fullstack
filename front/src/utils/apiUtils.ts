@@ -87,7 +87,7 @@ export async function fetchData<T>(
         const response = await fetch(url, {
           signal,
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           }
         })
 
@@ -95,14 +95,15 @@ export async function fetchData<T>(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`)
+          throw new Error(
+            errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`
+          )
         }
 
         const data = await response.json()
         const transformedData = transform ? transform(data) : data
         setData(transformedData)
         return // Sucesso, sai da função
-
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Erro desconhecido')
 
@@ -121,7 +122,6 @@ export async function fetchData<T>(
 
     // Se chegou aqui, todas as tentativas falharam
     throw lastError!
-
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     setError(message)
@@ -166,7 +166,7 @@ export async function fetchDataDirect<T>(
         const response = await fetch(url, {
           signal,
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           }
         })
 
@@ -174,12 +174,13 @@ export async function fetchDataDirect<T>(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`)
+          throw new Error(
+            errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`
+          )
         }
 
         const data = await response.json()
-        return transform ? transform(data) : data as T
-
+        return transform ? transform(data) : (data as T)
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Erro desconhecido')
 
@@ -198,12 +199,13 @@ export async function fetchDataDirect<T>(
 
     // Se chegou aqui, todas as tentativas falharam
     throw lastError!
-
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw error // Re-throw abort errors
     }
-    throw new Error(`Erro na requisição: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+    throw new Error(
+      `Erro na requisição: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+    )
   }
 }
 

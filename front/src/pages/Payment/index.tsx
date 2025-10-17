@@ -79,19 +79,19 @@ export const Payment = () => {
 
   const handleConfirmPayment = async () => {
     if (!plan) {
-       // Plano tratado pelo ErrorBoundary - removido console.log de debug
-       return
-     }
+      // Plano tratado pelo ErrorBoundary - removido console.log de debug
+      return
+    }
 
-     if (!planId || isNaN(Number(planId))) {
-       // planId tratado pelo ErrorBoundary - removido console.log de debug
-       return
-     }
-     if (!userData) {
-       // Usuário tratado pelo ErrorBoundary - removido console.log de debug
-       setIsProcessing(false)
-       return
-     }
+    if (!planId || isNaN(Number(planId))) {
+      // planId tratado pelo ErrorBoundary - removido console.log de debug
+      return
+    }
+    if (!userData) {
+      // Usuário tratado pelo ErrorBoundary - removido console.log de debug
+      setIsProcessing(false)
+      return
+    }
 
     setIsProcessing(true)
 

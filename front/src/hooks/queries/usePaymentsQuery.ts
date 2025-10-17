@@ -17,7 +17,7 @@ export const usePaymentsQuery = (userId?: number) => {
       const url = `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`
       return fetchDataDirect<Payment[]>(
         url,
-        (data) => {
+        data => {
           // Transforma dados usando a função utilitária existente
           const extractArrayFromData = <T>(): ((data: unknown) => T[]) => {
             return (data: unknown) => {
@@ -35,7 +35,7 @@ export const usePaymentsQuery = (userId?: number) => {
         },
         {
           timeout: 10000, // 10 segundos
-          retries: 2,    // 2 tentativas extras em caso de erro
+          retries: 2, // 2 tentativas extras em caso de erro
           retryDelay: 1000 // 1 segundo entre tentativas
         }
       )
