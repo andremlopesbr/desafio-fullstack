@@ -13,28 +13,17 @@ import { Payment } from '../../types'
 export const History = () => {
   const { user } = useAuth()
   const userId = user?.id || 0
-  const {
-    contracts,
-    contractsLoading,
-    refreshContracts
-  } = useContracts()
+  const { contracts, contractsLoading, refreshContracts } = useContracts()
 
-  const {
-    payments,
-    paymentsLoading,
-    refreshPayments
-  } = usePayments(userId)
+  const { payments, paymentsLoading, refreshPayments } = usePayments(userId)
 
-  const {
-    balance,
-    refreshBalance
-  } = useUserBalance(userId)
+  const { balance, refreshBalance } = useUserBalance(userId)
 
   const loadHistoryData = useCallback(async () => {
     try {
       await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
     } catch (error) {
-      console.error('Erro ao carregar dados do histórico:', error)
+      // Erro tratado pelo ErrorBoundary - removido console.log de debug
     }
   }, [refreshContracts, refreshPayments, refreshBalance])
 

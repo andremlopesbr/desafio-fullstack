@@ -51,7 +51,7 @@ export async function fetchData<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     setError(message)
-    console.error(`Erro ao buscar dados de ${url}:`, message)
+    // Erro tratado pelo sistema de error boundary - removido console.log
   } finally {
     setLoading(false)
   }

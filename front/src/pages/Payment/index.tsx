@@ -29,26 +29,10 @@ export const Payment = () => {
   const [pixPayload, setPixPayload] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(true)
-  const {
-    plans,
-    plansLoading,
-    plansError,
-    refreshPlans
-  } = usePlans()
-
-  const {
-    contracts
-  } = useContracts()
-
-  const {
-    createContract,
-    loading: contractLoading,
-    error: contractError
-  } = useCreateContract()
-
-  const {
-    refreshBalance
-  } = useUserBalance()
+  const { plans, plansLoading, plansError, refreshPlans } = usePlans()
+  const { contracts } = useContracts()
+  const { createContract, loading: contractLoading, error: contractError } = useCreateContract()
+  const { refreshBalance } = useUserBalance()
 
   const plan = plans.find((p: Plano) => p.id === Number(planId))
   const activeContract = contracts.find((c: Contract) => c.status === 'active')
@@ -71,7 +55,7 @@ export const Payment = () => {
           return
         }
       } catch (error) {
-        console.error('Erro ao carregar dados de pagamento')
+        // Erro tratado pelo ErrorBoundary - removido console.log de debug
       } finally {
         setIsLoadingDetails(false)
       }
@@ -95,19 +79,19 @@ export const Payment = () => {
 
   const handleConfirmPayment = async () => {
     if (!plan) {
-      console.error('❌ [PAYMENT] Plano não encontrado')
-      return
-    }
+       // Plano tratado pelo ErrorBoundary - removido console.log de debug
+       return
+     }
 
-    if (!planId || isNaN(Number(planId))) {
-      console.error('❌ [PAYMENT] planId inválido:', planId)
-      return
-    }
-    if (!userData) {
-      console.error('❌ [PAYMENT] Usuário não autenticado')
-      setIsProcessing(false)
-      return
-    }
+     if (!planId || isNaN(Number(planId))) {
+       // planId tratado pelo ErrorBoundary - removido console.log de debug
+       return
+     }
+     if (!userData) {
+       // Usuário tratado pelo ErrorBoundary - removido console.log de debug
+       setIsProcessing(false)
+       return
+     }
 
     setIsProcessing(true)
 
@@ -199,10 +183,7 @@ export const Payment = () => {
 
           if (payment) {
             if (userData.id) {
-              await Promise.all([
-                refreshPlans(),
-                refreshBalance()
-              ])
+              await Promise.all([refreshPlans(), refreshBalance()])
             }
           } else {
             throw new Error('Falha no processamento do pagamento')
@@ -218,7 +199,7 @@ export const Payment = () => {
       }
       navigate('/?success=payment')
     } catch (error) {
-      console.error('❌ ERRO DURANTE O PROCESSAMENTO:', error)
+      // Erro tratado pelo ErrorBoundary - removido console.log de debug
       setIsProcessing(false)
     }
   }

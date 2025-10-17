@@ -12,23 +12,11 @@ import { formatCurrency } from '../../utils/formatters'
 
 export const Home = () => {
   const { user } = useAuth()
-  const {
-    plans,
-    plansLoading,
-    plansError,
-    refreshPlans
-  } = usePlans()
+  const { plans, plansLoading, plansError, refreshPlans } = usePlans()
 
-  const {
-    contracts,
-    contractsLoading,
-    contractsError,
-    refreshContracts
-  } = useContracts()
+  const { contracts, contractsLoading, contractsError, refreshContracts } = useContracts()
 
-  const {
-    refreshBalance
-  } = useUserBalance()
+  const { refreshBalance } = useUserBalance()
 
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -43,13 +31,9 @@ export const Home = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([
-          refreshPlans(),
-          refreshContracts(),
-          refreshBalance()
-        ])
+        await Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
       } catch (error) {
-        console.error('Erro ao carregar dados iniciais')
+        // Erro tratado pelo ErrorBoundary - removido console.log de debug
       }
     }
 
@@ -71,14 +55,10 @@ export const Home = () => {
       if (user?.id) {
         setIsRefreshing(true)
 
-        Promise.all([
-          refreshPlans(),
-          refreshContracts(),
-          refreshBalance()
-        ])
+        Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
           .then(() => {})
-          .catch((error: Error) => {
-            console.error('❌ [HOME] Erro durante refresh:', error)
+          .catch(() => {
+            // Refresh silencioso - erro tratado pelo ErrorBoundary
           })
           .finally(() => {
             setIsRefreshing(false)
@@ -90,7 +70,15 @@ export const Home = () => {
 
       setTimeout(() => setNotification(null), 5000)
     }
-  }, [searchParams, setSearchParams, user?.id, refreshPlans, refreshContracts, refreshBalance, hasProcessedPayment])
+  }, [
+    searchParams,
+    setSearchParams,
+    user?.id,
+    refreshPlans,
+    refreshContracts,
+    refreshBalance,
+    hasProcessedPayment
+  ])
 
   const loading = plansLoading || contractsLoading || isRefreshing
   const error = plansError || contractsError

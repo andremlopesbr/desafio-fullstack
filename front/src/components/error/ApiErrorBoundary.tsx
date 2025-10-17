@@ -11,8 +11,6 @@ interface ApiErrorBoundaryProps {
   onRetry?: () => void
   /** Controla se o botão de refresh é exibido */
   showRefreshButton?: boolean
-  /** Contexto adicional para identificar onde o erro ocorreu */
-  context?: string
 }
 
 /**
@@ -39,21 +37,20 @@ export function ApiErrorBoundary({
   children,
   fallback,
   onRetry,
-  showRefreshButton = true,
-  context = 'API Request'
+  showRefreshButton = true
 }: ApiErrorBoundaryProps) {
   const { error, setError, clearError, retry, isRetrying } = useErrorHandler()
 
   /**
-   * Callback executado quando um erro é capturado pelo ErrorBoundary.
-   * @param error - Erro capturado
-   * @param errorInfo - Informações do componente que lançou o erro
-   */
+    * Callback executado quando um erro é capturado pelo ErrorBoundary.
+    * @param error - Erro capturado
+    * @param errorInfo - Informações do componente que lançou o erro
+    */
   const handleError = React.useCallback(
     (error: Error) => {
       setError(error)
     },
-    [setError, context]
+    [setError]
   )
 
   /**

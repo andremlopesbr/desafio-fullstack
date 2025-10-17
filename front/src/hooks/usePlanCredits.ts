@@ -8,11 +8,14 @@ import { CreditCalculationResult } from '../types/api'
  */
 export function usePlanCredits(
   activeContract: { id: number } | undefined,
-  _selectedPlan?: { id: number; price: number } | undefined,
+  selectedPlan?: { id: number; price: number } | undefined,
   _userId?: number
 ) {
-  // Usa o hook de cálculo de crédito da API
-  const { data: creditCalculation, isLoading, error } = useCreditCalculation(activeContract?.id)
+  // Usa o hook de cálculo de crédito da API com plan_id obrigatório
+  const { data: creditCalculation, isLoading, error } = useCreditCalculation(
+    activeContract?.id,
+    selectedPlan?.id
+  )
 
   // Para manter compatibilidade com a interface existente,
   // retornamos diretamente os dados da API no formato esperado

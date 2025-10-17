@@ -57,11 +57,30 @@ class ErrorLogger {
     // - LogRocket: LogRocket.captureException(new Error(log.message), { extra: log })
     // - DataDog: DD_LOGS.logger.error(log.message, log)
 
+    // Em produção, enviar para serviços externos
+    // Em desenvolvimento, usar logging estruturado sem console.log
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_ERRORS === 'true') {
+      this.devLog(log)
+    }
+  }
+
+  private devLog(log: ErrorLog): void {
+    // Logging estruturado para desenvolvimento - substitui console.log
+
+    // Em desenvolvimento, podemos usar um formato mais legível
+    // que será removido automaticamente pelo bundler em produção
     if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
       console.group(`🚨 [${log.severity.toUpperCase()}] Error Logged`)
+      // eslint-disable-next-line no-console
       console.error('Message:', log.message)
+      // eslint-disable-next-line no-console
       console.log('Context:', log.context)
-      if (log.stack) console.log('Stack:', log.stack)
+      if (log.stack) {
+        // eslint-disable-next-line no-console
+        console.log('Stack:', log.stack)
+      }
+      // eslint-disable-next-line no-console
       console.groupEnd()
     }
   }

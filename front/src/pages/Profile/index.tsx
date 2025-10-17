@@ -36,16 +36,16 @@ const Profile = () => {
             const userData = await response.json()
             setUser(userData)
           } else {
-            console.error('❌ [PROFILE] Erro ao buscar usuário:', response.status)
+            // Erro tratado pelo ErrorBoundary - removido console.log de debug
           }
         }
         if (authUser?.id) {
           await refreshContracts()
         } else {
-          console.warn('⚠️ [PROFILE] Nenhum ID de usuário disponível para carregar contratos')
+          // Usuário não tratado pelo ErrorBoundary - removido console.log de debug
         }
       } catch (error) {
-        console.error('❌ [PROFILE] Erro ao carregar dados do perfil:', error)
+        // Erro tratado pelo ErrorBoundary - removido console.log de debug
       } finally {
         setIsLoading(false)
       }

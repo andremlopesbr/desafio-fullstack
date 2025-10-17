@@ -5,19 +5,24 @@ import { CreditCalculationResult } from '../types/api'
  * Hook personalizado para buscar cálculo de crédito usando TanStack Query
  * Substitui o uso da calculadora local pela API com tratamento robusto de erros
  */
-export const useCreditCalculation = (contractId?: number) => {
+export const useCreditCalculation = (contractId?: number, planId?: number) => {
   return useQuery({
-    queryKey: ['credit-calculation', contractId],
+    queryKey: ['credit-calculation', contractId, planId],
     queryFn: async (): Promise<CreditCalculationResult> => {
       if (!contractId) {
         throw new Error('ContractId é necessário para buscar cálculo de crédito')
       }
 
+      if (!planId) {
+        throw new Error('PlanId é necessário para buscar cálculo de crédito')
+      }
+
       try {
-        // TODO Refatorar o uso de fetch cm base no SOLID e reutilizar em todo o sistema com os tratamentos necessarios, usando o 'utils/apiUtils'
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`
-        )
+        // Construir URL com parâmetros obrigatórios
+        const url = new URL(`${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`)
+        url.searchParams.set('plan_id', planId.toString())
+
+        const response = await fetch(url.toString())
 
         if (!response.ok) {
           // Tratamento específico para diferentes códigos de erro
@@ -55,7 +60,7 @@ export const useCreditCalculation = (contractId?: number) => {
         throw error
       }
     },
-    enabled: !!contractId, // Só executa se contractId estiver presente
+    enabled: !!contractId && !!planId, // Só executa se ambos os parâmetros estiverem presentes
     // Cache por 1 minuto para cálculos de crédito (dados dinâmicos)
     staleTime: 1 * 60 * 1000, // 1 minute
     // Manter em cache por 2 minutos
