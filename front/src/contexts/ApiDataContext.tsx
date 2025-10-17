@@ -186,34 +186,43 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       setPlansError,
       extractArrayFromData<Plano>()
     )
-  }, [])
-  const refreshContracts = useCallback(async (userId: number) => {
-    await fetchData(
-      `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
-      setContracts,
-      setContractsLoading,
-      setContractsError,
-      extractArrayFromData<Contract>()
-    )
-  }, [])
-  const refreshPayments = useCallback(async (userId: number) => {
-    await fetchData(
-      `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
-      setPayments,
-      setPaymentsLoading,
-      setPaymentsError,
-      extractArrayFromData<Payment>()
-    )
-  }, [])
-  const refreshBalance = useCallback(async (userId: number) => {
-    await fetchData(
-      `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
-      setBalance,
-      setBalanceLoading,
-      setBalanceError,
-      extractBalanceFromData()
-    )
-  }, [])
+  }, [fetchData])
+  const refreshContracts = useCallback(
+    async (userId: number) => {
+      await fetchData(
+        `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
+        setContracts,
+        setContractsLoading,
+        setContractsError,
+        extractArrayFromData<Contract>()
+      )
+    },
+    [fetchData]
+  )
+  const refreshPayments = useCallback(
+    async (userId: number) => {
+      await fetchData(
+        `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
+        setPayments,
+        setPaymentsLoading,
+        setPaymentsError,
+        extractArrayFromData<Payment>()
+      )
+    },
+    [fetchData]
+  )
+  const refreshBalance = useCallback(
+    async (userId: number) => {
+      await fetchData(
+        `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
+        setBalance,
+        setBalanceLoading,
+        setBalanceError,
+        extractBalanceFromData()
+      )
+    },
+    [fetchData]
+  )
   const forceRefreshAllData = useCallback(
     async (userId: number) => {
       invalidateUserCache(userId)
@@ -271,7 +280,6 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
         setContractLoading(false)
       }
     },
-    // TODO revisar comportamento
     [invalidateUserCache, refreshBalance, refreshContracts]
   )
   const processPayment = useCallback(

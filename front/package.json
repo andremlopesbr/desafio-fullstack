@@ -23,6 +23,8 @@
     "clean": "rm -rf dist node_modules/.vite"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.5",
+    "@tanstack/react-query-devtools": "^5.90.2",
     "flowbite-react": "^0.12.9",
     "moment-timezone": "^0.6.0",
     "qrcode-pix": "^5.0.0",

@@ -2,21 +2,34 @@ import { useContext } from 'react'
 import { PaymentsContext } from '../contexts/PaymentsContext'
 import { AuthContext } from '../contexts/AuthContext'
 import { useApiMutation } from './useApiMutation'
+import { usePaymentsQuery } from './queries/usePaymentsQuery'
 
 export const usePayments = (userId?: number) => {
   const paymentsContext = useContext(PaymentsContext)
   const authContext = useContext(AuthContext)
 
-  if (!paymentsContext) {
-    throw new Error('usePayments deve ser usado dentro de um PaymentsProvider')
+  const targetUserId = userId || authContext?.user?.id
+
+  // Usar o novo hook com TanStack Query
+  const {
+    data: payments = [],
+    isLoading: paymentsLoading,
+    error: paymentsError,
+    refetch: refetchPayments
+  } = usePaymentsQuery(targetUserId)
+
+  // Manter compatibilidade com o contexto existente para transição suave
+  if (paymentsContext && authContext?.user && targetUserId && paymentsContext.payments.length > 0) {
+    return {
+      payments: paymentsContext.payments,
+      paymentsLoading: paymentsContext.loading,
+      paymentsError: paymentsContext.error,
+      refreshPayments: () => paymentsContext.refreshPayments(targetUserId),
+      refetch: () => paymentsContext.refreshPayments(targetUserId)
+    }
   }
 
-  if (!authContext) {
-    throw new Error('usePayments deve ser usado dentro de um AuthProvider')
-  }
-
-  const targetUserId = userId || authContext.user?.id
-
+  // Se não há contexto ou usuário autenticado, retorna dados vazios
   if (!targetUserId) {
     return {
       payments: [],
@@ -27,16 +40,13 @@ export const usePayments = (userId?: number) => {
     }
   }
 
-  const refreshPayments = async () => {
-    await paymentsContext.refreshPayments(targetUserId)
-  }
-
+  // Retorna dados do useQuery
   return {
-    payments: paymentsContext.payments,
-    paymentsLoading: paymentsContext.loading,
-    paymentsError: paymentsContext.error,
-    refreshPayments,
-    refetch: refreshPayments
+    payments,
+    paymentsLoading,
+    paymentsError: paymentsError?.message || null,
+    refreshPayments: refetchPayments,
+    refetch: refetchPayments
   }
 }
 
