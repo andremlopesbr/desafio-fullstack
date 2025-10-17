@@ -82,7 +82,7 @@ class PixPlanChangeTest extends TestCase
             'additional_balance' => $resultado['additional_balance']
         ]);
 
-        // Assert: Verificar cálculos (correção baseada na lógica real)
+        // Verificar cálculos
         // Cenário: Plano R$ 9,90 → R$ 87,00 no mesmo dia = crédito proporcional 100% = R$ 9,90
         // Valor a pagar = R$ 87,00 - R$ 9,90 = R$ 77,10 (sem saldo disponível)
         $this->assertEquals(77.10, $resultado['final_amount'], 'Valor a pagar deveria ser diferença entre planos');

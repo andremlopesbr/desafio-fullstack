@@ -36,6 +36,7 @@ Route::get('users/{user}/balance', [UserController::class, 'balance']);
 Route::post('contracts', [ContractController::class, 'create']);
 Route::patch('contracts/{contract}/change-plan', [ContractController::class, 'changePlan']);
 Route::get('contracts', [ContractController::class, 'listForUser']);
+Route::get('contracts/{contract}/credit-calculation', [ContractController::class, 'creditCalculation']);
 Route::post('contracts/{contract}/renew', [ContractController::class, 'renew']);
 Route::post('contracts/{contract}/recurring-payment', [ContractController::class, 'processRecurring']);
 Route::post('maintenance/daily', [ContractController::class, 'processDailyMaintenance']);

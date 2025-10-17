@@ -10,6 +10,7 @@ use App\Http\Requests\StoreContractRequest;
 use App\Http\Requests\ChangePlanContractRequest;
 use App\Http\Requests\ListContractsRequest;
 use App\Http\Resources\ContractResource;
+use App\Services\CreditCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -54,6 +55,36 @@ class ContractController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Calcular informações de crédito para mudança de plano
+     */
+    public function creditCalculation(Request $request, int $contractId): JsonResponse
+    {
+        try {
+            $selectedPlanId = (int) $request->query('plan_id');
+
+            if (!$selectedPlanId) {
+                return response()->json([
+                    'error' => 'Parâmetro plan_id é obrigatório'
+                ], 400);
+            }
+
+            $creditCalculationService = app(CreditCalculationService::class);
+            $result = $creditCalculationService->calculateForContractAndPlan($contractId, $selectedPlanId);
+
+            return response()->json($result);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Contrato ou plano não encontrado'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro interno do servidor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function listForUser(ListContractsRequest $request)

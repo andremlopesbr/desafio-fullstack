@@ -269,7 +269,7 @@ class ContractServiceTest extends TestCase
 
     public function test_debug_scenario_4_exact_downgrade_same_day()
     {
-        // Cenário EXATO 4 do DEBUG.md: Downgrade R$ 197,00 → R$ 9,90 (MESMO DIA)
+        // Cenário EXATO 4: Downgrade R$ 197,00 → R$ 9,90 (MESMO DIA)
         // Deve gerar crédito excedente de R$ 187,10
 
         $oldPlan = Plan::create([
@@ -330,7 +330,7 @@ class ContractServiceTest extends TestCase
             'final_balance' => $this->contractService->getUserBalance($user->id)
         ]);
 
-        // Verificações baseadas no Cenário 4 do DEBUG.md
+        // Verificações baseadas no Cenário 4
         $this->assertEquals(197.00, $result['prorated_old']); // 100% disponível (mesmo dia)
         $this->assertEquals(9.90, $result['prorated_new']); // Valor do plano novo
 
@@ -364,20 +364,19 @@ class ContractServiceTest extends TestCase
             ]);
         }
 
-        // ✅ CORREÇÃO: Agora o saldo deve ser o valor correto (não duplicado)
-        $this->assertEquals(187.10, $finalBalance); // Saldo correto conforme DEBUG.md Cenário 4
+        $this->assertEquals(187.10, $finalBalance);
 
         // Verificar que há registro no UserBalance (único, sem duplicação)
         $userBalances = UserBalance::forUser($user->id)->get();
 
-        Log::info("VERIFICAÇÃO DOS REGISTROS DE SALDO - APÓS CORREÇÃO", [
+        Log::info("VERIFICAÇÃO DOS REGISTROS DE SALDO", [
             'count' => $userBalances->count(),
             'expected_count' => 1,
             'balance_records' => $userBalances->pluck('amount')->toArray(),
             'duplication_fixed' => true
         ]);
 
-        $this->assertCount(1, $userBalances); // ✅ CORREÇÃO: Apenas 1 registro (sem duplicação)
+        $this->assertCount(1, $userBalances);
 
         // O registro deve ter o valor correto
         $this->assertEquals(187.10, $userBalances->first()->amount);
@@ -387,14 +386,14 @@ class ContractServiceTest extends TestCase
             ->where('type', 'credit')
             ->get();
 
-        Log::info("VERIFICAÇÃO DAS TRANSAÇÕES - APÓS CORREÇÃO", [
+        Log::info("VERIFICAÇÃO DAS TRANSAÇÕES", [
             'count' => $transactions->count(),
             'expected_count' => 1,
             'transaction_amounts' => $transactions->pluck('amount')->toArray(),
             'duplication_fixed' => true
         ]);
 
-        $this->assertCount(1, $transactions); // ✅ CORREÇÃO: Apenas 1 transação (sem duplicação)
+        $this->assertCount(1, $transactions);
 
         // A transação deve ter o valor correto
         $this->assertEquals(187.10, $transactions->first()->amount);

@@ -567,7 +567,7 @@ class ContractService implements ContractServiceInterface
             }
         } else {
             // Contrato sem end_date definido - assumir ciclo mensal padrão de 30 dias
-            // Esta é a correção principal: usar sempre 30 dias conforme exemplo do README
+            // Usar sempre 30 dias conforme exemplo do README
             $cycleStart = $startDate;
 
             // Para seguir o exemplo do README, assumir sempre ciclo de 30 dias
@@ -584,7 +584,7 @@ class ContractService implements ContractServiceInterface
                 $daysUsed = $startDate->diffInDays($currentDate);
                 $daysRemaining = $currentDate->diffInDays($cycleEnd);
 
-                // Correção: garantir que dias utilizados + dias restantes = dias totais
+                // Garantir que dias utilizados + dias restantes = dias totais
                 // Esta lógica garante que o cálculo seja consistente com o exemplo do README
                 if ($daysUsed + $daysRemaining !== $totalDays) {
                     // Ajuste fino para casos extremos (mudanças de horário, anos bissextos, etc.)
