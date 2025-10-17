@@ -1,5 +1,16 @@
-import { createContext, useState, useCallback, ReactNode } from 'react'
+/**
+ * Contexto para gerenciamento de pagamentos
+ *
+ * Este contexto gerencia o estado global relacionado a pagamentos de usuários,
+ * fornecendo funcionalidades para buscar e atualizar dados de pagamentos.
+ */
 
+import { createContext, useState, ReactNode } from 'react'
+import { fetchData, extractArrayFromData } from '../utils/apiUtils'
+
+/**
+ * Interface que representa um pagamento no sistema
+ */
 export interface Payment {
   id: number
   contract_id: number
@@ -30,43 +41,25 @@ export function PaymentsProvider({ children }: PaymentsProviderProps) {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fetchData = useCallback(
-    async <T,>(
-      url: string,
-      setData: (data: T) => void,
-      setLoading: (loading: boolean) => void,
-      setError: (error: string | null) => void,
-      transform?: (data: unknown) => T
-    ) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(url)
-        if (!response.ok) throw new Error(`Failed to fetch from ${url}`)
-        const data = await response.json()
-        const transformedData = transform ? transform(data) : data
-        setData(transformedData)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        setError(message)
-        console.error(`Error fetching from ${url}:`, message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    []
-  )
-  const refreshPayments = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
-        setPayments,
-        setLoading,
-        setError
-      )
-    },
-    [fetchData]
-  )
+
+  /**
+   * Busca pagamentos do usuário na API
+   *
+   * Esta função busca todos os pagamentos associados a um usuário específico,
+   * tratando automaticamente o formato de resposta da API e atualizando
+   * o estado global de pagamentos.
+   *
+   * @param userId - ID do usuário para buscar pagamentos
+   */
+  const refreshPayments = async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
+      setPayments,
+      setLoading,
+      setError,
+      extractArrayFromData<Payment>()
+    )
+  }
 
   const value: PaymentsContextType = {
     payments,

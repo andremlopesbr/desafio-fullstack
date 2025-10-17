@@ -1,27 +1,13 @@
-import { createContext, useState, useCallback, ReactNode } from 'react'
-import { Plan } from './PlansContext'
+/**
+ * Contexto para gerenciamento de contratos
+ *
+ * Este contexto gerencia o estado global relacionado a contratos de usuários,
+ * fornecendo funcionalidades para buscar e atualizar dados de contratos.
+ */
 
-export interface Contract {
-  id: number
-  user_id: number
-  plan_id: number
-  start_date: string | null
-  end_date: string | null
-  status: string | null
-  created_at: string
-  updated_at: string
-  plan: Plan
-}
-
-interface ContractsState {
-  contracts: Contract[]
-  loading: boolean
-  error: string | null
-}
-
-interface ContractsContextType extends ContractsState {
-  refreshContracts: (userId: number) => Promise<void>
-}
+import { createContext, useState, ReactNode } from 'react'
+import { fetchData, extractArrayFromData } from '../utils/apiUtils'
+import { Contract, ContractsContextType } from '../types/api'
 
 export const ContractsContext = createContext<ContractsContextType | undefined>(undefined)
 
@@ -33,46 +19,28 @@ export function ContractsProvider({ children }: ContractsProviderProps) {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fetchData = useCallback(
-    async <T,>(
-      url: string,
-      setData: (data: T) => void,
-      setLoading: (loading: boolean) => void,
-      setError: (error: string | null) => void,
-      transform?: (data: unknown) => T
-    ) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(url)
-        if (!response.ok) throw new Error(`Failed to fetch from ${url}`)
-        const data = await response.json()
-        const transformedData = transform ? transform(data) : data
-        setData(transformedData)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        setError(message)
-        console.error(`Error fetching from ${url}:`, message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    []
-  )
-  const refreshContracts = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
-        setContracts,
-        setLoading,
-        setError
-      )
-    },
-    [fetchData]
-  )
+
+  /**
+   * Busca contratos do usuário na API
+   *
+   * Esta função busca todos os contratos associados a um usuário específico,
+   * tratando automaticamente o formato de resposta da API e atualizando
+   * o estado global de contratos.
+   *
+   * @param userId - ID do usuário para buscar contratos
+   */
+  const refreshContracts = async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
+      setContracts,
+      setLoading,
+      setError,
+      extractArrayFromData<Contract>()
+    )
+  }
 
   const value: ContractsContextType = {
-    contracts,
+    data: contracts,
     loading,
     error,
     refreshContracts

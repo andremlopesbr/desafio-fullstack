@@ -28,7 +28,7 @@ export const usePlans = () => {
   }
 
   return {
-    plans: plansContext.plans,
+    plans: plansContext.data,
     plansLoading: plansContext.loading,
     plansError: plansContext.error,
     refreshPlans,

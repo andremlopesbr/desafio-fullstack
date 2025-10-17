@@ -29,7 +29,7 @@ export const useContracts = () => {
   }
 
   return {
-    contracts: contractsContext.contracts,
+    contracts: contractsContext.data,
     contractsLoading: contractsContext.loading,
     contractsError: contractsContext.error,
     refreshContracts,

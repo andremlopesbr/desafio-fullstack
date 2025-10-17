@@ -1,4 +1,5 @@
-import { createContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useState, ReactNode } from 'react'
+import { fetchData, extractBalanceFromData } from '../utils/apiUtils'
 
 interface BalanceState {
   balance: number
@@ -20,47 +21,16 @@ export function BalanceProvider({ children }: BalanceProviderProps) {
   const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fetchData = useCallback(
-    async <T,>(
-      url: string,
-      setData: (data: T) => void,
-      setLoading: (loading: boolean) => void,
-      setError: (error: string | null) => void,
-      transform?: (data: unknown) => T
-    ) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(url)
-        if (!response.ok) throw new Error(`Failed to fetch from ${url}`)
-        const data = await response.json()
-        const transformedData = transform ? transform(data) : data
-        setData(transformedData)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        setError(message)
-        console.error(`Error fetching from ${url}:`, message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    []
-  )
-  const refreshBalance = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
-        setBalance,
-        setLoading,
-        setError,
-        (data: unknown) => {
-          const balanceData = data as { total_balance: number }
-          return balanceData.total_balance || 0
-        }
-      )
-    },
-    [fetchData]
-  )
+
+  const refreshBalance = async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
+      setBalance,
+      setLoading,
+      setError,
+      extractBalanceFromData()
+    )
+  }
 
   const value: BalanceContextType = {
     balance,

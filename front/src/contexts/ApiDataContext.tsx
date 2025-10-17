@@ -1,4 +1,5 @@
 import { createContext, useState, useCallback, useRef, useMemo, useEffect, ReactNode } from 'react'
+import { extractArrayFromData, extractBalanceFromData } from '../utils/apiUtils'
 
 interface Plano {
   id: number
@@ -183,81 +184,36 @@ export function ApiDataProvider({ children }: ApiDataProviderProps) {
       setPlans,
       setPlansLoading,
       setPlansError,
-      // Transformador para extrair o array do objeto {data: [...]}
-      (data: unknown) => {
-        if (data && typeof data === 'object' && 'data' in data) {
-          const apiResponse = data as { data: Plano[] }
-          return Array.isArray(apiResponse.data) ? apiResponse.data : []
-        }
-        // Fallback: se já for um array, retorna como está
-        if (Array.isArray(data)) {
-          return data
-        }
-        return []
-      }
+      extractArrayFromData<Plano>()
     )
-  }, [fetchData])
-  const refreshContracts = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
-        setContracts,
-        setContractsLoading,
-        setContractsError,
-        // Transformador para extrair o array do objeto {data: [...]}
-        (data: unknown) => {
-          if (data && typeof data === 'object' && 'data' in data) {
-            const apiResponse = data as { data: Contract[] }
-            return Array.isArray(apiResponse.data) ? apiResponse.data : []
-          }
-          // Fallback: se já for um array, retorna como está
-          if (Array.isArray(data)) {
-            return data
-          }
-          return []
-        }
-      )
-    },
-    [fetchData]
-  )
-  const refreshPayments = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
-        setPayments,
-        setPaymentsLoading,
-        setPaymentsError,
-        // Transformador para extrair o array do objeto {data: [...]}
-        (data: unknown) => {
-          if (data && typeof data === 'object' && 'data' in data) {
-            const apiResponse = data as { data: Payment[] }
-            return Array.isArray(apiResponse.data) ? apiResponse.data : []
-          }
-          // Fallback: se já for um array, retorna como está
-          if (Array.isArray(data)) {
-            return data
-          }
-          return []
-        }
-      )
-    },
-    [fetchData]
-  )
-  const refreshBalance = useCallback(
-    async (userId: number) => {
-      await fetchData(
-        `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
-        setBalance,
-        setBalanceLoading,
-        setBalanceError,
-        (data: unknown) => {
-          const balanceData = data as { total_balance: number }
-          return balanceData.total_balance || 0
-        }
-      )
-    },
-    [fetchData]
-  )
+  }, [])
+  const refreshContracts = useCallback(async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/contracts?user_id=${userId}`,
+      setContracts,
+      setContractsLoading,
+      setContractsError,
+      extractArrayFromData<Contract>()
+    )
+  }, [])
+  const refreshPayments = useCallback(async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/payments?user_id=${userId}`,
+      setPayments,
+      setPaymentsLoading,
+      setPaymentsError,
+      extractArrayFromData<Payment>()
+    )
+  }, [])
+  const refreshBalance = useCallback(async (userId: number) => {
+    await fetchData(
+      `${import.meta.env.VITE_API_URL}/users/${userId}/balance`,
+      setBalance,
+      setBalanceLoading,
+      setBalanceError,
+      extractBalanceFromData()
+    )
+  }, [])
   const forceRefreshAllData = useCallback(
     async (userId: number) => {
       invalidateUserCache(userId)
