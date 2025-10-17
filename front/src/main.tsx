@@ -2,7 +2,6 @@ import ReactDOM from 'react-dom/client'
 import { StrictMode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext.tsx'
-import { AppDataProvider } from './contexts/AppDataContext.tsx'
 import { QueryProvider } from './providers/QueryProvider.tsx'
 import { Router } from './Router.tsx'
 
@@ -13,9 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryProvider>
       <BrowserRouter>
         <AuthProvider>
-          <AppDataProvider>
-            <Router />
-          </AppDataProvider>
+          <Router />
         </AuthProvider>
       </BrowserRouter>
     </QueryProvider>

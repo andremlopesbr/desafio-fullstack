@@ -37,7 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         const errorObj =
           error instanceof Error ? error : new Error('Erro ao fazer parse do usuário')
-        setError(errorObj, 'Carregamento de sessão do usuário')
+        setError(errorObj)
         localStorage.removeItem('user')
       }
     }

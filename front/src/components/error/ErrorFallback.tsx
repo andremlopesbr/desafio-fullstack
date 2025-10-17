@@ -30,7 +30,7 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   onRetry,
   showDetails = false
 }) => {
-  const { error, errorInfo, retry, isRetrying } = useErrorHandler()
+  const { error, retry, isRetrying } = useErrorHandler()
 
   const handleRetry = () => {
     if (onRetry) {
@@ -73,29 +73,15 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
 
         <p className="text-sm text-gray-600 mb-6">{getErrorMessage()}</p>
 
-        {showDetails && errorInfo && (
+        {showDetails && error && (
           <details className="mb-6 text-left">
             <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
               Detalhes técnicos
             </summary>
             <div className="mt-2 p-3 bg-gray-100 rounded-md text-xs text-gray-800">
               <div>
-                <strong>Contexto:</strong> {errorInfo.context || 'Não disponível'}
+                <strong>Error:</strong> {error.message || 'Erro desconhecido'}
               </div>
-              <div>
-                <strong>URL:</strong> {errorInfo.url || 'Não disponível'}
-              </div>
-              <div>
-                <strong>Timestamp:</strong> {errorInfo.timestamp.toLocaleString()}
-              </div>
-              {errorInfo.stackTrace && (
-                <div className="mt-2">
-                  <strong>Stack Trace:</strong>
-                  <pre className="whitespace-pre-wrap mt-1 text-xs overflow-auto max-h-32">
-                    {errorInfo.stackTrace}
-                  </pre>
-                </div>
-              )}
             </div>
           </details>
         )}

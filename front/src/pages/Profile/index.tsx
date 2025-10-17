@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { useApiData } from '../../hooks/useApiData'
+import { useContracts } from '../../hooks/useContracts'
 import { Breadcrumbs } from '../../components/ui'
 import Layout from '../../components/Layout'
 import { formatCurrency } from '../../utils/formatters'
@@ -18,7 +18,7 @@ const Profile = () => {
   const { user: authUser } = useAuth()
   const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const { contracts, contractsLoading, refreshContracts } = useApiData()
+  const { contracts, contractsLoading, refreshContracts } = useContracts()
   const isDataReady = useMemo(() => {
     if (contractsLoading) return false
     if (isLoading) return false
@@ -40,7 +40,7 @@ const Profile = () => {
           }
         }
         if (authUser?.id) {
-          await refreshContracts(authUser.id)
+          await refreshContracts()
         } else {
           console.warn('⚠️ [PROFILE] Nenhum ID de usuário disponível para carregar contratos')
         }

@@ -1,16 +1,11 @@
-import { useContext } from 'react'
-import { PaymentsContext } from '../contexts/PaymentsContext'
-import { AuthContext } from '../contexts/AuthContext'
-import { useApiMutation } from './useApiMutation'
+import { useAuth } from './useAuth'
 import { usePaymentsQuery } from './queries/usePaymentsQuery'
 
 export const usePayments = (userId?: number) => {
-  const paymentsContext = useContext(PaymentsContext)
-  const authContext = useContext(AuthContext)
+  const { user } = useAuth()
+  const targetUserId = userId || user?.id
 
-  const targetUserId = userId || authContext?.user?.id
-
-  // Usar o novo hook com TanStack Query
+  // Usar apenas o hook com TanStack Query
   const {
     data: payments = [],
     isLoading: paymentsLoading,
@@ -18,18 +13,7 @@ export const usePayments = (userId?: number) => {
     refetch: refetchPayments
   } = usePaymentsQuery(targetUserId)
 
-  // Manter compatibilidade com o contexto existente para transição suave
-  if (paymentsContext && authContext?.user && targetUserId && paymentsContext.payments.length > 0) {
-    return {
-      payments: paymentsContext.payments,
-      paymentsLoading: paymentsContext.loading,
-      paymentsError: paymentsContext.error,
-      refreshPayments: () => paymentsContext.refreshPayments(targetUserId),
-      refetch: () => paymentsContext.refreshPayments(targetUserId)
-    }
-  }
-
-  // Se não há contexto ou usuário autenticado, retorna dados vazios
+  // Se não há usuário autenticado, retorna dados vazios
   if (!targetUserId) {
     return {
       payments: [],
@@ -50,20 +34,4 @@ export const usePayments = (userId?: number) => {
   }
 }
 
-/**
- * Hook para processamento de pagamentos
- */
-export function useProcessPayment() {
-  const { data, loading, error, execute } = useApiMutation()
-
-  const processPayment = async (data: {
-    contract_id: number
-    amount: number
-    payment_date: string
-    status?: string
-  }) => {
-    return execute('/payments', { method: 'POST' }, data)
-  }
-
-  return { processPayment, data, loading, error }
-}
+// Hook useProcessPayment removido - funcionalidade integrada diretamente nos componentes

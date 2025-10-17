@@ -72,3 +72,16 @@ export interface PaymentsContextType extends ApiState<Payment[]> {
 export interface BalanceContextType extends ApiState<number> {
   refreshBalance: (userId: number) => Promise<void>
 }
+
+/**
+ * Interface que representa o resultado do cálculo de crédito via API
+ */
+export interface CreditCalculationResult {
+  database_credits: number
+  prorated_discount: number
+  prorated_old: number
+  prorated_new: number
+  available_credits: number
+  final_price: number
+  discount: number
+}

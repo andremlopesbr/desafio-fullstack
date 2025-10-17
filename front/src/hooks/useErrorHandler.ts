@@ -1,162 +1,145 @@
-import { useCallback, useState } from 'react'
-
-export interface ErrorInfo {
-  /** Objeto de erro capturado */
-  error: Error
-  /** Timestamp quando o erro ocorreu */
-  timestamp: Date
-  /** Contexto adicional sobre onde o erro ocorreu */
-  context?: string
-  /** ID do usuário autenticado (se disponível) */
-  userId?: string
-  /** URL onde o erro ocorreu */
-  url?: string
-  /** User agent do navegador */
-  userAgent?: string
-  /** Stack trace do erro */
-  stackTrace?: string
-}
-
-export interface UseErrorHandlerReturn {
-  /** Erro atual capturado */
-  error: Error | null
-  /** Informações detalhadas do erro */
-  errorInfo: ErrorInfo | null
-  /** Função para definir um erro */
-  setError: (error: Error | string, context?: string) => void
-  /** Função para limpar o erro */
-  clearError: () => void
-  /** Função para registrar erro (apenas log, sem alterar estado) */
-  logError: (error: Error | string, context?: string) => ErrorInfo
-  /** Função de retry configurada */
-  retry: (() => void) | null
-  /** Função para configurar função de retry */
-  setRetry: (retryFn: (() => void) | null) => void
-  /** Estado de retry em andamento */
-  isRetrying: boolean
-  /** Função para definir estado de retry */
-  setRetrying: (retrying: boolean) => void
-}
+import { useState, useCallback } from 'react'
+import { useErrorLogger } from '../services/errorLogger'
 
 /**
- * Hook personalizado para tratamento centralizado de erros na aplicação.
- *
- * Este hook fornece funcionalidades para capturar, registrar e gerenciar erros,
- * integrando-se com o contexto de autenticação para incluir informações do usuário.
- * Pode ser integrado com serviços de monitoramento de erro como Sentry ou LogRocket.
- *
- * @returns Objeto com métodos e estados para gerenciamento de erros
- *
- * @example
- * ```tsx
- * function MeuComponente() {
- *   const { error, setError, clearError, retry, setRetry } = useErrorHandler();
- *
- *   const handleApiCall = async () => {
- *     try {
- *       await api.chamadaProblematica();
- *     } catch (err) {
- *       setError(err, 'API Call');
- *       setRetry(() => handleApiCall);
- *     }
- *   };
- *
- *   if (error) {
- *     return (
- *       <div>
- *         <p>Erro: {error.message}</p>
- *         <button onClick={retry}>Tentar novamente</button>
- *       </div>
- *     );
- *   }
- *
- *   return <div>Componente funcionando normalmente</div>;
- * }
- * ```
+ * Hook para tratamento de erros com estado local e logging profissional
+ * Mantém compatibilidade com código existente e adiciona funcionalidades avançadas
  */
-export function useErrorHandler(): UseErrorHandlerReturn {
-  const [error, setErrorState] = useState<Error | null>(null)
-  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
-  const [retry, setRetryState] = useState<(() => void) | null>(null)
-  const [isRetrying, setRetryingState] = useState(false)
+export const useErrorHandler = () => {
+  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
+  const [retry, setRetry] = useState<(() => void) | null>(null)
+  const [isRetrying, setIsRetrying] = useState(false)
+  const { logError } = useErrorLogger()
 
-  /**
-   * Define um erro e registra suas informações detalhadas.
-   * @param error - Erro a ser registrado (Error ou string)
-   * @param context - Contexto adicional sobre onde o erro ocorreu
-   */
-  const setError = useCallback((error: Error | string, context?: string) => {
-    const errorObj = typeof error === 'string' ? new Error(error) : error
-
-    setErrorState(errorObj)
-
-    const info: ErrorInfo = {
-      error: errorObj,
-      timestamp: new Date(),
-      context,
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      stackTrace: errorObj.stack
-    }
-
-    setErrorInfo(info)
-  }, [])
-
-  /**
-   * Limpa o estado de erro e informações associadas.
-   */
   const clearError = useCallback(() => {
-    setErrorState(null)
-    setErrorInfo(null)
-    setRetryState(null)
-    setRetryingState(false)
+    setError(null)
+    setRetry(null)
+    setIsRetrying(false)
   }, [])
 
-  /**
-   * Registra um erro apenas para logging, sem alterar o estado.
-   * @param error - Erro a ser registrado
-   * @param context - Contexto adicional
-   * @returns Informações detalhadas do erro registrado
-   */
-  const logError = useCallback((error: Error | string, context?: string): ErrorInfo => {
-    const errorObj = typeof error === 'string' ? new Error(error) : error
+  const handleError = useCallback(
+    (
+      error: Error | string | unknown,
+      context?: {
+        component?: string
+        action?: string
+        severity?: 'low' | 'medium' | 'high' | 'critical'
+        additionalData?: Record<string, unknown>
+      }
+    ) => {
+      const {
+        component = 'UnknownComponent',
+        action = 'unknown',
+        severity = 'medium',
+        additionalData = {}
+      } = context || {}
 
-    const info: ErrorInfo = {
-      error: errorObj,
-      timestamp: new Date(),
-      context,
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      stackTrace: errorObj.stack
+      // Converter erro para string se necessário
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Erro desconhecido'
+
+      // Define o erro no estado local
+      setError({ message: errorMessage })
+
+      // Log estruturado profissional
+      logError(errorMessage, severity, {
+        component,
+        action,
+        additionalData: {
+          originalError: error,
+          timestamp: new Date().toISOString(),
+          ...additionalData
+        }
+      })
+
+      return errorMessage
+    },
+    [logError]
+  )
+
+  const handleApiError = useCallback(
+    (error: unknown, apiEndpoint?: string, additionalContext?: Record<string, unknown>) => {
+      return handleError(error, {
+        component: 'API',
+        action: 'request',
+        severity: 'high',
+        additionalData: {
+          apiEndpoint,
+          errorType: 'api_error',
+          ...additionalContext
+        }
+      })
+    },
+    [handleError]
+  )
+
+  const handleBusinessLogicError = useCallback(
+    (error: unknown, operation?: string, additionalContext?: Record<string, unknown>) => {
+      return handleError(error, {
+        component: 'BusinessLogic',
+        action: operation || 'unknown',
+        severity: 'medium',
+        additionalData: {
+          errorType: 'business_logic_error',
+          ...additionalContext
+        }
+      })
+    },
+    [handleError]
+  )
+
+  const executeWithErrorHandling = useCallback(
+    async <T>(
+      operation: () => Promise<T>,
+      context?: {
+        component?: string
+        action?: string
+        severity?: 'low' | 'medium' | 'high' | 'critical'
+      }
+    ): Promise<T | null> => {
+      try {
+        clearError()
+        return await operation()
+      } catch (error) {
+        handleError(error, context)
+        return null
+      }
+    },
+    [clearError, handleError]
+  )
+
+  const retryOperation = useCallback(async () => {
+    if (!retry || isRetrying) return
+
+    setIsRetrying(true)
+    try {
+      await retry()
+      clearError()
+    } catch (error) {
+      handleError(error, { component: 'RetryOperation', action: 'retry' })
+    } finally {
+      setIsRetrying(false)
     }
-    return info
-  }, [])
-
-  /**
-   * Configura uma função de retry para o erro atual.
-   * @param retryFn - Função a ser executada no retry
-   */
-  const setRetry = useCallback((retryFn: (() => void) | null) => {
-    setRetryState(retryFn)
-  }, [])
-
-  /**
-   * Define o estado de retry em andamento.
-   * @param retrying - Se está executando retry
-   */
-  const setRetrying = useCallback((retrying: boolean) => {
-    setRetryingState(retrying)
-  }, [])
+  }, [retry, isRetrying, clearError, handleError])
 
   return {
     error,
-    errorInfo,
     setError,
-    clearError,
-    logError,
     retry,
     setRetry,
     isRetrying,
-    setRetrying
+    clearError,
+    handleError,
+    handleApiError,
+    handleBusinessLogicError,
+    executeWithErrorHandling,
+    retryOperation,
+    logError
   }
 }
+
+export default useErrorHandler

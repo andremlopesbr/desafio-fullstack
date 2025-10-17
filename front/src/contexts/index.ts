@@ -1,6 +1,2 @@
-export { PlansContext, PlansProvider } from './PlansContext'
-export { ContractsContext, ContractsProvider } from './ContractsContext'
-export { PaymentsContext, PaymentsProvider } from './PaymentsContext'
-export { BalanceContext, BalanceProvider } from './BalanceContext'
-export { AppDataProvider } from './AppDataContext'
-export { ApiDataContext, ApiDataProvider } from './ApiDataContext'
+// Arquivo temporário - será removido quando AuthContext for migrado para useQuery
+// Apenas AuthContext permanece até migração completa

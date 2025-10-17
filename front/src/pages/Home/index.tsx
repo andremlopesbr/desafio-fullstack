@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useApiData } from '../../hooks/useApiData'
 import { useAuth } from '../../hooks/useAuth'
+import { usePlans } from '../../hooks/usePlans'
+import { useContracts } from '../../hooks/useContracts'
+import { useUserBalance } from '../../hooks/useUserBalance'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Notification, Card } from '../../components/ui'
 import { PlanCard } from '../../components/domain'
@@ -14,14 +16,19 @@ export const Home = () => {
     plans,
     plansLoading,
     plansError,
+    refreshPlans
+  } = usePlans()
+
+  const {
     contracts,
     contractsLoading,
     contractsError,
-    refreshContracts,
-    refreshPlans,
-    refreshBalance,
-    forceRefreshAllData
-  } = useApiData()
+    refreshContracts
+  } = useContracts()
+
+  const {
+    refreshBalance
+  } = useUserBalance()
 
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -36,11 +43,10 @@ export const Home = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const currentUserId = user?.id || 1
         await Promise.all([
           refreshPlans(),
-          refreshContracts(currentUserId),
-          refreshBalance(currentUserId)
+          refreshContracts(),
+          refreshBalance()
         ])
       } catch (error) {
         console.error('Erro ao carregar dados iniciais')
@@ -65,10 +71,14 @@ export const Home = () => {
       if (user?.id) {
         setIsRefreshing(true)
 
-        forceRefreshAllData(user.id)
+        Promise.all([
+          refreshPlans(),
+          refreshContracts(),
+          refreshBalance()
+        ])
           .then(() => {})
-          .catch(error => {
-            console.error('❌ [HOME] Erro durante force refresh:', error)
+          .catch((error: Error) => {
+            console.error('❌ [HOME] Erro durante refresh:', error)
           })
           .finally(() => {
             setIsRefreshing(false)
@@ -80,7 +90,7 @@ export const Home = () => {
 
       setTimeout(() => setNotification(null), 5000)
     }
-  }, [searchParams, setSearchParams, user?.id, forceRefreshAllData, hasProcessedPayment])
+  }, [searchParams, setSearchParams, user?.id, refreshPlans, refreshContracts, refreshBalance, hasProcessedPayment])
 
   const loading = plansLoading || contractsLoading || isRefreshing
   const error = plansError || contractsError

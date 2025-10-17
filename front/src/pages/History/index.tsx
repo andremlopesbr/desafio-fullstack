@@ -1,6 +1,8 @@
 import { useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { useApiData } from '../../hooks/useApiData'
+import { useContracts } from '../../hooks/useContracts'
+import { usePayments } from '../../hooks/usePayments'
+import { useUserBalance } from '../../hooks/useUserBalance'
 import { useAuth } from '../../hooks/useAuth'
 import { Breadcrumbs } from '../../components/ui'
 import { HistoryTable } from '../../components/domain'
@@ -14,21 +16,27 @@ export const History = () => {
   const {
     contracts,
     contractsLoading,
+    refreshContracts
+  } = useContracts()
+
+  const {
     payments,
     paymentsLoading,
+    refreshPayments
+  } = usePayments(userId)
+
+  const {
     balance,
-    refreshContracts,
-    refreshPayments,
     refreshBalance
-  } = useApiData()
+  } = useUserBalance(userId)
 
   const loadHistoryData = useCallback(async () => {
     try {
-      await Promise.all([refreshContracts(userId), refreshPayments(userId), refreshBalance(userId)])
+      await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
     } catch (error) {
       console.error('Erro ao carregar dados do histórico:', error)
     }
-  }, [userId, refreshContracts, refreshPayments, refreshBalance])
+  }, [refreshContracts, refreshPayments, refreshBalance])
 
   useEffect(() => {
     if (userId) {

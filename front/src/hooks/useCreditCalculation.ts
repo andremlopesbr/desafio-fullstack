@@ -1,0 +1,88 @@
+import { useQuery } from '@tanstack/react-query'
+import { CreditCalculationResult } from '../types/api'
+
+/**
+ * Hook personalizado para buscar cálculo de crédito usando TanStack Query
+ * Substitui o uso da calculadora local pela API com tratamento robusto de erros
+ */
+export const useCreditCalculation = (contractId?: number) => {
+  return useQuery({
+    queryKey: ['credit-calculation', contractId],
+    queryFn: async (): Promise<CreditCalculationResult> => {
+      if (!contractId) {
+        throw new Error('ContractId é necessário para buscar cálculo de crédito')
+      }
+
+      try {
+        // TODO Refatorar o uso de fetch cm base no SOLID e reutilizar em todo o sistema com os tratamentos necessarios, usando o 'utils/apiUtils'
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`
+        )
+
+        if (!response.ok) {
+          // Tratamento específico para diferentes códigos de erro
+          switch (response.status) {
+            case 404:
+              throw new Error('Contrato não encontrado ou cálculo não disponível')
+            case 401:
+              throw new Error('Não autorizado para acessar cálculo de crédito')
+            case 403:
+              throw new Error('Acesso negado ao cálculo de crédito')
+            case 429:
+              throw new Error('Muitas requisições. Tente novamente em alguns instantes')
+            case 500:
+              throw new Error('Erro interno do servidor. Tente novamente mais tarde')
+            case 503:
+              throw new Error('Serviço temporariamente indisponível')
+            default:
+              throw new Error(`Erro ao buscar cálculo de crédito: ${response.statusText}`)
+          }
+        }
+
+        const data = await response.json()
+
+        // Validação básica dos dados retornados
+        if (!data || typeof data !== 'object') {
+          throw new Error('Dados de resposta inválidos')
+        }
+
+        return data
+      } catch (error) {
+        // Re-throw fetch errors (rede, timeout, etc.)
+        if (error instanceof TypeError) {
+          throw new Error('Erro de conexão. Verifique sua internet e tente novamente')
+        }
+        throw error
+      }
+    },
+    enabled: !!contractId, // Só executa se contractId estiver presente
+    // Cache por 1 minuto para cálculos de crédito (dados dinâmicos)
+    staleTime: 1 * 60 * 1000, // 1 minute
+    // Manter em cache por 2 minutos
+    gcTime: 2 * 60 * 1000, // 2 minutes
+    // Configurações de retry para melhor resiliência
+    retry: (failureCount, error) => {
+      // Não retry em erros específicos
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase()
+        if (
+          errorMessage.includes('contrato não encontrado') ||
+          errorMessage.includes('não autorizado') ||
+          errorMessage.includes('acesso negado')
+        ) {
+          return false
+        }
+      }
+
+      // Retry até 3 vezes para outros erros
+      return failureCount < 3
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
+    // Placeholder data para melhorar UX durante carregamento inicial
+    placeholderData: previousData => previousData,
+    // Meta para debugging
+    meta: {
+      errorMessage: 'Falha ao carregar cálculo de crédito'
+    }
+  })
+}

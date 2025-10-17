@@ -51,7 +51,7 @@ export function ApiErrorBoundary({
    */
   const handleError = React.useCallback(
     (error: Error) => {
-      setError(error, context)
+      setError(error)
     },
     [setError, context]
   )

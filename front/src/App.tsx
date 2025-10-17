@@ -42,8 +42,9 @@ export function App() {
 
   return (
     <ErrorBoundary
-      onError={(error, errorInfo) => {
-        console.error('Erro crítico na aplicação:', error, errorInfo)
+      context="AppRoot"
+      onError={(_error, _errorInfo) => {
+        // Error logging now handled by ErrorBoundary with professional logging system
       }}
       resetOnPropsChange
       resetKeys={user?.id ? [user.id] : []}

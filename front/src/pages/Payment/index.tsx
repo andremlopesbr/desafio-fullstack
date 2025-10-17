@@ -5,8 +5,11 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useApiData } from '../../hooks/useApiData'
 import { useAuth } from '../../hooks/useAuth'
+import { usePlans } from '../../hooks/usePlans'
+import { useContracts } from '../../hooks/useContracts'
+import { useCreateContract } from '../../hooks/useCreateContract'
+import { useUserBalance } from '../../hooks/useUserBalance'
 import { usePlanCredits } from '../../hooks/usePlanCredits'
 import Pix from 'react-qrcode-pix'
 import { Modal, LoadingSpinner } from '../../components/ui'
@@ -30,15 +33,22 @@ export const Payment = () => {
     plans,
     plansLoading,
     plansError,
-    contracts,
+    refreshPlans
+  } = usePlans()
+
+  const {
+    contracts
+  } = useContracts()
+
+  const {
     createContract,
-    contractLoading,
-    contractError,
-    processPayment,
-    paymentLoading,
-    paymentError,
-    forceRefreshAllData
-  } = useApiData()
+    loading: contractLoading,
+    error: contractError
+  } = useCreateContract()
+
+  const {
+    refreshBalance
+  } = useUserBalance()
 
   const plan = plans.find((p: Plano) => p.id === Number(planId))
   const activeContract = contracts.find((c: Contract) => c.status === 'active')
@@ -147,9 +157,9 @@ export const Payment = () => {
         let appliedCredits: number = 0
 
         if (isPlanChange && creditInfo) {
-          finalAmount = creditInfo.finalPrice
-          proratedOld = creditInfo.proratedDiscount || 0
-          proratedNew = creditInfo.proratedNew || 0 // Valor cheio do plano novo
+          finalAmount = creditInfo.final_price
+          proratedOld = creditInfo.prorated_discount || 0
+          proratedNew = creditInfo.prorated_new || 0 // Valor cheio do plano novo
           appliedCredits = creditInfo.discount || 0
           discountApplied = proratedOld + proratedNew + appliedCredits
         } else {
@@ -172,11 +182,27 @@ export const Payment = () => {
             prorated_new: proratedNew,
             applied_credits: appliedCredits
           }
-          const payment = await processPayment(paymentData, userData.id)
+          // Criar pagamento diretamente via API
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(paymentData)
+          })
+
+          if (!response.ok) {
+            throw new Error('Erro ao criar pagamento')
+          }
+
+          const payment = await response.json()
 
           if (payment) {
             if (userData.id) {
-              await forceRefreshAllData(userData.id)
+              await Promise.all([
+                refreshPlans(),
+                refreshBalance()
+              ])
             }
           } else {
             throw new Error('Falha no processamento do pagamento')
@@ -205,11 +231,11 @@ export const Payment = () => {
     )
   }
 
-  if (plansError || contractError || paymentError || !plan) {
+  if (plansError || contractError || !plan) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-red-500 text-lg">
-          Erro: {plansError || contractError || paymentError || 'Plano não encontrado'}
+          Erro: {plansError || contractError || 'Plano não encontrado'}
         </div>
       </div>
     )
@@ -289,7 +315,13 @@ export const Payment = () => {
               </div>
             ) : creditInfo && isPlanChange ? (
               <PlanChangeDetails
-                creditInfo={creditInfo}
+                creditInfo={{
+                  databaseCredits: creditInfo.database_credits,
+                  proratedDiscount: creditInfo.prorated_discount,
+                  proratedNew: creditInfo.prorated_new,
+                  finalPrice: creditInfo.final_price,
+                  proratedOld: creditInfo.prorated_old
+                }}
                 formatCurrency={formatCurrency}
                 showToCredit={true}
               />
@@ -320,7 +352,7 @@ export const Payment = () => {
           {(() => {
             let finalAmount = 0
             if (creditInfo && isPlanChange) {
-              finalAmount = creditInfo.finalPrice
+              finalAmount = creditInfo.final_price
             } else {
               finalAmount = Math.max(0, plan.price - currentBalance)
             }
@@ -370,7 +402,7 @@ export const Payment = () => {
           })()}
           <button
             onClick={handleConfirmPayment}
-            disabled={contractLoading || paymentLoading || isProcessing}
+            disabled={contractLoading || isProcessing}
             className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center"
           >
             {isProcessing ? (
@@ -382,11 +414,6 @@ export const Payment = () => {
               <>
                 <LoadingSpinner className="mr-2 h-4 w-4" />
                 Carregando Contrato...
-              </>
-            ) : paymentLoading ? (
-              <>
-                <LoadingSpinner className="mr-2 h-4 w-4" />
-                Processando Pagamento...
               </>
             ) : (
               'Confirmar Pagamento'

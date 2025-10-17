@@ -42,7 +42,7 @@ export function useGenericData<T>(fetcher: (userId: number) => Promise<T>, userI
         }
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
         const errorObj = new Error(errorMessage)
-        setError(errorObj, `Erro ao buscar dados do usuário ${userId}`)
+        setError(errorObj)
         setRetry(() => fetchData(true))
       } finally {
         setLoading(false)

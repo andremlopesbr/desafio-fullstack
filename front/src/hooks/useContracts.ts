@@ -1,34 +1,19 @@
-import { useContext } from 'react'
-import { ContractsContext } from '../contexts/ContractsContext'
-import { AuthContext } from '../contexts/AuthContext'
+import { useAuth } from './useAuth'
 import { useContractsQuery } from './queries/useContractsQuery'
 
 export const useContracts = () => {
-  const contractsContext = useContext(ContractsContext)
-  const authContext = useContext(AuthContext)
+  const { user } = useAuth()
 
-  // Usar o novo hook com TanStack Query
-  const userId = authContext?.user?.id
+  // Usar apenas o hook com TanStack Query
   const {
     data: contracts = [],
     isLoading: contractsLoading,
     error: contractsError,
     refetch: refetchContracts
-  } = useContractsQuery(userId)
+  } = useContractsQuery(user?.id)
 
-  // Manter compatibilidade com o contexto existente para transição suave
-  if (contractsContext && authContext?.user && contractsContext.data.length > 0) {
-    return {
-      contracts: contractsContext.data,
-      contractsLoading: contractsContext.loading,
-      contractsError: contractsContext.error,
-      refreshContracts: () => contractsContext.refreshContracts(authContext.user!.id),
-      refetch: () => contractsContext.refreshContracts(authContext.user!.id)
-    }
-  }
-
-  // Se não há contexto ou usuário autenticado, retorna dados vazios
-  if (!authContext?.user) {
+  // Se não há usuário autenticado, retorna dados vazios
+  if (!user) {
     return {
       contracts: [],
       contractsLoading: false,

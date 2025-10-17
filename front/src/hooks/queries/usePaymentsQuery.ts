@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { extractArrayFromData } from '../../utils/apiUtils'
-import { Payment } from '../../contexts/PaymentsContext'
+import { Payment } from '../../types/api'
 
 /**
  * Hook personalizado para buscar pagamentos do usuário usando TanStack Query

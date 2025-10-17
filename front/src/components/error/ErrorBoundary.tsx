@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
+import ErrorLogger from '../../services/errorLogger'
 
 interface ErrorBoundaryProps {
   /** Componentes filhos que serão monitorados por erros */
@@ -11,6 +12,8 @@ interface ErrorBoundaryProps {
   resetOnPropsChange?: boolean
   /** Chaves para detectar mudanças nas props e reiniciar o boundary */
   resetKeys?: Array<string | number>
+  /** Contexto adicional para logging */
+  context?: string
 }
 
 interface ErrorBoundaryState {
@@ -62,6 +65,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.setState({
       error,
       errorInfo
+    })
+
+    // Usar o novo sistema de logging profissional
+    const logger = ErrorLogger.getInstance()
+    logger.log(error, 'critical', {
+      component: 'ErrorBoundary',
+      action: 'componentDidCatch',
+      additionalData: {
+        componentStack: errorInfo.componentStack,
+        context: this.props.context,
+        resetOnPropsChange: this.props.resetOnPropsChange,
+        hasResetKeys: !!this.props.resetKeys?.length
+      }
     })
 
     this.props.onError?.(error, errorInfo)
