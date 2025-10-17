@@ -7,10 +7,21 @@
  */
 
 /**
+ * Interface para configurações de requisição avançadas
+ */
+export interface FetchConfig {
+  timeout?: number
+  retries?: number
+  retryDelay?: number
+  signal?: AbortSignal
+}
+
+/**
  * Função genérica para buscar dados de uma API
  *
  * Esta função gerencia o estado de carregamento e erro automaticamente,
  * além de permitir transformação personalizada dos dados recebidos.
+ * Inclui suporte a AbortController e configurações avançadas.
  *
  * @template T - Tipo dos dados esperados após transformação
  * @param url - URL completa da API para fazer a requisição
@@ -18,16 +29,29 @@
  * @param setLoading - Função para definir o estado de carregamento
  * @param setError - Função para definir mensagens de erro
  * @param transform - Função opcional para transformar dados da API
+ * @param config - Configurações avançadas opcionais
  * @returns Promise que resolve quando a operação é concluída
  *
  * @example
  * ```typescript
+ * // Uso básico
  * await fetchData(
  *   'https://api.example.com/users',
  *   setUsers,
  *   setLoading,
  *   setError,
  *   extractArrayFromData<User>()
+ * );
+ *
+ * // Uso avançado com AbortController
+ * const controller = new AbortController()
+ * await fetchData(
+ *   'https://api.example.com/users',
+ *   setUsers,
+ *   setLoading,
+ *   setError,
+ *   extractArrayFromData<User>(),
+ *   { timeout: 5000, signal: controller.signal }
  * );
  * ```
  */
@@ -36,24 +60,150 @@ export async function fetchData<T>(
   setData: (data: T) => void,
   setLoading: (loading: boolean) => void,
   setError: (error: string | null) => void,
-  transform?: (data: unknown) => T
+  transform?: (data: unknown) => T,
+  config?: FetchConfig
 ): Promise<void> {
   setLoading(true)
   setError(null)
 
-  try {
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`Failed to fetch from ${url}`)
+  // Configurações padrão
+  const timeout = config?.timeout ?? 10000 // 10 segundos por padrão
+  const retries = config?.retries ?? 0
 
-    const data = await response.json()
-    const transformedData = transform ? transform(data) : data
-    setData(transformedData)
+  try {
+    // Cria AbortController se não foi fornecido
+    const controller = config?.signal ? undefined : new AbortController()
+    const signal = config?.signal || controller?.signal
+
+    // Configura timeout
+    const timeoutId = setTimeout(() => {
+      controller?.abort()
+    }, timeout)
+
+    // Tenta fazer a requisição com retry se configurado
+    let lastError: Error
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const transformedData = transform ? transform(data) : data
+        setData(transformedData)
+        return // Sucesso, sai da função
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Erro desconhecido')
+
+        // Se é erro de abort, não tenta novamente
+        if (lastError.name === 'AbortError') {
+          throw lastError
+        }
+
+        // Se não é a última tentativa, espera antes de tentar novamente
+        if (attempt < retries) {
+          const delay = (config?.retryDelay ?? 1000) * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+
+    // Se chegou aqui, todas as tentativas falharam
+    throw lastError!
+
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     setError(message)
     // Erro tratado pelo sistema de error boundary - removido console.log
   } finally {
     setLoading(false)
+  }
+}
+
+/**
+ * Versão moderna da função fetchData que retorna Promise diretamente
+ * Ideal para uso com TanStack Query e outros sistemas modernos
+ *
+ * @template T - Tipo dos dados esperados após transformação
+ * @param url - URL completa da API para fazer a requisição
+ * @param transform - Função opcional para transformar dados da API
+ * @param config - Configurações avançadas opcionais
+ * @returns Promise com os dados transformados
+ */
+export async function fetchDataDirect<T>(
+  url: string,
+  transform?: (data: unknown) => T,
+  config?: FetchConfig
+): Promise<T> {
+  const timeout = config?.timeout ?? 10000
+  const retries = config?.retries ?? 0
+
+  // Cria AbortController se não foi fornecido
+  const controller = config?.signal ? undefined : new AbortController()
+  const signal = config?.signal || controller?.signal
+
+  // Configura timeout
+  const timeoutId = setTimeout(() => {
+    controller?.abort()
+  }, timeout)
+
+  try {
+    // Tenta fazer a requisição com retry se configurado
+    let lastError: Error
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        return transform ? transform(data) : data as T
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Erro desconhecido')
+
+        // Se é erro de abort, não tenta novamente
+        if (lastError.name === 'AbortError') {
+          throw lastError
+        }
+
+        // Se não é a última tentativa, espera antes de tentar novamente
+        if (attempt < retries) {
+          const delay = (config?.retryDelay ?? 1000) * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+
+    // Se chegou aqui, todas as tentativas falharam
+    throw lastError!
+
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error // Re-throw abort errors
+    }
+    throw new Error(`Erro na requisição: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
   }
 }
 

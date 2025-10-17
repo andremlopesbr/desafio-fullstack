@@ -67,7 +67,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo
     })
 
-    // Usar o novo sistema de logging profissional
     const logger = ErrorLogger.getInstance()
     logger.log(error, 'critical', {
       component: 'ErrorBoundary',

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { extractBalanceFromData } from '../../utils/apiUtils'
+import { fetchDataDirect } from '../../utils/apiUtils'
 
 /**
  * Hook personalizado para buscar saldo do usuário usando TanStack Query
- * Substitui o contexto BalanceContext por useQuery para melhor performance
+ * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
  */
 export const useUserBalanceQuery = (userId?: number) => {
   return useQuery({
@@ -13,13 +13,28 @@ export const useUserBalanceQuery = (userId?: number) => {
         throw new Error('UserId é necessário para buscar saldo')
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar saldo: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      return extractBalanceFromData()(data)
+      const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
+      return fetchDataDirect<number>(
+        url,
+        (data) => {
+          // Transforma dados usando a função utilitária existente
+          const extractBalanceFromData = (): ((data: unknown) => number) => {
+            return (data: unknown) => {
+              if (data && typeof data === 'object' && 'total_balance' in data) {
+                const balanceData = data as { total_balance: number }
+                return balanceData.total_balance || 0
+              }
+              return 0
+            }
+          }
+          return extractBalanceFromData()(data)
+        },
+        {
+          timeout: 8000, // 8 segundos (dados dinâmicos, mas geralmente rápidos)
+          retries: 2,    // 2 tentativas extras em caso de erro
+          retryDelay: 1000 // 1 segundo entre tentativas
+        }
+      )
     },
     enabled: !!userId, // Só executa se userId estiver presente
     // Cache por 1 minuto para saldo (dados muito dinâmicos)
@@ -27,6 +42,8 @@ export const useUserBalanceQuery = (userId?: number) => {
     // Manter em cache por 2 minutos
     gcTime: 2 * 60 * 1000, // 2 minutes
     // Refetch a cada 30 segundos automaticamente
-    refetchInterval: 30 * 1000 // 30 seconds
+    refetchInterval: 30 * 1000, // 30 seconds
+    // Retry automático configurado no queryClient para evitar duplicação
+    retry: false // Desabilita retry do React Query pois já tratamos no fetchDataDirect
   })
 }

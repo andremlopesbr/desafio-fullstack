@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { fetchDataDirect } from '../utils/apiUtils'
 
 interface CreditTransaction {
   id: number
@@ -21,13 +22,18 @@ export function useCreditTransactionHistory(userId: number) {
     setError(null)
     try {
       const apiUrl = `${import.meta.env.VITE_API_URL}/users/${userId}/balance-history`
-      const response = await fetch(apiUrl)
-      if (!response.ok) throw new Error('Failed to fetch balance history')
-
-      const data = await response.json()
+      const data = await fetchDataDirect<CreditTransaction[]>(
+        apiUrl,
+        (data) => data as CreditTransaction[], // Dados já vêm como array
+        {
+          timeout: 10000, // 10 segundos para histórico
+          retries: 2,     // 2 tentativas extras
+          retryDelay: 1000 // 1 segundo entre tentativas
+        }
+      )
       setTransactions(data)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
       setError(errorMsg)
     } finally {
       setLoading(false)

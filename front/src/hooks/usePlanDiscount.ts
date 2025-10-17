@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Contract } from '../types'
+import { fetchDataDirect } from '../utils/apiUtils'
 import moment from 'moment-timezone'
 
 /**
  * Hook para calcular desconto de troca de plano seguindo a lógica da API
- * Retorna dados padronizados como os hooks do módulo de pagamento
+ * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
  */
 export function usePlanDiscount(
   activeContract: Contract | undefined,
@@ -40,11 +41,16 @@ export function usePlanDiscount(
       setError(undefined)
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
-        if (!response.ok) {
-          throw new Error('Falha ao buscar saldo do usuário')
-        }
-        const data = await response.json()
+        const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
+        const data = await fetchDataDirect<{ total_balance: number }>(
+          url,
+          (data) => data as { total_balance: number }, // Cast apropriado para o tipo esperado
+          {
+            timeout: 8000, // 8 segundos para dados de saldo
+            retries: 2,    // 2 tentativas extras
+            retryDelay: 1000 // 1 segundo entre tentativas
+          }
+        )
         const databaseCredits = data.total_balance || 0
         const now = moment().tz('America/Sao_Paulo')
         const startDate = moment(activeContract.start_date).tz('America/Sao_Paulo')
@@ -91,11 +97,16 @@ export function usePlanDiscount(
           setLoading(true)
           setError(undefined)
           try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${userId}/balance`)
-            if (!response.ok) {
-              throw new Error('Falha ao buscar saldo do usuário')
-            }
-            const data = await response.json()
+            const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
+            const data = await fetchDataDirect<{ total_balance: number }>(
+              url,
+              (data) => data as { total_balance: number },
+              {
+                timeout: 8000,
+                retries: 2,
+                retryDelay: 1000
+              }
+            )
             const databaseCredits = data.total_balance || 0
 
             const now = moment().tz('America/Sao_Paulo')

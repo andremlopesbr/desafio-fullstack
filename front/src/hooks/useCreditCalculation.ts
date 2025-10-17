@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { fetchDataDirect } from '../utils/apiUtils'
 import { CreditCalculationResult } from '../types/api'
 
 /**
  * Hook personalizado para buscar cálculo de crédito usando TanStack Query
- * Substitui o uso da calculadora local pela API com tratamento robusto de erros
+ * Refatorado para usar fetchData centralizado com AbortController e melhor tratamento de erro
  */
 export const useCreditCalculation = (contractId?: number, planId?: number) => {
   return useQuery({
@@ -22,40 +23,54 @@ export const useCreditCalculation = (contractId?: number, planId?: number) => {
         const url = new URL(`${import.meta.env.VITE_API_URL}/contracts/${contractId}/credit-calculation`)
         url.searchParams.set('plan_id', planId.toString())
 
-        const response = await fetch(url.toString())
-
-        if (!response.ok) {
-          // Tratamento específico para diferentes códigos de erro
-          switch (response.status) {
-            case 404:
-              throw new Error('Contrato não encontrado ou cálculo não disponível')
-            case 401:
-              throw new Error('Não autorizado para acessar cálculo de crédito')
-            case 403:
-              throw new Error('Acesso negado ao cálculo de crédito')
-            case 429:
-              throw new Error('Muitas requisições. Tente novamente em alguns instantes')
-            case 500:
-              throw new Error('Erro interno do servidor. Tente novamente mais tarde')
-            case 503:
-              throw new Error('Serviço temporariamente indisponível')
-            default:
-              throw new Error(`Erro ao buscar cálculo de crédito: ${response.statusText}`)
+        const data = await fetchDataDirect<CreditCalculationResult>(
+          url.toString(),
+          (data) => {
+            // Validação básica dos dados retornados
+            if (!data || typeof data !== 'object') {
+              throw new Error('Dados de resposta inválidos')
+            }
+            return data as CreditCalculationResult
+          },
+          {
+            timeout: 15000, // 15 segundos para cálculos mais complexos
+            retries: 3,     // 3 tentativas extras para cálculos críticos
+            retryDelay: 1000 // 1 segundo entre tentativas
           }
-        }
-
-        const data = await response.json()
-
-        // Validação básica dos dados retornados
-        if (!data || typeof data !== 'object') {
-          throw new Error('Dados de resposta inválidos')
-        }
+        )
 
         return data
       } catch (error) {
-        // Re-throw fetch errors (rede, timeout, etc.)
-        if (error instanceof TypeError) {
-          throw new Error('Erro de conexão. Verifique sua internet e tente novamente')
+        // Tratamento específico para diferentes tipos de erro
+        if (error instanceof Error) {
+          // Se é erro de HTTP específico, mantém mensagem personalizada
+          if (error.message.includes('Erro HTTP')) {
+            const statusMatch = error.message.match(/Erro HTTP (\d+)/)
+            if (statusMatch) {
+              const status = parseInt(statusMatch[1])
+              switch (status) {
+                case 404:
+                  throw new Error('Contrato não encontrado ou cálculo não disponível')
+                case 401:
+                  throw new Error('Não autorizado para acessar cálculo de crédito')
+                case 403:
+                  throw new Error('Acesso negado ao cálculo de crédito')
+                case 429:
+                  throw new Error('Muitas requisições. Tente novamente em alguns instantes')
+                case 500:
+                  throw new Error('Erro interno do servidor. Tente novamente mais tarde')
+                case 503:
+                  throw new Error('Serviço temporariamente indisponível')
+                default:
+                  throw error // Mantém erro original para outros códigos
+              }
+            }
+          }
+
+          // Re-throw fetch errors (rede, timeout, etc.)
+          if (error.name === 'TypeError') {
+            throw new Error('Erro de conexão. Verifique sua internet e tente novamente')
+          }
         }
         throw error
       }

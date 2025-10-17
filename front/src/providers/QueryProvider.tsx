@@ -8,14 +8,14 @@ interface QueryProviderProps {
 }
 
 /**
- * Provider do TanStack Query que configura o QueryClient para toda a aplicação.
- * Inclui ferramentas de desenvolvimento para debug e monitoramento.
+ * Provider do TanStack Query.
+ * 
  */
 export function QueryProvider({ children }: QueryProviderProps) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* React Query DevTools - só aparece em desenvolvimento */}
+      {/* React Query DevTools - Modo DEV. */}
       {import.meta.env.DEV && (
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
       )}
