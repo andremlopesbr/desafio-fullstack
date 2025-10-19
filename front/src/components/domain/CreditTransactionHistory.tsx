@@ -10,7 +10,7 @@ const formatDate = (dateString: string) => {
 }
 
 export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryProps) => {
-  const { transactions, loading, error } = useCreditTransactionHistory(userId)
+  const { data: transactions = [], isLoading: loading, error } = useCreditTransactionHistory(userId)
   const sortedTransactions = transactions.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
@@ -21,7 +21,7 @@ export const CreditTransactionHistory = ({ userId }: CreditTransactionHistoryPro
 
       {loading && <p>Carregando histórico de transações de crédito...</p>}
 
-      {error && <p className="text-red-600">Erro ao carregar histórico: {error}</p>}
+      {error && <p className="text-red-600">Erro ao carregar histórico: {error.message}</p>}
 
       {!loading && !error && sortedTransactions.length === 0 && (
         <p className="text-gray-500 text-center py-8">Nenhum histórico de transações encontrado.</p>

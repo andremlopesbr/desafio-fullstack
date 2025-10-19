@@ -35,17 +35,11 @@ const Profile = () => {
           if (response.ok) {
             const userData = await response.json()
             setUser(userData)
-          } else {
-            // Erro tratado pelo ErrorBoundary - removido console.log de debug
           }
         }
         if (authUser?.id) {
           await refreshContracts()
-        } else {
-          // Usuário não tratado pelo ErrorBoundary - removido console.log de debug
         }
-      } catch (error) {
-        // Erro tratado pelo ErrorBoundary - removido console.log de debug
       } finally {
         setIsLoading(false)
       }

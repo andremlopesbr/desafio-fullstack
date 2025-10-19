@@ -20,13 +20,8 @@ export const History = () => {
   const { balance, refreshBalance } = useUserBalance(userId)
 
   const loadHistoryData = useCallback(async () => {
-    try {
-      await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
-    } catch (error) {
-      // Erro tratado pelo ErrorBoundary - removido console.log de debug
-    }
+    await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
   }, [refreshContracts, refreshPayments, refreshBalance])
-
   useEffect(() => {
     if (userId) {
       loadHistoryData()

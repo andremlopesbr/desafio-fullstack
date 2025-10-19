@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\ContractServiceInterface;
+use App\Contracts\BalanceServiceInterface;
+use App\Contracts\PaymentMaintenanceServiceInterface;
 use App\DTOs\ContractCreateDTO;
 use App\Models\Contract;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\UserBalance;
-use App\Models\UserBalanceTransaction;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 class ContractService implements ContractServiceInterface
 {
+    public function __construct(
+        private BalanceServiceInterface $balanceService,
+        private PaymentMaintenanceServiceInterface $paymentMaintenanceService
+    ) {}
+
     public function createContract(ContractCreateDTO $dto): Contract
     {
         // Validar se o plano existe
@@ -94,10 +100,10 @@ class ContractService implements ContractServiceInterface
                     'new_contract' => $activeContract,
                     'payment' => null,
                     'balance_info' => [
-                        'previous_balance' => $this->getUserBalance($userId),
+                        'previous_balance' => $this->balanceService->getUserBalance($userId),
                         'credits_used' => 0,
                         'credits_generated' => 0,
-                        'new_balance' => $this->getUserBalance($userId),
+                        'new_balance' => $this->balanceService->getUserBalance($userId),
                     ],
                     'additional_balance' => 0,
                     'final_amount' => 0,
@@ -148,7 +154,7 @@ class ContractService implements ContractServiceInterface
 
 
         $proratedNew = $newPlan->price;
-        $userBalance = $this->getUserBalance($userId);
+        $userBalance = $this->balanceService->getUserBalance($userId);
 
         $amount = 0;
         $creditGenerated = 0;
@@ -171,7 +177,7 @@ class ContractService implements ContractServiceInterface
                     ->exists();
 
                 if (!$recentDuplicateCredit) {
-                    $this->addBalance($userId, $creditGenerated, $description);
+                    $this->balanceService->addBalance($userId, $creditGenerated, $description);
                 }
             }
         } else { // Upgrade
@@ -205,7 +211,7 @@ class ContractService implements ContractServiceInterface
 
         // Consumir créditos do saldo se aplicável
         if ($appliedCredits > 0) {
-            $this->consumeBalance($userId, $appliedCredits);
+            $this->balanceService->consumeBalance($userId, $appliedCredits);
         }
 
         // Criar novo contrato
@@ -243,7 +249,7 @@ class ContractService implements ContractServiceInterface
                 'previous_balance' => $userBalance,
                 'credits_used' => $appliedCredits,
                 'credits_generated' => $creditGenerated,
-                'new_balance' => $this->getUserBalance($userId),
+                'new_balance' => $this->balanceService->getUserBalance($userId),
             ],
             'additional_balance' => $creditGenerated, // Crédito gerado em downgrade
             'final_amount' => $amount, // Valor final a pagar
@@ -265,106 +271,13 @@ class ContractService implements ContractServiceInterface
     }
 
     /**
-     * Obter saldo disponível para um usuário
+     * Renovar contrato expirado automaticamente
      */
-    public function getUserBalance(int $userId): float
-    {
-        return UserBalance::getTotalBalanceForUser($userId);
-    }
-
-    /**
-     * Aplicar saldo em um pagamento
-     */
-    public function applyBalanceToPayment(int $userId, float $paymentAmount): array
-    {
-        Log::info('💰 [DEBUG] applyBalanceToPayment - INICIANDO APLICAÇÃO DE SALDO', [
-            'user_id' => $userId,
-            'payment_amount' => $paymentAmount
-        ]);
-
-        $availableBalance = $this->getUserBalance($userId);
-        $appliedBalance = min($availableBalance, $paymentAmount);
-        $remainingAmount = $paymentAmount - $appliedBalance;
-
-        Log::info('💰 [DEBUG] applyBalanceToPayment - SALDO CALCULADO', [
-            'user_id' => $userId,
-            'available_balance' => $availableBalance,
-            'payment_amount' => $paymentAmount,
-            'applied_balance' => $appliedBalance,
-            'remaining_amount' => $remainingAmount
-        ]);
-
-        // Consumir saldo utilizado
-        if ($appliedBalance > 0) {
-            Log::info('💸 [DEBUG] applyBalanceToPayment - CONSUMINDO SALDO', [
-                'user_id' => $userId,
-                'amount_to_consume' => $appliedBalance,
-                'balance_before_consume' => $this->getUserBalance($userId)
-            ]);
-
-            $this->consumeBalance($userId, $appliedBalance);
-
-            Log::info('💸 [DEBUG] applyBalanceToPayment - SALDO CONSUMIDO', [
-                'user_id' => $userId,
-                'balance_after_consume' => $this->getUserBalance($userId)
-            ]);
-        }
-
-        return [
-            'applied_balance' => $appliedBalance,
-            'remaining_amount' => $remainingAmount,
-            'total_balance_used' => $appliedBalance,
-        ];
-    }
-
-    /**
-     * Consumir saldo de um usuário (usando FIFO - primeiro criado)
-     */
-    private function consumeBalance(int $userId, float $amountToConsume): void
-    {
-        $credits = UserBalance::forUser($userId)
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        $remainingToConsume = $amountToConsume;
-
-        foreach ($credits as $credit) {
-            if ($remainingToConsume <= 0) break;
-
-            if ($credit->amount <= $remainingToConsume) {
-                // Consumir crédito completo
-                $consumedAmount = $credit->amount;
-                $remainingToConsume -= $credit->amount;
-                $credit->delete();
-            } else {
-                // Consumir parte do crédito
-                $consumedAmount = $remainingToConsume;
-                $credit->amount -= $remainingToConsume;
-                $credit->save();
-                $remainingToConsume = 0;
-            }
-
-            // Logar transação de débito
-            UserBalanceTransaction::create([
-                'user_id' => $userId,
-                'amount' => $consumedAmount, // em reais
-                'type' => 'debit',
-                'description' => 'Crédito utilizado em pagamento',
-                'metadata' => [
-                    'user_balance_id' => $credit->id,
-                    'consumed_amount' => $consumedAmount,
-                ],
-            ]);
-        }
-    }
-
-
-    /**
-      * Renovar contrato expirado automaticamente
-      */
     public function renewExpiredContract(int $contractId): Contract
     {
-        Log::info("Iniciando renovação automática de contrato", ['contract_id' => $contractId]);
+        Log::info("🔄 [ContractService] Iniciando renovação automática de contrato", [
+            'contract_id' => $contractId
+        ]);
 
         $contract = Contract::with('plan')->findOrFail($contractId);
 
@@ -387,7 +300,6 @@ class ContractService implements ContractServiceInterface
         $newCycle = $this->calculateNextMonthlyCycle($newStartDate);
         $newEndDate = $newCycle['end_date'];
 
-
         // Desativar contrato atual
         $contract->update(['status' => 'completed']);
 
@@ -400,171 +312,14 @@ class ContractService implements ContractServiceInterface
             'status' => 'active',
         ]);
 
+        Log::info("✅ [ContractService] Contrato renovado com sucesso", [
+            'old_contract_id' => $contract->id,
+            'new_contract_id' => $newContract->id,
+            'new_start_date' => $newStartDate->toDateString(),
+            'new_end_date' => $newEndDate->toDateString()
+        ]);
 
         return $newContract;
-    }
-
-    /**
-      * Processar cobrança recorrente automática
-      */
-    public function processRecurringPayment(int $contractId): array
-    {
-        Log::info("Processando cobrança recorrente", ['contract_id' => $contractId]);
-
-        $contract = Contract::with('plan')->findOrFail($contractId);
-        $userId = $contract->user_id;
-        $planPrice = $contract->plan->price;
-        $userBalance = $this->getUserBalance($userId);
-        $now = Carbon::now();
-
-        // Calcular ciclo mensal atual para determinar se é cobrança proporcional
-        $cycleInfo = $this->calculateMonthlyCycle($contract, $now);
-
-
-        $valorAPagar = 0;
-        $appliedBalance = 0;
-        $isProportionalBilling = false;
-
-        // Verificar se é dia de cobrança proporcional (início do ciclo)
-        $isCycleStart = $now->isSameDay($cycleInfo['cycle_start']);
-
-        if ($isCycleStart) {
-            // Cobrança proporcional no início do ciclo mensal
-            $proportionalAmount = $planPrice * ($cycleInfo['days_remaining'] / $cycleInfo['total_days']);
-            $isProportionalBilling = true;
-            $valorAPagar = $proportionalAmount;
-        } else {
-            // Cobrança normal mensal (fim do ciclo)
-            $valorAPagar = $planPrice;
-        }
-
-        // Aplicar saldo disponível se houver cobrança
-        if ($valorAPagar > 0) {
-            $balanceResult = $this->applyBalanceToPayment($userId, $valorAPagar);
-            $appliedBalance = $balanceResult['applied_balance'];
-            $remainingAmount = $balanceResult['remaining_amount'];
-
-
-            $valorAPagar = $remainingAmount;
-        }
-
-        // Registrar pagamento da recorrência apenas se houver valor a pagar
-        $payment = null;
-        if ($valorAPagar > 0) {
-            $payment = Payment::create([
-                'contract_id' => $contractId,
-                'amount' => $valorAPagar,
-                'payment_date' => $now,
-                'status' => 'paid',
-                'applied_credits' => $appliedBalance,
-                'discount_applied' => $appliedBalance,
-                'prorated_old' => $isProportionalBilling ? $planPrice - $valorAPagar : 0,
-                'prorated_new' => $isProportionalBilling ? $valorAPagar : $planPrice,
-            ]);
-
-            Log::info("Pagamento recorrente registrado", [
-                'payment_id' => $payment->id,
-                'amount' => $valorAPagar,
-                'is_proportional' => $isProportionalBilling
-            ]);
-        }
-
-        return [
-            'payment' => $payment,
-            'valor_a_pagar' => $valorAPagar,
-            'applied_balance' => $appliedBalance,
-            'contract' => $contract,
-            'is_proportional_billing' => $isProportionalBilling,
-            'cycle_info' => $cycleInfo,
-        ];
-    }
-
-    /**
-     * Job diário para processar contratos expirados e cobranças recorrentes
-     */
-    public function processDailyMaintenance(): array
-    {
-        $results = [
-            'contracts_renewed' => 0,
-            'recurring_payments_processed' => 0,
-            'errors' => []
-        ];
-
-        try {
-            // 1. Renovar contratos expirados
-            $expiredContracts = Contract::where('end_date', '<=', Carbon::now())
-                ->where('status', 'active')
-                ->get();
-
-            foreach ($expiredContracts as $contract) {
-                try {
-                    $this->renewExpiredContract($contract->id);
-                    $results['contracts_renewed']++;
-                } catch (\Exception $e) {
-                    $results['errors'][] = "Erro renovando contrato {$contract->id}: " . $e->getMessage();
-                }
-            }
-
-            // 2. Processar cobranças recorrentes (contratos ativos que chegaram na data de cobrança)
-            $contractsDue = Contract::where('end_date', '=', Carbon::now()->addDays(1))
-                ->where('status', 'active')
-                ->get();
-
-            foreach ($contractsDue as $contract) {
-                try {
-                    $this->processRecurringPayment($contract->id);
-                    $results['recurring_payments_processed']++;
-                } catch (\Exception $e) {
-                    $results['errors'][] = "Erro processando recorrência contrato {$contract->id}: " . $e->getMessage();
-                }
-            }
-
-        } catch (\Exception $e) {
-            $results['errors'][] = "Erro geral na manutenção diária: " . $e->getMessage();
-        }
-
-        Log::info("Manutenção diária processada", $results);
-        return $results;
-    }
-
-    /**
-     * Adiciona um valor ao saldo do usuário e registra a transação.
-     */
-    public function addBalance(int $userId, float $amount, string $description): void
-    {
-        Log::info("Iniciando adição de saldo", [
-            'user_id' => $userId,
-            'amount' => $amount,
-            'description' => $description
-        ]);
-
-        if ($amount <= 0) {
-            return;
-        }
-
-        // Verificar saldo antes de adicionar
-        $balanceBefore = UserBalance::getTotalBalanceForUser($userId);
-
-        UserBalance::create([
-            'user_id' => $userId,
-            'amount' => $amount,
-            'description' => $description,
-        ]);
-
-        // Verificar saldo após adicionar
-        $balanceAfter = UserBalance::getTotalBalanceForUser($userId);
-
-        UserBalanceTransaction::create([
-            'user_id' => $userId,
-            'amount' => $amount,
-            'type' => 'credit',
-            'description' => $description,
-            'metadata' => [
-                'source' => 'plan_downgrade',
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter
-            ],
-        ]);
     }
 
     /**
@@ -637,6 +392,35 @@ class ContractService implements ContractServiceInterface
             'days_used' => $daysUsed,
             'days_remaining' => $daysRemaining
         ];
+    }
+
+    /**
+     * Aplicar saldo do usuário ao pagamento
+     */
+    public function applyBalanceToPayment(int $userId, float $paymentAmount): array
+    {
+        $userBalance = $this->balanceService->getUserBalance($userId);
+        $appliedBalance = min($userBalance, $paymentAmount);
+        $remainingAmount = $paymentAmount - $appliedBalance;
+
+        // Se aplicou saldo, consumir do saldo do usuário
+        if ($appliedBalance > 0) {
+            $this->balanceService->consumeBalance($userId, $appliedBalance);
+        }
+
+        return [
+            'applied_balance' => $appliedBalance,
+            'remaining_amount' => $remainingAmount,
+            'new_balance' => $this->balanceService->getUserBalance($userId)
+        ];
+    }
+
+    /**
+     * Obter saldo do usuário
+     */
+    public function getUserBalance(int $userId): float
+    {
+        return $this->balanceService->getUserBalance($userId);
     }
 
     /**

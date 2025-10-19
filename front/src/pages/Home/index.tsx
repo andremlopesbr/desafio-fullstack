@@ -30,11 +30,7 @@ export const Home = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      try {
-        await Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
-      } catch (error) {
-        // Erro tratado pelo ErrorBoundary - removido console.log de debug
-      }
+      await Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
     }
 
     if (user?.id) {
@@ -57,9 +53,7 @@ export const Home = () => {
 
         Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
           .then(() => {})
-          .catch(() => {
-            // Refresh silencioso - erro tratado pelo ErrorBoundary
-          })
+          .catch(() => {})
           .finally(() => {
             setIsRefreshing(false)
           })
@@ -109,7 +103,6 @@ export const Home = () => {
             Planos Disponíveis
           </h1>
 
-          {}
           {notification && (
             <Notification
               type={notification.type}
@@ -120,7 +113,6 @@ export const Home = () => {
             />
           )}
 
-          {}
           {isRefreshing && (
             <Notification
               type="success"
@@ -138,7 +130,6 @@ export const Home = () => {
                   Plano atual: {activeContract.plan.description} -{' '}
                   {formatCurrency(activeContract.plan.price)}
                 </span>
-                {}
               </div>
             </Card>
           )}

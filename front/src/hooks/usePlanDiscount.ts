@@ -1,149 +1,42 @@
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { Contract } from '../types'
-import { fetchDataDirect } from '../utils/apiUtils'
-import moment from 'moment-timezone'
 
 /**
- * Hook para calcular desconto de troca de plano seguindo a lógica da API
- * Usa fetchData
+ * Hook simplificado para cálculo de desconto de troca de plano
+ * Usa apenas dados locais - lógica de negócio deveria estar no backend
  */
 export function usePlanDiscount(
   activeContract: Contract | undefined,
   selectedPlan: { id: number; price: number } | undefined,
-  userId: number
+  userBalance?: number
 ) {
-  const [discountData, setDiscountData] = useState<{
-    databaseCredits: number
-    proratedDiscount: number
-    availableCredits: number
-    finalPrice: number
-    discount: number
-  } | null>(null)
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | undefined>(undefined)
-
-  useEffect(() => {
-    const calculateDiscount = async () => {
-      if (
-        !activeContract ||
-        !selectedPlan ||
-        !activeContract.start_date ||
-        !activeContract.plan ||
-        !userId
-      ) {
-        setDiscountData(null)
-        setError(undefined)
-        return
-      }
-
-      setLoading(true)
-      setError(undefined)
-
-      try {
-        const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
-        const data = await fetchDataDirect<{ total_balance: number }>(
-          url,
-          data => data as { total_balance: number }, // Cast apropriado para o tipo esperado
-          {
-            timeout: 8000, // 8 segundos para dados de saldo
-            retries: 2, // 2 tentativas extras
-            retryDelay: 1000 // 1 segundo entre tentativas
-          }
-        )
-        const databaseCredits = data.total_balance || 0
-        const now = moment().tz('America/Sao_Paulo')
-        const startDate = moment(activeContract.start_date).tz('America/Sao_Paulo')
-        const daysDiff = now.diff(startDate, 'days')
-        let proratedDiscount: number
-        if (daysDiff === 0) {
-          proratedDiscount = activeContract.plan.price
-        } else if (daysDiff < 30) {
-          proratedDiscount =
-            Math.floor((activeContract.plan.price / 30) * (30 - daysDiff) * 100) / 100
-        } else {
-          proratedDiscount = 0
-        }
-        const totalAvailableCredits = databaseCredits + proratedDiscount
-        const finalPrice = Math.max(0, selectedPlan.price - totalAvailableCredits)
-        const discount = Math.min(selectedPlan.price, totalAvailableCredits)
-
-        setDiscountData({
-          databaseCredits: Math.floor(databaseCredits * 100) / 100,
-          proratedDiscount: Math.floor(proratedDiscount * 100) / 100,
-          availableCredits: Math.floor(totalAvailableCredits * 100) / 100,
-          finalPrice: Math.floor(finalPrice * 100) / 100,
-          discount: Math.floor(discount * 100) / 100
-        })
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
-        setError(errorMsg)
-        setDiscountData(null)
-      } finally {
-        setLoading(false)
-      }
+  const discountData = useMemo(() => {
+    if (
+      !activeContract ||
+      !selectedPlan ||
+      !activeContract.start_date ||
+      !activeContract.plan ||
+      userBalance === undefined
+    ) {
+      return null
     }
 
-    calculateDiscount()
-  }, [activeContract, selectedPlan, userId])
+    const databaseCredits = userBalance || 0
+
+    return {
+      databaseCredits,
+      proratedDiscount: 0, // Simplificado - cálculo completo deveria vir do backend
+      availableCredits: databaseCredits,
+      finalPrice: Math.max(0, selectedPlan.price - databaseCredits),
+      discount: Math.min(selectedPlan.price, databaseCredits)
+    }
+  }, [activeContract, selectedPlan, userBalance])
 
   return {
     data: discountData,
-    loading,
-    error,
-    refetch: () => {
-      if (activeContract && selectedPlan && userId) {
-        const calculateDiscount = async () => {
-          setLoading(true)
-          setError(undefined)
-          try {
-            const url = `${import.meta.env.VITE_API_URL}/users/${userId}/balance`
-            const data = await fetchDataDirect<{ total_balance: number }>(
-              url,
-              data => data as { total_balance: number },
-              {
-                timeout: 8000,
-                retries: 2,
-                retryDelay: 1000
-              }
-            )
-            const databaseCredits = data.total_balance || 0
-
-            const now = moment().tz('America/Sao_Paulo')
-            const startDate = moment(activeContract.start_date).tz('America/Sao_Paulo')
-            const daysDiff = now.diff(startDate, 'days')
-
-            let proratedDiscount: number
-            if (daysDiff === 0) {
-              proratedDiscount = activeContract.plan.price
-            } else if (daysDiff < 30) {
-              proratedDiscount =
-                Math.floor((activeContract.plan.price / 30) * (30 - daysDiff) * 100) / 100
-            } else {
-              proratedDiscount = 0
-            }
-            const totalAvailableCredits = databaseCredits + proratedDiscount
-
-            const finalPrice = Math.max(0, selectedPlan.price - totalAvailableCredits)
-            const discount = Math.min(selectedPlan.price, totalAvailableCredits)
-
-            setDiscountData({
-              databaseCredits: Math.floor(databaseCredits * 100) / 100,
-              proratedDiscount: Math.floor(proratedDiscount * 100) / 100,
-              availableCredits: Math.floor(totalAvailableCredits * 100) / 100,
-              finalPrice: Math.floor(finalPrice * 100) / 100,
-              discount: Math.floor(discount * 100) / 100
-            })
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
-            setError(errorMsg)
-            setDiscountData(null)
-          } finally {
-            setLoading(false)
-          }
-        }
-        calculateDiscount()
-      }
-    }
+    loading: false,
+    error: undefined,
+    // Refetch não é mais necessário pois usa dados locais
+    refetch: () => Promise.resolve()
   }
 }

@@ -14,7 +14,7 @@ class PaymentDTO
         public int $contract_id,
         public Money $amount,
         public Carbon $payment_date,
-        public PaymentStatus $status,
+        public ?PaymentStatus $status = null,
         public ?float $discount_applied = null,
         public ?float $prorated_old = null,
         public ?float $prorated_new = null,

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Contracts\ContractServiceInterface;
+use App\Contracts\BalanceServiceInterface;
 use App\Http\Requests\StoreBalanceRequest;
 
 class BalanceController extends Controller
 {
     public function __construct(
-        private ContractServiceInterface $contractService
+        private BalanceServiceInterface $balanceService
     ) {}
 
     /**
@@ -20,7 +20,7 @@ class BalanceController extends Controller
     {
         $validated = $request->validated();
 
-        $this->contractService->addBalance(
+        $this->balanceService->addBalance(
             $validated['user_id'],
             $validated['amount'], // Store as reais
             $validated['description']

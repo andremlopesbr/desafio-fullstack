@@ -11,7 +11,7 @@ class PaymentResource extends JsonResource
 {
     public function toArray($request): array
     {
-        return [
+        $data = [
             'id' => $this->id,
             'contract_id' => $this->contract_id,
             'amount' => $this->amount,
@@ -26,5 +26,10 @@ class PaymentResource extends JsonResource
             'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
             'contract' => $this->whenLoaded('contract'),
         ];
+
+        // Remove campos nulos para limpar a resposta JSON
+        return array_filter($data, function($value) {
+            return $value !== null;
+        });
     }
 }

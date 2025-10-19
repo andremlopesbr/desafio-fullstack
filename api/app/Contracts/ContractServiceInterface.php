@@ -13,10 +13,7 @@ interface ContractServiceInterface
     public function createContract(ContractCreateDTO $dto): Contract;
     public function changePlan(int $contractId, int $newPlanId): array;
     public function listContractsForUser(int $userId, ?string $status = null): Collection;
-    public function getUserBalance(int $userId): float;
-    public function applyBalanceToPayment(int $userId, float $paymentAmount): array;
-    public function addBalance(int $userId, float $amount, string $description): void;
     public function renewExpiredContract(int $contractId): Contract;
-    public function processRecurringPayment(int $contractId): array;
-    public function processDailyMaintenance(): array;
+    public function applyBalanceToPayment(int $userId, float $paymentAmount): array;
+    public function getUserBalance(int $userId): float;
 }

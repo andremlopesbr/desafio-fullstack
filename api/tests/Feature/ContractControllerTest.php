@@ -30,14 +30,16 @@ class ContractControllerTest extends TestCase
 
         $response->assertStatus(201)
                  ->assertJsonStructure([
-                     'id',
-                     'user_id',
-                     'plan_id',
-                     'start_date',
-                     'end_date',
-                     'status',
-                     'created_at',
-                     'updated_at'
+                     'data' => [
+                         'id',
+                         'user_id',
+                         'plan_id',
+                         'start_date',
+                         'end_date',
+                         'status',
+                         'created_at',
+                         'updated_at'
+                     ]
                  ]);
     }
 
@@ -102,7 +104,21 @@ class ContractControllerTest extends TestCase
         $response = $this->getJson('/api/contracts?user_id=' . $user->id);
 
         $response->assertStatus(200)
-                 ->assertJsonCount(3);
+                 ->assertJsonStructure([
+                     'data' => [
+                         '*' => [
+                             'id',
+                             'user_id',
+                             'plan_id',
+                             'start_date',
+                             'end_date',
+                             'status',
+                             'created_at',
+                             'updated_at'
+                         ]
+                     ]
+                 ])
+                 ->assertJsonCount(3, 'data');
     }
 
     public function test_list_contracts_for_user_error_invalid_user()
@@ -110,7 +126,56 @@ class ContractControllerTest extends TestCase
         $response = $this->getJson('/api/contracts?user_id=999');
 
         $response->assertStatus(200)
-                  ->assertJsonCount(0);
+                 ->assertJsonStructure(['data' => []])
+                 ->assertJsonCount(0, 'data');
+    }
+
+    public function test_credit_calculation_success()
+    {
+        $user = User::factory()->create();
+        $oldPlan = Plan::factory()->create(['price' => 100.00]);
+        $newPlan = Plan::factory()->create(['price' => 150.00]);
+        $contract = Contract::factory()->create([
+            'user_id' => $user->id,
+            'plan_id' => $oldPlan->id,
+            'start_date' => now()->subDays(10),
+            'status' => 'active'
+        ]);
+
+        $response = $this->getJson("/api/contracts/{$contract->id}/credit-calculation?plan_id={$newPlan->id}");
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'database_credits',
+                     'prorated_discount',
+                     'prorated_old',
+                     'prorated_new',
+                     'available_credits',
+                     'final_price',
+                     'discount'
+                 ]);
+    }
+
+    public function test_credit_calculation_error_contract_not_found()
+    {
+        $plan = Plan::factory()->create();
+
+        $response = $this->getJson("/api/contracts/999/credit-calculation?plan_id={$plan->id}");
+
+        $response->assertStatus(404)
+                 ->assertJson(['error' => 'Contrato ou plano não encontrado']);
+    }
+
+    public function test_credit_calculation_error_missing_plan_id()
+    {
+        $user = User::factory()->create();
+        $plan = Plan::factory()->create();
+        $contract = Contract::factory()->create(['user_id' => $user->id, 'plan_id' => $plan->id]);
+
+        $response = $this->getJson("/api/contracts/{$contract->id}/credit-calculation");
+
+        $response->assertStatus(400)
+                 ->assertJson(['error' => 'Parâmetro plan_id é obrigatório']);
     }
 
     public function test_change_plan_calculates_credits_correctly()

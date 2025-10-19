@@ -85,3 +85,59 @@ export interface CreditCalculationResult {
   final_price: number
   discount: number
 }
+
+/**
+ * Interface para criação de contratos
+ */
+export interface ContractCreateData {
+  user_id: number
+  plan_id: number
+  [key: string]: unknown
+}
+
+/**
+ * Interface para criação de contratos com pagamento
+ */
+export interface ContractWithPaymentData extends ContractCreateData {
+  amount: number
+  payment_date: string
+}
+
+/**
+ * Interface para o resultado da criação de contrato com pagamento
+ */
+export interface ContractWithPaymentResult {
+  contract: Contract
+  payment: Payment
+}
+
+/**
+ * Interface para mudança de plano
+ */
+export interface PlanChangeData {
+  contractId: number
+  newPlanId: number
+}
+
+/**
+ * Interface para resposta de mudança de plano
+ */
+export interface ChangePlanResponse {
+  new_contract: Contract
+  payment?: Payment
+  remaining_credit?: number
+  credit_message?: string
+}
+
+/**
+ * Interface para item do histórico de transações de crédito
+ */
+export interface CreditTransactionHistoryItem {
+  id: number
+  user_id: number
+  amount: number
+  type: string
+  description: string
+  created_at: string
+  updated_at: string
+}

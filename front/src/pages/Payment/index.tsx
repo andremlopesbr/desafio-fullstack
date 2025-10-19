@@ -1,14 +1,12 @@
-/**
- * Página de Pagamento - Implementa fluxo completo de pagamento com PIX
- *
- */
-
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { usePlans } from '../../hooks/usePlans'
 import { useContracts } from '../../hooks/useContracts'
-import { useCreateContract, useCreateContractWithPayment } from '../../hooks/useCreateContract'
+import {
+  useCreateContractMutation,
+  useCreateContractWithPaymentMutation
+} from '../../hooks/mutations/useCreateContractMutation'
 import { useUserBalance } from '../../hooks/useUserBalance'
 import { usePlanCredits } from '../../hooks/usePlanCredits'
 import Pix from 'react-qrcode-pix'
@@ -31,8 +29,11 @@ export const Payment = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(true)
   const { plans, plansLoading, plansError, refreshPlans } = usePlans()
   const { contracts } = useContracts()
-  const { createContract, loading: contractLoading, error: contractError } = useCreateContract()
-  const { createContractWithPayment, loading: paymentLoading } = useCreateContractWithPayment()
+  const createContractMutation = useCreateContractMutation()
+  const createContractWithPaymentMutation = useCreateContractWithPaymentMutation()
+  const contractLoading = createContractMutation.isPending
+  const paymentLoading = createContractWithPaymentMutation.isPending
+  const contractError = createContractMutation.error?.message
   const { refreshBalance } = useUserBalance()
 
   const plan = plans.find((p: Plano) => p.id === Number(planId))
@@ -49,22 +50,9 @@ export const Payment = () => {
     userData ? userData.id : (user?.id ?? 0)
   )
   useEffect(() => {
-    const loadPaymentData = async () => {
-      setIsLoadingDetails(true)
-      try {
-        if (!userData) {
-          return
-        }
-      } catch (error) {
-        // Erro tratado pelo ErrorBoundary - removido console.log de debug
-      } finally {
-        setIsLoadingDetails(false)
-      }
-    }
-
-    if (user?.id) {
-      loadPaymentData()
-    }
+    if (!user?.id) return
+    if (!userData) return
+    setIsLoadingDetails(false)
   }, [user?.id, userData])
   const isBasicDataReady = useMemo(() => {
     if (plansLoading) return false
@@ -73,122 +61,100 @@ export const Payment = () => {
     return true
   }, [plansLoading, isLoadingDetails, plan])
   const isCreditCalculationReady = useMemo(() => {
-    if (!isPlanChange) return true // Não é mudança de plano
-    return !isCalculatingCredits // Aguarda fim do cálculo de créditos
+    if (!isPlanChange) return true
+    return !isCalculatingCredits
   }, [isPlanChange, isCalculatingCredits])
   const currentBalance = 0
 
   const handleConfirmPayment = async () => {
-    if (!plan) {
-      // Plano tratado pelo ErrorBoundary - removido console.log de debug
-      return
-    }
-
-    if (!planId || isNaN(Number(planId))) {
-      // planId tratado pelo ErrorBoundary - removido console.log de debug
-      return
-    }
-    if (!userData) {
-      // Usuário tratado pelo ErrorBoundary - removido console.log de debug
-      setIsProcessing(false)
-      return
-    }
+    if (!plan) return
+    if (!planId || isNaN(Number(planId))) return
+    if (!userData) return
 
     setIsProcessing(true)
 
-    try {
-      let contract
-
-      if (isPlanChange) {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/contracts/${activeContract.id}/change-plan`,
-          {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              new_plan_id: plan.id
-            })
-          }
-        )
-
-        if (!response.ok) {
-          throw new Error('Erro ao fazer mudança de plano')
+    if (isPlanChange) {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/contracts/${activeContract.id}/change-plan`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            new_plan_id: plan.id
+          })
         }
+      )
 
-        const changeResult = await response.json()
-        contract = changeResult.contract
+      if (!response.ok) {
+        throw new Error('Erro ao fazer mudança de plano')
+      }
+
+      await response.json()
+    } else {
+      const today = new Date()
+      const endDateISO = calculateContractEndDate(today)
+
+      let finalAmount: number
+      let discountApplied: number = 0
+      let proratedOld: number = 0
+      let proratedNew: number = 0
+      let appliedCredits: number = 0
+
+      if (isPlanChange && creditInfo) {
+        finalAmount = creditInfo.final_price
+        proratedOld = creditInfo.prorated_discount || 0
+        proratedNew = creditInfo.prorated_new || 0
+        appliedCredits = creditInfo.discount || 0
+        discountApplied = proratedOld + proratedNew + appliedCredits
       } else {
-        const today = new Date()
-        const endDateISO = calculateContractEndDate(today) // Usa helper para calcular data do próximo mês
-
-        let finalAmount: number
-        let discountApplied: number = 0
-        let proratedOld: number = 0
-        let proratedNew: number = 0
-        let appliedCredits: number = 0
-
-        if (isPlanChange && creditInfo) {
-          finalAmount = creditInfo.final_price
-          proratedOld = creditInfo.prorated_discount || 0
-          proratedNew = creditInfo.prorated_new || 0 // Valor cheio do plano novo
-          appliedCredits = creditInfo.discount || 0
-          discountApplied = proratedOld + proratedNew + appliedCredits
-        } else {
-          finalAmount = Math.max(0, plan.price - currentBalance)
-          appliedCredits = currentBalance
-          discountApplied = appliedCredits
-        }
-
-        if (finalAmount <= 0) {
-          finalAmount = 0
-        }
-        finalAmount = Math.round(finalAmount * 100) / 100
-
-        // Usar endpoint unificado para primeira compra (contrato + pagamento)
-        const contractWithPaymentData = {
-          user_id: userData.id, // Dados seguros do usuário autenticado
-          plan_id: plan.id,
-          start_date: today.toISOString().split('T')[0],
-          end_date: endDateISO.split('T')[0], // Data calculada com lógica de mês seguinte
-          amount: finalAmount,
-          payment_date: new Date().toISOString().split('T')[0],
-          status: 'paid',
-          discount_applied: discountApplied,
-          prorated_old: proratedOld,
-          prorated_new: proratedNew,
-          applied_credits: appliedCredits
-        }
-
-        const result = await createContractWithPayment(contractWithPaymentData)
-
-        if (!result) {
-          throw new Error('Erro ao criar contrato com pagamento')
-        }
-
-        contract = result.contract
-
-        if (result.payment) {
-          if (userData.id) {
-            await Promise.all([refreshPlans(), refreshBalance()])
-          }
-        } else if (finalAmount > 0) {
-          throw new Error('Falha no processamento do pagamento')
-        }
+        finalAmount = Math.max(0, plan.price - currentBalance)
+        appliedCredits = currentBalance
+        discountApplied = appliedCredits
       }
-      const minimumProcessingTime = 3000
-      const startTime = Date.now()
 
-      const remainingTime = minimumProcessingTime - (Date.now() - startTime)
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      if (finalAmount <= 0) {
+        finalAmount = 0
       }
-      navigate('/?success=payment')
-    } catch (error) {
-      // Erro tratado pelo ErrorBoundary - removido console.log de debug
-      setIsProcessing(false)
+      finalAmount = Math.round(finalAmount * 100) / 100
+
+      const contractWithPaymentData = {
+        user_id: userData.id,
+        plan_id: plan.id,
+        start_date: today.toISOString().split('T')[0],
+        end_date: endDateISO.split('T')[0],
+        amount: finalAmount,
+        payment_date: new Date().toISOString().split('T')[0],
+        status: 'paid',
+        discount_applied: discountApplied,
+        prorated_old: proratedOld,
+        prorated_new: proratedNew,
+        applied_credits: appliedCredits
+      }
+
+      const result = await createContractWithPaymentMutation.mutateAsync(contractWithPaymentData)
+
+      if (!result) {
+        throw new Error('Erro ao criar contrato com pagamento')
+      }
+
+      if (result.payment) {
+        if (userData.id) {
+          await Promise.all([refreshPlans(), refreshBalance()])
+        }
+      } else if (finalAmount > 0) {
+        throw new Error('Falha no processamento do pagamento')
+      }
     }
+    const minimumProcessingTime = 3000
+    const startTime = Date.now()
+
+    const remainingTime = minimumProcessingTime - (Date.now() - startTime)
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime))
+    }
+    navigate('/?success=payment')
   }
 
   if (plansLoading) {
@@ -267,8 +233,6 @@ export const Payment = () => {
               {plan.description} - {formatCurrency(plan.price)}/mês
             </p>
           </div>
-
-          {}
           <div className="mb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Descontos:</h3>
 
@@ -310,13 +274,9 @@ export const Payment = () => {
               </div>
             )}
           </div>
-
-          {}
           {!isPlanChange && currentBalance === 0 && (
             <p className="text-lg font-bold mb-4">Preço: {formatCurrency(plan.price)}</p>
           )}
-
-          {}
           {(() => {
             let finalAmount = 0
             if (creditInfo && isPlanChange) {

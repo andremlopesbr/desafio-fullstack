@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\DTOs\PaymentDTO;
 use App\Domain\Enums\PaymentStatus;
 use App\Domain\ValueObjects\Money;
-use App\Contracts\PaymentServiceInterface;
+use App\Contracts\PixPaymentServiceInterface;
 use App\Http\Requests\StorePaymentRequest;
 use App\Http\Requests\ListPaymentsRequest;
 use App\Http\Resources\PaymentResource;
@@ -19,7 +19,7 @@ use Exception;
 class PaymentController extends Controller
 {
     public function __construct(
-        private PaymentServiceInterface $paymentService
+        private PixPaymentServiceInterface $paymentService
     ) {}
 
     public function process(StorePaymentRequest $request)
@@ -33,29 +33,19 @@ class PaymentController extends Controller
 
             $validated = $request->validated();
 
-            $status = $validated['status'] ?? null;
-
-            // Garantir que pagamentos com status "pending" sejam tratados adequadamente
-            // PIX simulado sempre resulta em sucesso conforme especificação
-            $paymentStatus = $status ? PaymentStatus::from($status) : PaymentStatus::PAID;
-
-            Log::info('🔄 [DEBUG] PaymentController - Status do pagamento definido', [
-                'original_status' => $status,
-                'processed_status' => $paymentStatus->value,
-                'reason' => 'PIX simulado sempre resulta em sucesso'
-            ]);
-
+            // Criar DTO com dados validados - sem lógica específica de PIX
             $dto = new PaymentDTO(
                 contract_id: (int) $validated['contract_id'],
                 amount: new Money($validated['amount']),
                 payment_date: Carbon::parse($validated['payment_date']),
-                status: $paymentStatus,
+                status: isset($validated['status']) ? PaymentStatus::from($validated['status']) : null,
                 discount_applied: isset($validated['discount_applied']) ? (float) $validated['discount_applied'] : null,
                 prorated_old: isset($validated['prorated_old']) ? (float) $validated['prorated_old'] : null,
                 prorated_new: isset($validated['prorated_new']) ? (float) $validated['prorated_new'] : null,
                 applied_credits: isset($validated['applied_credits']) ? (float) $validated['applied_credits'] : null,
             );
 
+            // Delegar processamento para o serviço específico PIX
             $payment = $this->paymentService->processPayment($dto);
 
             Log::info('Pagamento processado com sucesso', [
@@ -65,7 +55,7 @@ class PaymentController extends Controller
                 'status' => $payment->status
             ]);
 
-            return new PaymentResource($payment);
+            return response()->json(PaymentResource::make($payment), 201);
 
         } catch (ValidationException $e) {
             Log::warning('Erro de validação no processamento de pagamento', [

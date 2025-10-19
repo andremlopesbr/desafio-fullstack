@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\CreditCalculationServiceInterface;
 use App\Models\Contract;
 use App\Models\Plan;
 use App\Models\UserBalance;
 use Carbon\Carbon;
 
-class CreditCalculationService
+class CreditCalculationService implements CreditCalculationServiceInterface
 {
     /**
      * Calcula informações de crédito para mudança de plano

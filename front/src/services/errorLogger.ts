@@ -65,10 +65,6 @@ class ErrorLogger {
   }
 
   private devLog(log: ErrorLog): void {
-    // Logging estruturado para desenvolvimento - substitui console.log
-
-    // Em desenvolvimento, podemos usar um formato mais legível
-    // que será removido automaticamente pelo bundler em produção
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
       console.group(`🚨 [${log.severity.toUpperCase()}] Error Logged`)

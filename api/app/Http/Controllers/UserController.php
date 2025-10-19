@@ -23,7 +23,7 @@ class UserController extends Controller
         // Usuário Demo
         $user = $this->userService->getUserById(1);
 
-        return new UserResource($user);
+        return UserResource::make($user);
     }
 
     /**
