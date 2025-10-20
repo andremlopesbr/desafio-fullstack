@@ -14,6 +14,12 @@ interface ErrorBoundaryProps {
   resetKeys?: Array<string | number>
   /** Contexto adicional para logging */
   context?: string
+  /** Nível de severidade do erro */
+  severity?: 'low' | 'medium' | 'high' | 'critical'
+  /** Se deve mostrar detalhes técnicos do erro */
+  showTechnicalDetails?: boolean
+  /** Timeout personalizado para retry (ms) */
+  retryTimeout?: number
 }
 
 interface ErrorBoundaryState {
@@ -47,6 +53,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.state = { hasError: false }
   }
 
+  componentWillUnmount() {
+    if (this.resetTimeoutId) {
+      window.clearTimeout(this.resetTimeoutId)
+    }
+  }
+
   /**
    * Método estático que atualiza o estado quando um erro é lançado.
    * @param error - Erro que foi lançado
@@ -68,14 +80,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     })
 
     const logger = ErrorLogger.getInstance()
-    logger.log(error, 'critical', {
+    logger.log(error, this.props.severity || 'critical', {
       component: 'ErrorBoundary',
       action: 'componentDidCatch',
       additionalData: {
         componentStack: errorInfo.componentStack,
         context: this.props.context,
         resetOnPropsChange: this.props.resetOnPropsChange,
-        hasResetKeys: !!this.props.resetKeys?.length
+        hasResetKeys: !!this.props.resetKeys?.length,
+        severity: this.props.severity,
+        showTechnicalDetails: this.props.showTechnicalDetails
       }
     })
 
@@ -98,12 +112,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * Reinicia o Error Boundary após um pequeno delay.
+   * Reinicia o Error Boundary após um delay configurável.
    */
   resetErrorBoundary = () => {
     if (this.resetTimeoutId) {
       window.clearTimeout(this.resetTimeoutId)
     }
+
+    const timeout = this.props.retryTimeout || 100
 
     this.resetTimeoutId = window.setTimeout(() => {
       this.setState({
@@ -113,12 +129,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       })
       this.resetTimeoutId = null
       this.forceUpdate()
-    }, 100)
+    }, timeout)
   }
 
   render() {
-    const { hasError } = this.state
-    const { children, fallback } = this.props
+    const { hasError, error, errorInfo } = this.state
+    const { children, fallback, context, showTechnicalDetails } = this.props
 
     if (hasError) {
       if (fallback) {
@@ -127,34 +143,74 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       return (
         <div className="min-h-[400px] flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full mx-auto p-6">
-            <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-                <svg
-                  className="w-8 h-8 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
+          <div className="max-w-2xl w-full mx-auto p-6">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {context ? `Erro em ${context}` : 'Algo deu errado'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Ocorreu um erro inesperado. Nossa equipe foi notificada e estamos trabalhando para
+                  resolver o problema.
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Algo deu errado</h3>
-              <p className="text-gray-600 mb-4">
-                Ocorreu um erro inesperado. Nossa equipe foi notificada e estamos trabalhando para
-                resolver o problema.
-              </p>
-              <button
-                onClick={this.resetErrorBoundary}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                Tentar novamente
-              </button>
+
+              {showTechnicalDetails && error && (
+                <details className="mb-4 p-4 bg-gray-50 rounded-lg border">
+                  <summary className="cursor-pointer font-medium text-gray-700 mb-2">
+                    Detalhes técnicos (para desenvolvedores)
+                  </summary>
+                  <div className="text-xs text-gray-600 font-mono space-y-2">
+                    <div>
+                      <strong>Erro:</strong> {error.message}
+                    </div>
+                    <div>
+                      <strong>Stack:</strong>
+                      <pre className="whitespace-pre-wrap mt-1 text-xs">
+                        {error.stack}
+                      </pre>
+                    </div>
+                    {errorInfo?.componentStack && (
+                      <div>
+                        <strong>Component Stack:</strong>
+                        <pre className="whitespace-pre-wrap mt-1 text-xs">
+                          {errorInfo.componentStack}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )}
+
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={this.resetErrorBoundary}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Tentar novamente
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Recarregar página
+                </button>
+              </div>
             </div>
           </div>
         </div>

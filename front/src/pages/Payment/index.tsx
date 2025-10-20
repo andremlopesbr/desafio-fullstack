@@ -7,11 +7,13 @@ import {
   useCreateContractMutation,
   useCreateContractWithPaymentMutation
 } from '../../hooks/mutations/useCreateContractMutation'
+import { changePlan } from '../../services/api'
 import { useUserBalance } from '../../hooks/useUserBalance'
 import { usePlanCredits } from '../../hooks/usePlanCredits'
 import Pix from 'react-qrcode-pix'
 import { Modal, LoadingSpinner } from '../../components/ui'
 import { PlanChangeDetails } from '../../components/domain/PlanChangeDetails'
+import { PaymentErrorBoundary } from '../../components/error/ContextualErrorBoundary'
 import Layout from '../../components/Layout'
 import {
   formatCurrency,
@@ -54,6 +56,25 @@ export const Payment = () => {
     if (!userData) return
     setIsLoadingDetails(false)
   }, [user?.id, userData])
+
+  // Carregamento inicial de dados - apenas quando necessário
+  useEffect(() => {
+    if (user?.id && userData && plans.length === 0) {
+      const loadInitialData = async () => {
+        try {
+          await Promise.all([
+            refreshPlans(),
+            refreshBalance()
+          ])
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn('Erro ao carregar dados iniciais:', error)
+        }
+      }
+
+      loadInitialData()
+    }
+  }, [user?.id, userData, plans.length, refreshPlans, refreshBalance])
   const isBasicDataReady = useMemo(() => {
     if (plansLoading) return false
     if (isLoadingDetails) return false
@@ -73,25 +94,29 @@ export const Payment = () => {
 
     setIsProcessing(true)
 
-    if (isPlanChange) {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/contracts/${activeContract.id}/change-plan`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            new_plan_id: plan.id
-          })
-        }
-      )
+    if (isPlanChange && activeContract) {
+      // eslint-disable-next-line no-console
+      console.log('🔄 Iniciando mudança de plano:', {
+        contractId: activeContract.id,
+        currentPlanId: activeContract.plan?.id,
+        newPlanId: plan.id,
+        planDescription: plan.description
+      })
 
-      if (!response.ok) {
+      // Usa o serviço de API para mudança de plano
+      const result = await changePlan({
+        contractId: activeContract.id,
+        newPlanId: plan.id
+      })
+
+      if (!result) {
+        // eslint-disable-next-line no-console
+        console.error('❌ Erro na mudança de plano - resultado vazio')
         throw new Error('Erro ao fazer mudança de plano')
       }
 
-      await response.json()
+      // eslint-disable-next-line no-console
+      console.log('✅ Mudança de plano processada com sucesso:', result)
     } else {
       const today = new Date()
       const endDateISO = calculateContractEndDate(today)
@@ -141,12 +166,33 @@ export const Payment = () => {
 
       if (result.payment) {
         if (userData.id) {
-          await Promise.all([refreshPlans(), refreshBalance()])
+          // eslint-disable-next-line no-console
+          console.log('✅ Pagamento processado com sucesso:', result)
+
+          // Usa invalidação otimizada após pagamento
+          try {
+            await Promise.all([
+              refreshPlans(),
+              refreshBalance()
+            ])
+
+            // eslint-disable-next-line no-console
+            console.log('✅ Dados atualizados após pagamento')
+          } catch (refreshError) {
+            // eslint-disable-next-line no-console
+            console.warn('⚠️ Erro ao atualizar dados após pagamento:', refreshError)
+            // Não falha o processo por erro de refresh
+          }
         }
       } else if (finalAmount > 0) {
+        // eslint-disable-next-line no-console
+        console.error('❌ Falha no processamento do pagamento - resultado:', result)
         throw new Error('Falha no processamento do pagamento')
       }
     }
+
+    // eslint-disable-next-line no-console
+    console.log('⏳ Iniciando período de processamento mínimo...')
     const minimumProcessingTime = 3000
     const startTime = Date.now()
 
@@ -154,6 +200,9 @@ export const Payment = () => {
     if (remainingTime > 0) {
       await new Promise(resolve => setTimeout(resolve, remainingTime))
     }
+
+    // eslint-disable-next-line no-console
+    console.log('✅ Processamento concluído, redirecionando...')
     navigate('/?success=payment')
   }
 
@@ -198,157 +247,159 @@ export const Payment = () => {
 
   return (
     <Layout user={user ? { id: user.id, name: user.name } : { id: 1, name: 'Usuário Teste' }}>
-      <Modal isOpen={isProcessing} onClose={() => {}} closeOnBackdropClick={false} size="sm">
-        <div className="text-center p-6">
-          <LoadingSpinner className="mx-auto mb-4" />
-          <h2 className="text-xl font-semibold">Processando Pagamento...</h2>
-          <p className="text-gray-600 mt-2">
-            Aguarde um momento, estamos confirmando tudo para você.
-          </p>
-        </div>
-      </Modal>
-
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">Pagamento</h1>
-
-        <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg p-6 border border-gray-200">
-          <h2 className="text-xl font-semibold mb-4">
-            {isPlanChange ? 'Troca de Plano' : `Assinatura: ${plan.description}`}
-          </h2>
-
-          {isPlanChange && activeContract && activeContract.plan && (
-            <div className="mb-4 p-3 bg-blue-50 rounded">
-              <h3 className="font-semibold text-blue-800">Plano Atual</h3>
-              <p className="text-blue-700">
-                {activeContract.plan.description} - {formatCurrency(activeContract.plan.price)}/mês
-              </p>
-            </div>
-          )}
-
-          <div className="mb-4 p-3 bg-green-50 rounded">
-            <h3 className="font-semibold text-green-800">
-              {isPlanChange ? 'Novo Plano' : 'Plano Selecionado'}
-            </h3>
-            <p className="text-green-700">
-              {plan.description} - {formatCurrency(plan.price)}/mês
+      <PaymentErrorBoundary>
+        <Modal isOpen={isProcessing} onClose={() => {}} closeOnBackdropClick={false} size="sm">
+          <div className="text-center p-6">
+            <LoadingSpinner className="mx-auto mb-4" />
+            <h2 className="text-xl font-semibold">Processando Pagamento...</h2>
+            <p className="text-gray-600 mt-2">
+              Aguarde um momento, estamos confirmando tudo para você.
             </p>
           </div>
-          <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Descontos:</h3>
+        </Modal>
 
-            {!isCreditCalculationReady ? (
-              <div className="p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
-                <LoadingSpinner
-                  size="sm"
-                  message="Calculando descontos proporcionais..."
-                  className="text-gray-600"
-                  centered={true}
-                />
-              </div>
-            ) : creditInfo && isPlanChange ? (
-              <PlanChangeDetails
-                creditInfo={{
-                  databaseCredits: creditInfo.database_credits,
-                  proratedDiscount: creditInfo.prorated_discount,
-                  proratedNew: creditInfo.prorated_new,
-                  finalPrice: creditInfo.final_price,
-                  proratedOld: creditInfo.prorated_old
-                }}
-                formatCurrency={formatCurrency}
-                showToCredit={true}
-              />
-            ) : isPlanChange ? (
-              <div className="p-3 bg-blue-50 rounded border border-blue-200 text-center text-blue-700 text-sm">
-                Aguardando cálculo de descontos proporcionais...
-              </div>
-            ) : currentBalance > 0 ? (
-              <div className="p-3 bg-green-50 rounded">
-                <p className="text-green-700">Saldo em Crédito: {formatCurrency(currentBalance)}</p>
-                <p className="text-green-700 font-bold">
-                  Valor Final: {formatCurrency(Math.max(0, plan.price - currentBalance))}
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-orange-400 text-3xl font-bold text-center mb-8">Pagamento</h1>
+
+          <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4">
+              {isPlanChange ? 'Troca de Plano' : `Assinatura: ${plan.description}`}
+            </h2>
+
+            {isPlanChange && activeContract && activeContract.plan && (
+              <div className="mb-4 p-3 bg-blue-50 rounded">
+                <h3 className="font-semibold text-blue-800">Plano Atual</h3>
+                <p className="text-blue-700">
+                  {activeContract.plan.description} - {formatCurrency(activeContract.plan.price)}/mês
                 </p>
               </div>
-            ) : (
-              <div className="p-3 bg-gray-50 rounded text-center text-gray-500 text-sm">
-                Nenhum desconto aplicável
-              </div>
             )}
-          </div>
-          {!isPlanChange && currentBalance === 0 && (
-            <p className="text-lg font-bold mb-4">Preço: {formatCurrency(plan.price)}</p>
-          )}
-          {(() => {
-            let finalAmount = 0
-            if (creditInfo && isPlanChange) {
-              finalAmount = creditInfo.final_price
-            } else {
-              finalAmount = Math.max(0, plan.price - currentBalance)
-            }
-            return finalAmount > 0 ? (
-              <div className="mb-6 text-center">
-                <h3 className="text-lg font-medium mb-4">Pague com PIX</h3>
 
-                {pixPayload && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-2">
-                      Código PIX (copia e cola):
-                    </label>
-                    <textarea
-                      readOnly
-                      value={pixPayload}
-                      className="w-full p-2 border rounded text-xs font-mono bg-gray-50"
-                      rows={4}
-                    />
-                    <button
-                      onClick={() => navigator.clipboard.writeText(pixPayload)}
-                      className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Copiar Código PIX
-                    </button>
-                  </div>
-                )}
+            <div className="mb-4 p-3 bg-green-50 rounded">
+              <h3 className="font-semibold text-green-800">
+                {isPlanChange ? 'Novo Plano' : 'Plano Selecionado'}
+              </h3>
+              <p className="text-green-700">
+                {plan.description} - {formatCurrency(plan.price)}/mês
+              </p>
+            </div>
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Descontos:</h3>
 
-                <div className="p-4 border inline-block rounded-lg">
-                  {(() => {
-                    const pixAmount = finalAmount
-                    return (
-                      <Pix
-                        pixkey={'33208898000147'} // Chave de email válida para teste
-                        merchant={'Inmediam'} // Sem acentos
-                        city={'SAO PAULO'}
-                        amount={parseFloat(String(pixAmount))}
-                        size={192}
-                        onLoad={(payload: string) => {
-                          setPixPayload(payload)
-                        }}
-                      />
-                    )
-                  })()}
+              {!isCreditCalculationReady ? (
+                <div className="p-4 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                  <LoadingSpinner
+                    size="sm"
+                    message="Calculando descontos proporcionais..."
+                    className="text-gray-600"
+                    centered={true}
+                  />
                 </div>
-              </div>
-            ) : null
-          })()}
-          <button
-            onClick={handleConfirmPayment}
-            disabled={contractLoading || paymentLoading || isProcessing}
-            className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center"
-          >
-            {isProcessing ? (
-              <>
-                <LoadingSpinner className="mr-2 h-4 w-4" />
-                Processando Pagamento...
-              </>
-            ) : contractLoading || paymentLoading ? (
-              <>
-                <LoadingSpinner className="mr-2 h-4 w-4" />
-                Criando Contrato...
-              </>
-            ) : (
-              'Confirmar Pagamento'
+              ) : creditInfo && isPlanChange ? (
+                <PlanChangeDetails
+                  creditInfo={{
+                    databaseCredits: creditInfo.database_credits,
+                    proratedDiscount: creditInfo.prorated_discount,
+                    proratedNew: creditInfo.prorated_new,
+                    finalPrice: creditInfo.final_price,
+                    proratedOld: creditInfo.prorated_old
+                  }}
+                  formatCurrency={formatCurrency}
+                  showToCredit={true}
+                />
+              ) : isPlanChange ? (
+                <div className="p-3 bg-blue-50 rounded border border-blue-200 text-center text-blue-700 text-sm">
+                  Aguardando cálculo de descontos proporcionais...
+                </div>
+              ) : currentBalance > 0 ? (
+                <div className="p-3 bg-green-50 rounded">
+                  <p className="text-green-700">Saldo em Crédito: {formatCurrency(currentBalance)}</p>
+                  <p className="text-green-700 font-bold">
+                    Valor Final: {formatCurrency(Math.max(0, plan.price - currentBalance))}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-gray-50 rounded text-center text-gray-500 text-sm">
+                  Nenhum desconto aplicável
+                </div>
+              )}
+            </div>
+            {!isPlanChange && currentBalance === 0 && (
+              <p className="text-lg font-bold mb-4">Preço: {formatCurrency(plan.price)}</p>
             )}
-          </button>
+            {(() => {
+              let finalAmount = 0
+              if (creditInfo && isPlanChange) {
+                finalAmount = creditInfo.final_price
+              } else {
+                finalAmount = Math.max(0, plan.price - currentBalance)
+              }
+              return finalAmount > 0 ? (
+                <div className="mb-6 text-center">
+                  <h3 className="text-lg font-medium mb-4">Pague com PIX</h3>
+
+                  {pixPayload && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">
+                        Código PIX (copia e cola):
+                      </label>
+                      <textarea
+                        readOnly
+                        value={pixPayload}
+                        className="w-full p-2 border rounded text-xs font-mono bg-gray-50"
+                        rows={4}
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(pixPayload)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Copiar Código PIX
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="p-4 border inline-block rounded-lg">
+                    {(() => {
+                      const pixAmount = finalAmount
+                      return (
+                        <Pix
+                          pixkey={'33208898000147'} // Chave de email válida para teste
+                          merchant={'Inmediam'} // Sem acentos
+                          city={'SAO PAULO'}
+                          amount={parseFloat(String(pixAmount))}
+                          size={192}
+                          onLoad={(payload: string) => {
+                            setPixPayload(payload)
+                          }}
+                        />
+                      )
+                    })()}
+                  </div>
+                </div>
+              ) : null
+            })()}
+            <button
+              onClick={handleConfirmPayment}
+              disabled={contractLoading || paymentLoading || isProcessing}
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              {isProcessing ? (
+                <>
+                  <LoadingSpinner className="mr-2 h-4 w-4" />
+                  Processando Pagamento...
+                </>
+              ) : contractLoading || paymentLoading ? (
+                <>
+                  <LoadingSpinner className="mr-2 h-4 w-4" />
+                  Criando Contrato...
+                </>
+              ) : (
+                'Confirmar Pagamento'
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      </PaymentErrorBoundary>
     </Layout>
   )
 }

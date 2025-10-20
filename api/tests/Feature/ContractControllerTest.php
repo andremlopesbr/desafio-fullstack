@@ -59,7 +59,7 @@ class ContractControllerTest extends TestCase
 
         $data = ['new_plan_id' => $newPlan->id];
 
-        $response = $this->patchJson("/api/contracts/{$contract->id}/change-plan", $data);
+        $response = $this->patchJson("/api/contracts/{$contract->id}", $data);
 
         $response->assertStatus(200)
                  ->assertJsonStructure([
@@ -197,7 +197,7 @@ class ContractControllerTest extends TestCase
 
         $data = ['new_plan_id' => $newPlan->id];
 
-        $response = $this->patchJson("/api/contracts/{$contract->id}/change-plan", $data);
+        $response = $this->patchJson("/api/contracts/{$contract->id}", $data);
 
         $response->assertStatus(200);
 

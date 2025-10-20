@@ -7,7 +7,7 @@ import { getUserBalance } from '../../services/api'
  */
 export const useUserBalanceQuery = (userId?: number) => {
   return useQuery({
-    queryKey: ['userBalance', userId],
+    queryKey: ['balance', userId],
     queryFn: async (): Promise<number> => {
       if (!userId) {
         throw new Error('UserId é necessário para buscar saldo')
@@ -17,8 +17,9 @@ export const useUserBalanceQuery = (userId?: number) => {
       return response.total_balance || 0
     },
     enabled: !!userId,
-    staleTime: 1 * 60 * 1000, // 1 minuto
-    gcTime: 2 * 60 * 1000, // 2 minutos
-    refetchInterval: 30 * 1000 // 30 segundos
+    staleTime: 5 * 60 * 1000, // 5 minutos - saldo não muda frequentemente
+    gcTime: 10 * 60 * 1000, // 10 minutos
+    refetchOnWindowFocus: false, // Evitar refetch desnecessário
+    refetchOnReconnect: true
   })
 }

@@ -6,6 +6,7 @@ import { useUserBalance } from '../../hooks/useUserBalance'
 import { useAuth } from '../../hooks/useAuth'
 import { Breadcrumbs } from '../../components/ui'
 import { HistoryTable } from '../../components/domain'
+import { DataErrorBoundary } from '../../components/error/ContextualErrorBoundary'
 import Layout from '../../components/Layout'
 import { formatCurrency } from '../../utils/formatters'
 import { Payment } from '../../types'
@@ -20,15 +21,25 @@ export const History = () => {
   const { balance, refreshBalance } = useUserBalance(userId)
 
   const loadHistoryData = useCallback(async () => {
-    await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
-  }, [refreshContracts, refreshPayments, refreshBalance])
+    // Só carrega se necessário (evita múltiplas chamadas)
+    if (contracts.length === 0 || payments.length === 0) {
+      await Promise.all([
+        refreshContracts(),
+        refreshPayments(),
+        refreshBalance()
+      ])
+    }
+  }, [refreshContracts, refreshPayments, refreshBalance, contracts.length, payments.length])
+
   useEffect(() => {
-    if (userId) {
+    if (userId && (contracts.length === 0 || payments.length === 0)) {
       loadHistoryData()
     }
-  }, [userId, loadHistoryData])
+  }, [userId, loadHistoryData, contracts.length, payments.length])
 
-  const loading = contractsLoading || paymentsLoading
+  // Estado de loading inteligente - só mostra loading se realmente necessário
+  const loading = (contractsLoading && contracts.length === 0) ||
+                  (paymentsLoading && payments.length === 0)
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR')
@@ -74,17 +85,19 @@ export const History = () => {
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
           <h2 className="text-lg sm:text-xl font-semibold mb-4">Planos Contratados</h2>
 
-          {loading && <p className="text-center py-8">Atualizando histórico...</p>}
+          <DataErrorBoundary>
+            {loading && <p className="text-center py-8">Atualizando histórico...</p>}
 
-          <HistoryTable
-            historyItems={historyItems}
-            formatCurrency={formatCurrency}
-            formatDate={formatDate}
-          />
+            <HistoryTable
+              historyItems={historyItems}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+            />
 
-          {!loading && historyItems.length === 0 && (
-            <p className="text-gray-500 text-center py-8">Nenhum plano contratado ainda.</p>
-          )}
+            {!loading && historyItems.length === 0 && (
+              <p className="text-gray-500 text-center py-8">Nenhum plano contratado ainda.</p>
+            )}
+          </DataErrorBoundary>
         </div>
       </div>
     </Layout>

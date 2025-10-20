@@ -295,7 +295,7 @@ class PaymentControllerTest extends TestCase
             'status' => 'active'
         ]);
 
-        $response = $this->patchJson("/api/contracts/{$contract->id}/change-plan", [
+        $response = $this->patchJson("/api/contracts/{$contract->id}", [
             'new_plan_id' => $newPlan->id
         ]);
 

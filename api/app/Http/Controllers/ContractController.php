@@ -138,9 +138,16 @@ class ContractController extends Controller
         }
     }
 
-    public function changePlan(ChangePlanContractRequest $request, int $contractId): JsonResponse
+    public function changePlan($request, int $contractId): JsonResponse
     {
-        $validated = $request->validated();
+        // Aceita tanto ChangePlanContractRequest quanto Request comum
+        if ($request instanceof ChangePlanContractRequest) {
+            $validated = $request->validated();
+        } else {
+            $validated = $request->validate([
+                'new_plan_id' => 'required|integer|exists:plans,id'
+            ]);
+        }
 
         $newPlanId = $validated['new_plan_id'];
 
@@ -155,6 +162,63 @@ class ContractController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Atualizar contrato (método genérico que detecta o tipo de operação)
+     */
+    public function update(Request $request, int $contractId): JsonResponse
+    {
+        try {
+            Log::info('🔄 [ContractController] Iniciando atualização de contrato', [
+                'contract_id' => $contractId,
+                'request_data' => $request->all()
+            ]);
+
+            // Detecta se é mudança de plano baseado nos dados enviados
+            if ($request->has('new_plan_id')) {
+                Log::info('🔄 [ContractController] Detectada mudança de plano, redirecionando para changePlan');
+
+                // Valida os dados como se fosse uma requisição de mudança de plano
+                $validated = $request->validate([
+                    'new_plan_id' => 'required|integer|exists:plans,id'
+                ]);
+
+                // Usa o método changePlan existente internamente
+                $request->merge($validated);
+                return $this->changePlan($request, $contractId);
+            }
+
+            // Outras atualizações podem ser adicionadas aqui no futuro
+            return response()->json([
+                'error' => 'Operação não suportada',
+                'message' => 'Tipo de atualização não reconhecido'
+            ], 400);
+
+        } catch (ValidationException $e) {
+            Log::warning('❌ [ContractController] Erro de validação na atualização de contrato', [
+                'contract_id' => $contractId,
+                'errors' => $e->errors(),
+                'data' => $request->all()
+            ]);
+
+            return response()->json([
+                'error' => 'Dados inválidos',
+                'details' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            Log::error('💥 [ContractController] Erro interno na atualização de contrato', [
+                'contract_id' => $contractId,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno do servidor',
+                'message' => config('app.debug') ? $e->getMessage() : 'Ocorreu um erro inesperado'
+            ], 500);
+        }
     }
 
     /**

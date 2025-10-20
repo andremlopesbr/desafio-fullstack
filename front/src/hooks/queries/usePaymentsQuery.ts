@@ -17,7 +17,9 @@ export const usePaymentsQuery = (userId?: number) => {
       return getPayments(userId)
     },
     enabled: !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutos
-    gcTime: 5 * 60 * 1000 // 5 minutos
+    staleTime: 5 * 60 * 1000, // 5 minutos - pagamentos mudam pouco frequentemente
+    gcTime: 10 * 60 * 1000, // 10 minutos
+    refetchOnWindowFocus: false, // Evitar refetch desnecessário
+    refetchOnReconnect: true
   })
 }

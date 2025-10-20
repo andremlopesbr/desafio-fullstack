@@ -20,11 +20,13 @@ export const useCreateContractMutation = () => {
       return createContract(contractData)
     },
     onSuccess: data => {
-      // Invalida cache relacionado após criação de contrato bem-sucedida
-      queryClient.invalidateQueries({ queryKey: ['contracts', data.user_id] })
-      queryClient.invalidateQueries({ queryKey: ['plans'] })
+      // Invalidação seletiva - apenas contratos do usuário afetado
+      queryClient.invalidateQueries({
+        queryKey: ['contracts', data.user_id],
+        exact: true
+      })
 
-      // Adiciona o novo contrato ao cache
+      // Atualiza cache otimizadamente
       queryClient.setQueryData(['contracts', data.user_id], (oldData: Contract[] | undefined) => {
         if (!oldData) return [data]
         return [...oldData, data]
@@ -62,16 +64,25 @@ export const useCreateContractWithPaymentMutation = () => {
       return createContractWithPayment(paymentData)
     },
     onSuccess: data => {
-      // Invalida cache relacionado após criação com pagamento bem-sucedida
-      queryClient.invalidateQueries({ queryKey: ['contracts', data.contract.user_id] })
-      queryClient.invalidateQueries({ queryKey: ['payments', data.contract.user_id] })
-      queryClient.invalidateQueries({ queryKey: ['balance', data.contract.user_id] })
+      // Invalidação seletiva - apenas dados necessários
       queryClient.invalidateQueries({
-        queryKey: ['credit-transaction-history', data.contract.user_id]
+        queryKey: ['contracts', data.contract.user_id],
+        exact: true
       })
-      queryClient.invalidateQueries({ queryKey: ['plans'] })
 
-      // Adiciona o novo contrato ao cache
+      if (data.payment) {
+        queryClient.invalidateQueries({
+          queryKey: ['payments', data.contract.user_id],
+          exact: true
+        })
+
+        queryClient.invalidateQueries({
+          queryKey: ['balance', data.contract.user_id],
+          exact: true
+        })
+      }
+
+      // Atualiza cache otimizadamente
       queryClient.setQueryData(
         ['contracts', data.contract.user_id],
         (oldData: Contract[] | undefined) => {

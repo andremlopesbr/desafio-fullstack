@@ -13,7 +13,6 @@ use App\Contracts\ContractWithPaymentServiceInterface;
 use App\Contracts\CreditCalculationServiceInterface;
 use App\Contracts\BalanceServiceInterface;
 use App\Contracts\PaymentMaintenanceServiceInterface;
-use App\Contracts\ContractMaintenanceServiceInterface;
 use App\Services\ContractService;
 use App\Services\PaymentService;
 use App\Services\PixPaymentService;
@@ -23,7 +22,6 @@ use App\Services\ContractWithPaymentService;
 use App\Services\CreditCalculationService;
 use App\Services\BalanceService;
 use App\Services\PaymentMaintenanceService;
-use App\Services\ContractMaintenanceService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -44,7 +42,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CreditCalculationServiceInterface::class, CreditCalculationService::class);
         $this->app->bind(BalanceServiceInterface::class, BalanceService::class);
         $this->app->bind(PaymentMaintenanceServiceInterface::class, PaymentMaintenanceService::class);
-        $this->app->bind(ContractMaintenanceServiceInterface::class, ContractMaintenanceService::class);
     }
 
     /**

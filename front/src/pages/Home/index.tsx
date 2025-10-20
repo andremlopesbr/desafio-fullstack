@@ -29,14 +29,24 @@ export const Home = () => {
   const [hasProcessedPayment, setHasProcessedPayment] = useState(false)
 
   useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
-    }
+    // Só carrega se necessário (evita múltiplas consultas)
+    if (user?.id && (plans.length === 0 || contracts.length === 0)) {
+      const loadData = async () => {
+        try {
+          await Promise.all([
+            refreshPlans(),
+            refreshContracts(),
+            refreshBalance()
+          ])
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn('Erro ao carregar dados iniciais:', error)
+        }
+      }
 
-    if (user?.id) {
       loadData()
     }
-  }, [user?.id, refreshPlans, refreshContracts, refreshBalance])
+  }, [user?.id, plans.length, contracts.length, refreshPlans, refreshContracts, refreshBalance])
 
   useEffect(() => {
     const success = searchParams.get('success')
@@ -74,7 +84,11 @@ export const Home = () => {
     hasProcessedPayment
   ])
 
-  const loading = plansLoading || contractsLoading || isRefreshing
+  // Loading inteligente - só mostra se realmente necessário
+  const loading = (plansLoading && plans.length === 0) ||
+                  (contractsLoading && contracts.length === 0) ||
+                  isRefreshing
+
   const error = plansError || contractsError
 
   const activeContract = contracts.find((contract: Contract) => contract.status === 'active')

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\ContractController;
-use App\Http\Controllers\ContractMaintenanceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\UserController;
@@ -24,7 +23,11 @@ use Illuminate\Support\Facades\Route;
 // });
 
 Route::get('/', function () {
-    return response()->json(['message' => 'ok']);
+    return response()->json([
+        'message' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'version' => '1.0.0'
+    ]);
 });
 
 Route::apiResource('plans', PlanController::class, ['only' => 'index']);
@@ -34,11 +37,14 @@ Route::get('users/{user}/balance-history', [UserController::class, 'balanceHisto
 Route::get('balance/{user}', [ContractController::class, 'getBalance']);
 
 Route::post('contracts', [ContractController::class, 'create']);
-Route::patch('contracts/{contract}/change-plan', [ContractController::class, 'changePlan']);
+Route::patch('contracts/{contract}', [ContractController::class, 'update']);
 Route::get('contracts', [ContractController::class, 'listForUser']);
 Route::get('contracts/{contract}/credit-calculation', [ContractController::class, 'creditCalculation']);
 
-Route::get('payments', [PaymentController::class, 'listForUser']);
+// Rota específica para mudança de plano (legada - pode ser removida após testes)
+Route::patch('contracts/{contract}/change-plan-legacy', [ContractController::class, 'changePlan']);
+
+Route::get('payments', [PaymentController::class, 'listForUser'])->name('payments.index');
 Route::post('payments', [PaymentController::class, 'process']);
 
 Route::post('balance', [BalanceController::class, 'store']);

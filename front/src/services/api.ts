@@ -72,7 +72,7 @@ export const changePlan = ({
   contractId: number
   newPlanId: number
 }): Promise<ChangePlanResponse> => {
-  return request<ChangePlanResponse>(`/contracts/${contractId}/change-plan`, {
+  return request<ChangePlanResponse>(`/contracts/${contractId}`, {
     method: 'PATCH',
     body: JSON.stringify({ new_plan_id: newPlanId })
   })
