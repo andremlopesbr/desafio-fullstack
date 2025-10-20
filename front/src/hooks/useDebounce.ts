@@ -44,10 +44,7 @@ export const useDebounce = <T extends (...args: never[]) => unknown>(
  * Hook personalizado para operações de refresh com debounce
  * Evita múltiplas chamadas simultâneas de refresh
  */
-export const useDebouncedRefresh = (
-  refreshFn: () => void | Promise<void>,
-  delay: number = 300
-) => {
+export const useDebouncedRefresh = (refreshFn: () => void | Promise<void>, delay: number = 300) => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [debouncedRefresh, cancelRefresh] = useDebounce(async () => {
     try {
@@ -82,9 +79,7 @@ export const useDebouncedBatchRefresh = (
       setIsRefreshing(true)
 
       // Executa todas as funções de refresh em paralelo
-      await Promise.all(
-        refreshFunctions.map(fn => Promise.resolve(fn()))
-      )
+      await Promise.all(refreshFunctions.map(fn => Promise.resolve(fn())))
     } catch (error) {
       // eslint-disable-next-line no-console
       console.warn('Erro no batch refresh com debounce:', error)

@@ -62,10 +62,7 @@ export const Payment = () => {
     if (user?.id && userData && plans.length === 0) {
       const loadInitialData = async () => {
         try {
-          await Promise.all([
-            refreshPlans(),
-            refreshBalance()
-          ])
+          await Promise.all([refreshPlans(), refreshBalance()])
         } catch (error) {
           // eslint-disable-next-line no-console
           console.warn('Erro ao carregar dados iniciais:', error)
@@ -171,10 +168,7 @@ export const Payment = () => {
 
           // Usa invalidação otimizada após pagamento
           try {
-            await Promise.all([
-              refreshPlans(),
-              refreshBalance()
-            ])
+            await Promise.all([refreshPlans(), refreshBalance()])
 
             // eslint-disable-next-line no-console
             console.log('✅ Dados atualizados após pagamento')
@@ -270,7 +264,8 @@ export const Payment = () => {
               <div className="mb-4 p-3 bg-blue-50 rounded">
                 <h3 className="font-semibold text-blue-800">Plano Atual</h3>
                 <p className="text-blue-700">
-                  {activeContract.plan.description} - {formatCurrency(activeContract.plan.price)}/mês
+                  {activeContract.plan.description} - {formatCurrency(activeContract.plan.price)}
+                  /mês
                 </p>
               </div>
             )}
@@ -313,7 +308,9 @@ export const Payment = () => {
                 </div>
               ) : currentBalance > 0 ? (
                 <div className="p-3 bg-green-50 rounded">
-                  <p className="text-green-700">Saldo em Crédito: {formatCurrency(currentBalance)}</p>
+                  <p className="text-green-700">
+                    Saldo em Crédito: {formatCurrency(currentBalance)}
+                  </p>
                   <p className="text-green-700 font-bold">
                     Valor Final: {formatCurrency(Math.max(0, plan.price - currentBalance))}
                   </p>

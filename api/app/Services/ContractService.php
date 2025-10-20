@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Contracts\ContractServiceInterface;
 use App\Contracts\BalanceServiceInterface;
-use App\Contracts\PaymentMaintenanceServiceInterface;
 use App\DTOs\ContractCreateDTO;
 use App\Models\Contract;
 use App\Models\Payment;
@@ -19,8 +18,7 @@ use Illuminate\Support\Facades\Log;
 class ContractService implements ContractServiceInterface
 {
     public function __construct(
-        private BalanceServiceInterface $balanceService,
-        private PaymentMaintenanceServiceInterface $paymentMaintenanceService
+        private BalanceServiceInterface $balanceService
     ) {}
 
     public function createContract(ContractCreateDTO $dto): Contract

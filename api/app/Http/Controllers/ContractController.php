@@ -39,13 +39,6 @@ class ContractController extends Controller
                 ($request->has('amount') && $request->amount > 0);
 
             if ($hasPaymentData) {
-                // Se tem dados de pagamento, usa a lógica de criação com pagamento
-                Log::info('🔄 [ContractController] Detectado dados de pagamento, usando createWithPayment', [
-                    'user_id' => $request->input('user_id'),
-                    'plan_id' => $request->input('plan_id'),
-                    'amount' => $request->input('amount')
-                ]);
-
                 return $this->createWithPayment($request);
             }
 
@@ -70,22 +63,11 @@ class ContractController extends Controller
 
             return ContractResource::make($contract);
         } catch (ValidationException $e) {
-            Log::warning('❌ [ContractController] Erro de validação na criação de contrato', [
-                'errors' => $e->errors(),
-                'data' => $request->all()
-            ]);
-
             return response()->json([
                 'error' => 'Dados inválidos',
                 'details' => $e->errors()
             ], 422);
         } catch (Exception $e) {
-            Log::error('💥 [ContractController] Erro interno na criação de contrato', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-
             return response()->json([
                 'error' => 'Erro interno do servidor',
                 'message' => config('app.debug') ? $e->getMessage() : 'Ocorreu um erro inesperado'
@@ -99,12 +81,6 @@ class ContractController extends Controller
     public function createWithPayment(Request $request)
     {
         try {
-            Log::info('🔄 [ContractController] Iniciando criação de contrato com pagamento integrado', [
-                'user_id' => $request->input('user_id'),
-                'plan_id' => $request->input('plan_id'),
-                'amount' => $request->input('amount')
-            ]);
-
             $result = $this->contractWithPaymentService->createWithPayment($request->all());
 
             return response()->json([
@@ -114,22 +90,11 @@ class ContractController extends Controller
                 'is_first_purchase' => $result['is_first_purchase']
             ]);
         } catch (ValidationException $e) {
-            Log::warning('❌ [ContractController] Erro de validação na criação com pagamento', [
-                'errors' => $e->errors(),
-                'data' => $request->all()
-            ]);
-
             return response()->json([
                 'error' => 'Dados inválidos',
                 'details' => $e->errors()
             ], 422);
         } catch (Exception $e) {
-            Log::error('💥 [ContractController] Erro interno na criação com pagamento', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-
             return response()->json([
                 'error' => 'Erro interno do servidor',
                 'message' => config('app.debug') ? $e->getMessage() : 'Ocorreu um erro inesperado'
@@ -169,49 +134,26 @@ class ContractController extends Controller
     public function update(Request $request, int $contractId): JsonResponse
     {
         try {
-            Log::info('🔄 [ContractController] Iniciando atualização de contrato', [
-                'contract_id' => $contractId,
-                'request_data' => $request->all()
-            ]);
-
             // Detecta se é mudança de plano baseado nos dados enviados
             if ($request->has('new_plan_id')) {
-                Log::info('🔄 [ContractController] Detectada mudança de plano, redirecionando para changePlan');
-
-                // Valida os dados como se fosse uma requisição de mudança de plano
                 $validated = $request->validate([
                     'new_plan_id' => 'required|integer|exists:plans,id'
                 ]);
 
-                // Usa o método changePlan existente internamente
                 $request->merge($validated);
                 return $this->changePlan($request, $contractId);
             }
 
-            // Outras atualizações podem ser adicionadas aqui no futuro
             return response()->json([
                 'error' => 'Operação não suportada',
                 'message' => 'Tipo de atualização não reconhecido'
             ], 400);
         } catch (ValidationException $e) {
-            Log::warning('❌ [ContractController] Erro de validação na atualização de contrato', [
-                'contract_id' => $contractId,
-                'errors' => $e->errors(),
-                'data' => $request->all()
-            ]);
-
             return response()->json([
                 'error' => 'Dados inválidos',
                 'details' => $e->errors()
             ], 422);
         } catch (Exception $e) {
-            Log::error('💥 [ContractController] Erro interno na atualização de contrato', [
-                'contract_id' => $contractId,
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-
             return response()->json([
                 'error' => 'Erro interno do servidor',
                 'message' => config('app.debug') ? $e->getMessage() : 'Ocorreu um erro inesperado'

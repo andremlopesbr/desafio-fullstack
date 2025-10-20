@@ -181,9 +181,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     </div>
                     <div>
                       <strong>Stack:</strong>
-                      <pre className="whitespace-pre-wrap mt-1 text-xs">
-                        {error.stack}
-                      </pre>
+                      <pre className="whitespace-pre-wrap mt-1 text-xs">{error.stack}</pre>
                     </div>
                     {errorInfo?.componentStack && (
                       <div>

@@ -44,7 +44,11 @@ export const useOptimizedInvalidation = () => {
     }
   }
 
-  const invalidateContractSpecific = async (userId: number, contractId: number, options: InvalidationOptions = {}) => {
+  const invalidateContractSpecific = async (
+    userId: number,
+    contractId: number,
+    options: InvalidationOptions = {}
+  ) => {
     try {
       const { onSuccess } = options
 

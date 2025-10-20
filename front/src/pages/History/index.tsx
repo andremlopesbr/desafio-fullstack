@@ -23,11 +23,7 @@ export const History = () => {
   const loadHistoryData = useCallback(async () => {
     // Só carrega se necessário (evita múltiplas chamadas)
     if (contracts.length === 0 || payments.length === 0) {
-      await Promise.all([
-        refreshContracts(),
-        refreshPayments(),
-        refreshBalance()
-      ])
+      await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
     }
   }, [refreshContracts, refreshPayments, refreshBalance, contracts.length, payments.length])
 
@@ -38,8 +34,8 @@ export const History = () => {
   }, [userId, loadHistoryData, contracts.length, payments.length])
 
   // Estado de loading inteligente - só mostra loading se realmente necessário
-  const loading = (contractsLoading && contracts.length === 0) ||
-                  (paymentsLoading && payments.length === 0)
+  const loading =
+    (contractsLoading && contracts.length === 0) || (paymentsLoading && payments.length === 0)
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR')
