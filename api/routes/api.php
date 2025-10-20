@@ -35,16 +35,12 @@ Route::apiResource('plans', PlanController::class, ['only' => 'index']);
 Route::apiSingleton('user', UserController::class, ['only' => 'show']);
 Route::get('users/{user}/balance-history', [UserController::class, 'balanceHistory']);
 Route::get('balance/{user}', [ContractController::class, 'getBalance']);
+Route::post('balance', [BalanceController::class, 'store']);
 
 Route::post('contracts', [ContractController::class, 'create']);
 Route::patch('contracts/{contract}', [ContractController::class, 'update']);
 Route::get('contracts', [ContractController::class, 'listForUser']);
 Route::get('contracts/{contract}/credit-calculation', [ContractController::class, 'creditCalculation']);
 
-// Rota específica para mudança de plano (legada - pode ser removida após testes)
-Route::patch('contracts/{contract}/change-plan-legacy', [ContractController::class, 'changePlan']);
-
 Route::get('payments', [PaymentController::class, 'listForUser'])->name('payments.index');
 Route::post('payments', [PaymentController::class, 'process']);
-
-Route::post('balance', [BalanceController::class, 'store']);

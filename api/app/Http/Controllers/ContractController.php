@@ -36,7 +36,7 @@ class ContractController extends Controller
         try {
             // Verifica se há dados de pagamento na requisição
             $hasPaymentData = $request->has(['amount', 'payment_date']) ||
-                              ($request->has('amount') && $request->amount > 0);
+                ($request->has('amount') && $request->amount > 0);
 
             if ($hasPaymentData) {
                 // Se tem dados de pagamento, usa a lógica de criação com pagamento
@@ -69,7 +69,6 @@ class ContractController extends Controller
             $contract = $this->contractService->createContract($dto);
 
             return ContractResource::make($contract);
-
         } catch (ValidationException $e) {
             Log::warning('❌ [ContractController] Erro de validação na criação de contrato', [
                 'errors' => $e->errors(),
@@ -194,7 +193,6 @@ class ContractController extends Controller
                 'error' => 'Operação não suportada',
                 'message' => 'Tipo de atualização não reconhecido'
             ], 400);
-
         } catch (ValidationException $e) {
             Log::warning('❌ [ContractController] Erro de validação na atualização de contrato', [
                 'contract_id' => $contractId,
@@ -274,5 +272,4 @@ class ContractController extends Controller
             'total_balance' => $balance
         ]);
     }
-
 }
