@@ -21,7 +21,7 @@ export const History = () => {
   const { balance, refreshBalance } = useUserBalance(userId)
 
   const loadHistoryData = useCallback(async () => {
-    // Só carrega se necessário (evita múltiplas chamadas)
+    // Só carrega se necessário
     if (contracts.length === 0 || payments.length === 0) {
       await Promise.all([refreshContracts(), refreshPayments(), refreshBalance()])
     }
@@ -33,7 +33,7 @@ export const History = () => {
     }
   }, [userId, loadHistoryData, contracts.length, payments.length])
 
-  // Estado de loading inteligente - só mostra loading se realmente necessário
+  // Estado de loading
   const loading =
     (contractsLoading && contracts.length === 0) || (paymentsLoading && payments.length === 0)
 
@@ -88,6 +88,7 @@ export const History = () => {
               historyItems={historyItems}
               formatCurrency={formatCurrency}
               formatDate={formatDate}
+              isLoadingPayments={paymentsLoading}
             />
 
             {!loading && historyItems.length === 0 && (

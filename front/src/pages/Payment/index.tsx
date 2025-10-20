@@ -9,6 +9,7 @@ import {
 } from '../../hooks/mutations/useCreateContractMutation'
 import { changePlan } from '../../services/api'
 import { useUserBalance } from '../../hooks/useUserBalance'
+import { useOptimizedInvalidation } from '../../hooks/useOptimizedInvalidation'
 import { usePlanCredits } from '../../hooks/usePlanCredits'
 import Pix from 'react-qrcode-pix'
 import { Modal, LoadingSpinner } from '../../components/ui'
@@ -36,7 +37,7 @@ export const Payment = () => {
   const contractLoading = createContractMutation.isPending
   const paymentLoading = createContractWithPaymentMutation.isPending
   const contractError = createContractMutation.error?.message
-  const { refreshBalance } = useUserBalance()
+  const { refreshBalance, balance } = useUserBalance()
 
   const plan = plans.find((p: Plano) => p.id === Number(planId))
   const activeContract = contracts.find((c: Contract) => c.status === 'active')
@@ -51,21 +52,21 @@ export const Payment = () => {
     plan || undefined,
     userData ? userData.id : (user?.id ?? 0)
   )
+
+  const { invalidateAfterPayment } = useOptimizedInvalidation()
   useEffect(() => {
     if (!user?.id) return
     if (!userData) return
     setIsLoadingDetails(false)
   }, [user?.id, userData])
 
-  // Carregamento inicial de dados - apenas quando necessário
   useEffect(() => {
     if (user?.id && userData && plans.length === 0) {
       const loadInitialData = async () => {
         try {
           await Promise.all([refreshPlans(), refreshBalance()])
         } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn('Erro ao carregar dados iniciais:', error)
+          // Erro capturado pelo ErrorBoundary
         }
       }
 
@@ -82,7 +83,8 @@ export const Payment = () => {
     if (!isPlanChange) return true
     return !isCalculatingCredits
   }, [isPlanChange, isCalculatingCredits])
-  const currentBalance = 0
+
+  const currentBalance = balance || 0
 
   const handleConfirmPayment = async () => {
     if (!plan) return
@@ -92,28 +94,14 @@ export const Payment = () => {
     setIsProcessing(true)
 
     if (isPlanChange && activeContract) {
-      // eslint-disable-next-line no-console
-      console.log('🔄 Iniciando mudança de plano:', {
-        contractId: activeContract.id,
-        currentPlanId: activeContract.plan?.id,
-        newPlanId: plan.id,
-        planDescription: plan.description
-      })
-
-      // Usa o serviço de API para mudança de plano
       const result = await changePlan({
         contractId: activeContract.id,
         newPlanId: plan.id
       })
 
       if (!result) {
-        // eslint-disable-next-line no-console
-        console.error('❌ Erro na mudança de plano - resultado vazio')
         throw new Error('Erro ao fazer mudança de plano')
       }
-
-      // eslint-disable-next-line no-console
-      console.log('✅ Mudança de plano processada com sucesso:', result)
     } else {
       const today = new Date()
       const endDateISO = calculateContractEndDate(today)
@@ -163,30 +151,17 @@ export const Payment = () => {
 
       if (result.payment) {
         if (userData.id) {
-          // eslint-disable-next-line no-console
-          console.log('✅ Pagamento processado com sucesso:', result)
-
-          // Usa invalidação otimizada após pagamento
           try {
-            await Promise.all([refreshPlans(), refreshBalance()])
-
-            // eslint-disable-next-line no-console
-            console.log('✅ Dados atualizados após pagamento')
+            await invalidateAfterPayment(userData.id)
           } catch (refreshError) {
-            // eslint-disable-next-line no-console
-            console.warn('⚠️ Erro ao atualizar dados após pagamento:', refreshError)
-            // Não falha o processo por erro de refresh
+            // Erro capturado pelo ErrorBoundary
           }
         }
       } else if (finalAmount > 0) {
-        // eslint-disable-next-line no-console
-        console.error('❌ Falha no processamento do pagamento - resultado:', result)
         throw new Error('Falha no processamento do pagamento')
       }
     }
 
-    // eslint-disable-next-line no-console
-    console.log('⏳ Iniciando período de processamento mínimo...')
     const minimumProcessingTime = 3000
     const startTime = Date.now()
 
@@ -195,8 +170,6 @@ export const Payment = () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime))
     }
 
-    // eslint-disable-next-line no-console
-    console.log('✅ Processamento concluído, redirecionando...')
     navigate('/?success=payment')
   }
 
@@ -242,7 +215,7 @@ export const Payment = () => {
   return (
     <Layout user={user ? { id: user.id, name: user.name } : { id: 1, name: 'Usuário Teste' }}>
       <PaymentErrorBoundary>
-        <Modal isOpen={isProcessing} onClose={() => {}} closeOnBackdropClick={false} size="sm">
+        <Modal isOpen={isProcessing} onClose={() => { }} closeOnBackdropClick={false} size="sm">
           <div className="text-center p-6">
             <LoadingSpinner className="mx-auto mb-4" />
             <h2 className="text-xl font-semibold">Processando Pagamento...</h2>
@@ -360,8 +333,8 @@ export const Payment = () => {
                       const pixAmount = finalAmount
                       return (
                         <Pix
-                          pixkey={'33208898000147'} // Chave de email válida para teste
-                          merchant={'Inmediam'} // Sem acentos
+                          pixkey={'33208898000147'}
+                          merchant={'Inmediam'}
                           city={'SAO PAULO'}
                           amount={parseFloat(String(pixAmount))}
                           size={192}

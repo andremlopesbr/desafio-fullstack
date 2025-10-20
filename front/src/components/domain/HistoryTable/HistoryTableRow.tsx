@@ -7,13 +7,15 @@ interface HistoryTableRowProps {
   index: number
   formatCurrency: (value: number) => string
   formatDate: (dateString: string) => string
+  isLoadingPayments?: boolean
 }
 
 export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
   item,
   index,
   formatCurrency,
-  formatDate
+  formatDate,
+  isLoadingPayments = false
 }) => {
   const { contract, payments } = item
 
@@ -41,6 +43,16 @@ export const HistoryTableRow: React.FC<HistoryTableRowProps> = ({
 
       <TableCell className="bg-white border-b border-gray-100">
         {(() => {
+          // animação de loading
+          if (isLoadingPayments) {
+            return (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-400"></div>
+                <span className="text-gray-500 text-sm">Calculando descontos...</span>
+              </div>
+            )
+          }
+
           const sortedPayments = [...payments].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           )

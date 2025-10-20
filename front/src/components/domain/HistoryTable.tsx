@@ -9,6 +9,7 @@ interface HistoryTableProps {
   historyItems: HistoryItem[]
   formatCurrency: (value: number) => string
   formatDate: (dateString: string) => string
+  isLoadingPayments?: boolean
 }
 
 type SortField = 'order' | 'invoice' | 'status'
@@ -17,7 +18,8 @@ type SortDirection = 'asc' | 'desc'
 export const HistoryTable: React.FC<HistoryTableProps> = ({
   historyItems,
   formatCurrency,
-  formatDate
+  formatDate,
+  isLoadingPayments = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('invoice')
@@ -105,6 +107,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
                   index={index}
                   formatCurrency={formatCurrency}
                   formatDate={formatDate}
+                  isLoadingPayments={isLoadingPayments}
                 />
               ))}
             </TableBody>
