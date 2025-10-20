@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { usePlans } from '../../hooks/usePlans'
 import { useContracts } from '../../hooks/useContracts'
+import { usePayments } from '../../hooks/usePayments'
 import { useUserBalance } from '../../hooks/useUserBalance'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Notification, Card } from '../../components/ui'
@@ -15,6 +16,8 @@ export const Home = () => {
   const { plans, plansLoading, plansError, refreshPlans } = usePlans()
 
   const { contracts, contractsLoading, contractsError, refreshContracts } = useContracts()
+
+  const { refreshPayments } = usePayments()
 
   const { refreshBalance } = useUserBalance()
 
@@ -57,7 +60,7 @@ export const Home = () => {
       if (user?.id) {
         setIsRefreshing(true)
 
-        Promise.all([refreshPlans(), refreshContracts(), refreshBalance()])
+        Promise.all([refreshPlans(), refreshContracts(), refreshPayments(), refreshBalance()])
           .then(() => {})
           .catch(() => {})
           .finally(() => {
@@ -76,6 +79,7 @@ export const Home = () => {
     user?.id,
     refreshPlans,
     refreshContracts,
+    refreshPayments,
     refreshBalance,
     hasProcessedPayment
   ])
