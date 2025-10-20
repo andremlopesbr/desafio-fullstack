@@ -10,7 +10,7 @@ Este documento fornece uma orientação completa para desenvolvedores que trabal
 
 ## 🏗️ Arquitetura do Sistema
 
-### **Backend - Laravel 11**
+### **Backend - Laravel 9.52.16**
 
 ```
 api/
